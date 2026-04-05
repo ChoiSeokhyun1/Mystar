@@ -1,0 +1,692 @@
+/* ============================================================
+   pveTrain.css — 선수 훈련 페이지
+   myTeam.css 구조 기준
+   ============================================================ */
+
+/* ── 1. 페이지 레이아웃 고정 (myTeam과 동일) ── */
+.msl-main {
+    position: fixed !important;
+    top: 60px !important;
+    bottom: 0 !important;
+    left: 280px !important;
+    right: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    padding: 1.5rem !important;
+    box-sizing: border-box;
+}
+
+.msl-page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    flex-shrink: 0;
+}
+.msl-page-header-right { flex-shrink: 0; }
+
+/* ── 훈련 포인트 배지 ── */
+.train-point-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(0,230,118,0.07);
+    border: 1px solid var(--green-border);
+    border-radius: 4px;
+    padding: 0.4rem 1rem;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--green);
+}
+.train-point-badge span {
+    font-size: 1.4rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+/* ── 2. 메인 그리드 (좌우 5:5) ── */
+.train-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* ── 3. 우측 컬럼 — 단일 패널 ── */
+.train-right-col {
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* ── 패널 스크롤 ── */
+.msl-panel {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.msl-panel-head { flex-shrink: 0; }
+.msl-panel-body { flex: 1; overflow-y: auto; min-height: 0; }
+
+/* ── 좌측 목록 패널 ── */
+.train-list-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+
+
+/* ── 목록 총합 스탯 ── */
+.train-total-stat {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-align: center;
+}
+.squad-list-item.active .train-total-stat { color: var(--green); }
+
+/* ── 우측 상단: 선수 상세 ── */
+.squad-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--border2);
+}
+.squad-card-title h2 {
+    margin: 0;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.5rem;
+    color: #fff;
+}
+.squad-card-meta { display: flex; gap: 0.5rem; align-items: center; }
+
+.squad-stat-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.7rem 1.2rem;
+}
+
+/* 스탯 바 색상 */
+.train-bar-atk { background: var(--red) !important; }
+.train-bar-def { background: var(--blue) !important; }
+.train-bar-mac { background: var(--green) !important; }
+.train-bar-mic { background: var(--gold) !important; }
+.train-bar-luk { background: var(--purple) !important; }
+
+/* ── 우측 하단: 훈련 패널 ── */
+.train-action-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 1.2rem 1.5rem 1.5rem !important;
+}
+
+.train-action-placeholder {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    margin: auto;
+}
+
+#trainAction {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 0;
+}
+
+.train-action-desc {
+    flex: 1;
+    font-size: 0.88rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+    padding: 0.5rem 0;
+}
+
+.train-do-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem 2rem !important;
+    font-size: 0.95rem !important;
+    margin-top: auto;
+}
+.train-do-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* ── 훈련 결과 모달 ── */
+.train-modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+.train-modal-overlay.show { display: flex; }
+
+.train-modal {
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 2rem 2.2rem 1.8rem;
+    min-width: 340px; max-width: 440px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    animation: modalIn 0.22s ease-out;
+}
+@keyframes modalIn {
+    from { transform: scale(0.92) translateY(16px); opacity: 0; }
+    to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.train-modal-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 0.2rem;
+    letter-spacing: 0.05em;
+}
+.train-modal-sub {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    margin-bottom: 0.8rem;
+}
+
+/* 레이더 */
+.radar-wrap {
+    width: 200px; height: 200px;
+    margin: 0 auto 1rem;
+}
+#radarSvg { width: 100%; height: 100%; }
+
+/* 수치 칩 */
+.train-modal-stats {
+    display: flex;
+    gap: 0.3rem;
+    justify-content: center;
+    flex-wrap: nowrap;
+    margin-bottom: 1rem;
+}
+.result-stat-chip {
+    padding: 0.28rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    background: var(--green-dim);
+    border: 1px solid var(--green-border);
+    color: var(--green);
+    white-space: nowrap;
+    font-family: 'Barlow Condensed', sans-serif;
+}
+.result-stat-chip.zero {
+    opacity: 0.2;
+    background: transparent;
+    border-color: var(--border);
+    color: var(--text-dim);
+}
+
+/* ── myTeam.css에서 가져온 공통 리스트 스타일 ── */
+.squad-toolbar {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,0,0,0.1);
+    flex-shrink: 0;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.squad-filter-group {
+    display: flex;
+    gap: 0.4rem;
+}
+.filter-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 0.3rem 0.7rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+.filter-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+.filter-btn.active { background: var(--green); color: #000; border-color: var(--green); }
+
+
+.squad-list-header {
+    display: grid;
+    grid-template-columns: 44px 34px 1fr 38px 38px 38px 38px 32px 44px;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: rgba(0,0,0,0.25);
+    border-bottom: 1px solid var(--border);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+}
+.header-left  { display: contents; }
+.header-right { display: contents; }
+
+.h-rarity, .msl-rarity { width: 44px; text-align: center; box-sizing: border-box; }
+.h-race,   .msl-race   { width: 34px; text-align: center; box-sizing: border-box; }
+
+.squad-list-ul { list-style: none; padding: 0; margin: 0; }
+.squad-list-item {
+    display: grid;
+    grid-template-columns: 44px 34px 1fr 38px 38px 38px 38px 32px 44px;
+    align-items: center;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.squad-list-item:hover  { background: rgba(255,255,255,0.03); }
+.squad-list-item.active { background: var(--green-dim); border-left: 3px solid var(--green); padding-left: calc(1rem - 3px); }
+
+.list-item-left  { display: contents; }
+.list-item-right { display: contents; }
+.list-player-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.15rem;
+    font-weight: bold;
+    color: #fff;
+    margin-left: 0.3rem;
+}
+
+/* 등급 / 종족 배지 (msl-layout에 없으면 여기서 정의) */
+.msl-rarity {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-align: center;
+}
+.msl-rarity.ur  { background: rgba(255,214,0,0.15);  color: var(--rarity-ur);  border: 1px solid rgba(255,214,0,0.3); }
+.msl-rarity.ssr { background: rgba(255,152,0,0.15);  color: var(--rarity-ssr); border: 1px solid rgba(255,152,0,0.3); }
+.msl-rarity.sr  { background: rgba(68,138,255,0.15); color: var(--rarity-sr);  border: 1px solid rgba(68,138,255,0.3); }
+.msl-rarity.r   { background: rgba(0,230,118,0.12);  color: var(--rarity-r);   border: 1px solid rgba(0,230,118,0.25); }
+.msl-rarity.n   { background: rgba(96,125,139,0.15); color: var(--rarity-n);   border: 1px solid rgba(96,125,139,0.25); }
+
+.msl-race {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 20px;
+    border-radius: 3px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+.msl-race.T { background: rgba(135,206,235,0.15); color: var(--race-t); border: 1px solid rgba(135,206,235,0.25); }
+.msl-race.Z { background: rgba(206,147,216,0.15); color: var(--race-z); border: 1px solid rgba(206,147,216,0.25); }
+.msl-race.P { background: rgba(255,250,205,0.1);  color: var(--race-p); border: 1px solid rgba(255,250,205,0.2); }
+
+/* 스탯 아이템 */
+.squad-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: rgba(255,255,255,0.02);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+}
+.squad-stat-label {
+    width: 45px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+.squad-stat-value {
+    width: 30px;
+    text-align: right;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #fff;
+}
+.squad-stat-bar {
+    flex: 1;
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.squad-stat-bar-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 3px;
+    transition: width 0.5s;
+}
+
+
+
+
+
+
+
+.squad-card-header {
+    flex-shrink: 0;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+}
+.squad-card-body-flex {
+    flex-shrink: 0;
+    display: flex;
+    padding: 0.6rem 0.8rem;
+    gap: 0.8rem;
+}
+.squad-card-img {
+    width: 210px;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.squad-card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.squad-stat-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 1.1rem;
+    padding: 0.4rem 2rem;
+    min-height: 0;
+    overflow: hidden;
+}
+.squad-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+.squad-stat-label {
+    width: 52px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.squad-stat-value {
+    width: 28px;
+    text-align: right;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #fff;
+    flex-shrink: 0;
+}
+.squad-stat-bar {
+    flex: 1;
+    height: 5px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.squad-stat-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s;
+}
+
+/* ── 우측 단일 패널 구조 ── */
+.train-action-area {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+}
+
+.train-action-divider {
+    display: none;
+}
+
+.train-action-body {
+    padding: 1rem 1.5rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.train-action-placeholder {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 0.5rem 0;
+}
+
+#trainAction {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.train-action-desc {
+    flex: 1;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.train-do-btn {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 0.65rem 1.8rem !important;
+    font-size: 0.9rem !important;
+}
+.train-do-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* ── 추후 기능 카드 ── */
+.train-future-area {
+    display: flex;
+    gap: 0.8rem;
+    padding: 0.5rem 0.8rem 0;
+}
+.train-future-card {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    border: 1px dashed rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.02);
+}
+.train-future-card.locked {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.future-lock {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+.future-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 0.2rem;
+}
+.future-desc {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+}
+
+
+/* ── 특수 강화 재료 슬롯 ── */
+
+.special-enhance-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.35rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.locked-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.1rem 0.4rem;
+    letter-spacing: 0.06em;
+}
+.special-enhance-desc {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    line-height: 1.4;
+    margin-bottom: 0.8rem;
+}
+.special-slots {
+    display: flex;
+    gap: 0.6rem;
+}
+.special-slot {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.65rem 0.5rem;
+    border-radius: 8px;
+    border: 1px dashed rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.02);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    text-align: center;
+}
+.special-slot.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.special-slot:not(.locked):hover {
+    border-color: var(--green-border);
+    background: var(--green-dim);
+}
+.special-slot:not(.locked).active {
+    border-color: var(--green);
+    background: var(--green-dim);
+    box-shadow: 0 0 0 1px var(--green-border);
+}
+.slot-icon  { font-size: 1.3rem; line-height: 1; }
+.slot-name  { font-family: 'Barlow Condensed', sans-serif; font-size: 0.8rem; font-weight: 700; color: var(--text); }
+.slot-stock { font-size: 0.68rem; color: var(--text-dim); }
+
+
+
+/* ── 우측 패널 높이 좌측과 동일하게 ── */
+.train-right-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+.train-right-panel {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ── 특수강화 영역 빈공간 채우기 ── */
+.special-enhance-area {
+    margin-top: auto;
+    margin-left: 0.8rem;
+    margin-right: 0.8rem;
+    margin-bottom: 0.8rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.02);
+}
+
+/* ── 목록 스탯 컬럼 ── */
+/* 헤더와 아이템 폰트 크기 통일 */
+.squad-list-header .stat-cols,
+.list-item-right.stat-cols {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+/* 헤더 컬럼 색상 */
+.squad-list-header .sc-atk, .squad-list-header .sc-def, .squad-list-header .sc-mac, .squad-list-header .sc-mic, .squad-list-header .sc-luk, .squad-list-header .sc-tot { color: var(--text-dim); }
+
+.sc-atk, .sc-def, .sc-mac, .sc-mic, .sc-luk, .sc-tot { text-align: center; font-family: 'Barlow Condensed', sans-serif; font-size: 0.82rem; font-weight: 700; }
+.sc-tot { text-align: center; }
+
+/* 아이템 숫자 색상 */
+.squad-list-item .sc-atk { color: #ff6b6b; }
+.squad-list-item .sc-def { color: #4a9eff; }
+.squad-list-item .sc-mac { color: #4caf7d; }
+.squad-list-item .sc-mic { color: #ffd93d; }
+.squad-list-item .sc-luk { color: #b06eff; }
+.squad-list-item .sc-tot { color: var(--text-dim); }
+
+/* ── 컨디션 & 연승 뱃지 ── */
+.condition-badge, .streak-badge {
+    display: inline-flex;
+    align-items: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid;
+    letter-spacing: 0.03em;
+}
+.streak-badge {
+    background: rgba(255,214,0,0.1) !important;
+    border-color: rgba(255,214,0,0.4) !important;
+    color: #ffd600 !important;
+}

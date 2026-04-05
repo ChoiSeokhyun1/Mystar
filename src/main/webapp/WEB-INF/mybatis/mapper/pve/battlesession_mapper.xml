@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="battlesession_mapper">
+
+    <select id="selectActiveBattle" resultType="dto.pve.BattleSessionDTO" parameterType="map">
+        SELECT
+            BATTLE_ID as battleId,
+            USER_ID as userId,
+            STAGE_LEVEL as stageLevel,
+            SUB_LEVEL as subLevel,
+            MATCHUP_DATA as matchupData,
+            AI_TEAM_DATA as aiTeamData,
+            STATUS,
+            CURRENT_SET as currentSet,
+            MY_WINS as myWins,
+            AI_WINS as aiWins,
+            GAME_STATE_DATA as gameStateData,
+            SET_RESULTS_DATA as setResultsData FROM TBL_PVE_BATTLE_SESSION
+        WHERE USER_ID = #{userId}
+          AND STAGE_LEVEL = #{stageLevel}
+          AND SUB_LEVEL = #{subLevel}
+          AND STATUS = 'IN_PROGRESS'
+    </select>
+
+    <insert id="insertNewBattle" parameterType="dto.pve.BattleSessionDTO">
+        INSERT INTO TBL_PVE_BATTLE_SESSION (
+            USER_ID, STAGE_LEVEL, SUB_LEVEL, MATCHUP_DATA, 
+            MY_TEAM_DATA, AI_TEAM_DATA,
+            CURRENT_SET, MY_WINS, AI_WINS,
+            STATUS, GAME_STATE_DATA, SET_RESULTS_DATA  ) VALUES (
+            #{userId}, #{stageLevel}, #{subLevel}, #{matchupData}, 
+            #{myTeamData}, #{aiTeamData},
+            #{currentSet}, #{myWins}, #{aiWins},
+            #{status}, #{gameStateData}, #{setResultsData}  )
+    </insert>
+
+    <update id="updateBattleProgress" parameterType="map">
+        UPDATE TBL_PVE_BATTLE_SESSION
+        SET
+            CURRENT_SET = #{currentSet},
+            MY_WINS = #{myWins},
+            AI_WINS = #{aiWins},
+            GAME_STATE_DATA = #{gameStateData} WHERE
+            USER_ID = #{userId}
+            AND STAGE_LEVEL = #{stageLevel}
+            AND SUB_LEVEL = #{subLevel}
+            AND STATUS = 'IN_PROGRESS'
+    </update>
+
+    <update id="completePveBattleSession" parameterType="map">
+        DELETE FROM TBL_PVE_BATTLE_SESSION
+        WHERE USER_ID = #{userId}
+          AND STAGE_LEVEL = #{stageLevel}
+          AND SUB_LEVEL = #{subLevel}
+          AND STATUS = 'COMPLETED'
+    </update>
+
+    <update id="completePveBattleSessionUpdate" parameterType="map">
+        UPDATE TBL_PVE_BATTLE_SESSION
+        SET
+            STATUS = 'COMPLETED',
+            MY_WINS = #{myWins},
+            AI_WINS = #{aiWins}
+        WHERE
+            USER_ID = #{userId}
+            AND STAGE_LEVEL = #{stageLevel}
+            AND SUB_LEVEL = #{subLevel}
+            AND STATUS = 'IN_PROGRESS'
+    </update>
+    
+    <delete id="deletePveBattleSession" parameterType="map">
+        DELETE FROM TBL_PVE_BATTLE_SESSION
+        WHERE
+            USER_ID = #{userId}
+            AND STAGE_LEVEL = #{stageLevel}
+            AND SUB_LEVEL = #{subLevel}
+            AND STATUS = 'IN_PROGRESS'
+    </delete>
+
+    <update id="updateBattleStatusToCompleted" parameterType="int">
+        UPDATE TBL_PVE_BATTLE_SESSION
+        SET STATUS = 'COMPLETED'
+        WHERE BATTLE_ID = #{battleId}
+    </update>
+
+    <!-- 세션 만료 복구용: 세트 완료마다 setResultsData를 DB에 저장 -->
+    <update id="updateSetResultsData" parameterType="map">
+        UPDATE TBL_PVE_BATTLE_SESSION
+        SET SET_RESULTS_DATA = #{setResultsData}
+        WHERE USER_ID     = #{userId}
+          AND STAGE_LEVEL  = #{stageLevel}
+          AND SUB_LEVEL    = #{subLevel}
+          AND STATUS       = 'IN_PROGRESS'
+    </update>
+
+</mapper>

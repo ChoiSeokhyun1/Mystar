@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration>
+	<settings>
+		<setting name="mapUnderscoreToCamelCase" value="true" />
+		<setting name="jdbcTypeForNull" value="VARCHAR" />
+		<setting name="callSettersOnNulls" value="true" />
+		<setting name="returnInstanceForEmptyRow" value="true" />
+	</settings>
+
+<typeAliases>
+        <typeAlias type="dto.user.UserDTO" alias="UserDTO"/>
+        <typeAlias type="dto.player.PlayerDTO" alias="PlayerDTO"/>
+        <typeAlias type="dto.pack.PackDTO" alias="PackDTO"/>
+        <typeAlias type="dto.pack.PackContentDTO" alias="PackContentDTO"/>
+        <typeAlias type="dto.player.OwnedPlayerDTO" alias="OwnedPlayerDTO"/>
+        <typeAlias type="dto.player.OwnedPlayerInfoDTO" alias="OwnedPlayerInfoDTO"/>
+        <typeAlias type="dto.record.PlayerRecordSummaryDTO" alias="PlayerRecordSummaryDTO"/>
+        <typeAlias type="dto.record.MatchRecordDTO" alias="MatchRecordDTO"/>
+        <typeAlias type="dto.entry.PveEntryDTO" alias="PveEntryDTO"/>
+        <typeAlias type="dto.pve.UserPveProgressDTO" alias="PveProgressDTO"/>
+        <typeAlias type="dto.pve.PveSubstageDTO" alias="PveSubstageDTO"/>
+    	<typeAlias type="dto.pve.UserPveSubstageProgressDTO" alias="UserPveSubstageProgressDTO"/>
+    	<typeAlias type="dto.pve.PveStageMapDTO" alias="PveStageMapDTO"/>
+<typeAlias alias="BuildDTO" type="dto.pve.BuildDTO"/>
+<typeAlias alias="BuildUnitDTO" type="dto.pve.BuildUnitDTO"/>
+<typeAlias alias="OwnedBuildDTO" type="dto.pve.OwnedBuildDTO"/>
+    	<typeAlias type="dto.pve.PveOpponentInfoDTO" alias="PveOpponentInfoDTO"/>
+    	<typeAlias type="dto.pve.BattleSessionDTO" alias="BattleSessionDTO"/>
+    	<typeAlias type="dto.pve.BattleProgressDTO" alias="BattleProgressDTO"/>
+    	   <typeAlias type="dto.mission.DailyMissionDTO" alias="DailyMissionDTO"/>
+   <typeAlias type="dto.mission.UserDailyMissionDTO" alias="UserDailyMissionDTO"/>
+    </typeAliases>
+
+</configuration>

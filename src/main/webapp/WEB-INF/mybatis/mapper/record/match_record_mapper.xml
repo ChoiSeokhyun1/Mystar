@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="match_record_mapper">
+
+    <select id="selectRecordSummary" parameterType="int" resultType="dto.record.PlayerRecordSummaryDTO">
+        SELECT
+            COUNT(*) as gamesPlayed,
+            SUM(CASE WHEN IS_WIN = 'Y' THEN 1 ELSE 0 END) as wins,
+            SUM(CASE WHEN IS_WIN = 'N' THEN 1 ELSE 0 END) as losses
+        FROM
+            TBL_MATCH_RECORDS
+        WHERE
+            OWNED_PLAYER_SEQ = #{ownedPlayerSeq}
+    </select>
+
+<select id="selectRecentMatches" parameterType="map" resultType="dto.record.MatchRecordDTO">
+        SELECT *
+        FROM (
+            SELECT
+                MATCH_SEQ as matchSeq,
+                OWNED_PLAYER_SEQ as ownedPlayerSeq,
+                MATCH_TYPE as matchType,
+                OPPONENT_NAME as opponentName,
+                OPPONENT_RACE as opponentRace, MAP_NAME as mapName,
+                IS_WIN as isWin,
+                MATCH_DATE as matchDate
+            FROM
+                TBL_MATCH_RECORDS
+            WHERE
+                OWNED_PLAYER_SEQ = #{ownedPlayerSeq}
+            ORDER BY
+                MATCH_DATE DESC
+        )
+        WHERE ROWNUM &lt;= #{limit}
+    </select>
+    
+    <!-- 최다 출전 선수 TOP 1 (해당 유저 소유 선수 중) -->
+    <select id="selectMostPlayedPlayer" parameterType="String" resultType="dto.record.PlayerStatRankDTO">
+        SELECT *
+        FROM (
+            SELECT
+                op.OWNED_PLAYER_SEQ  AS ownedPlayerSeq,
+                p.PLAYER_NAME        AS playerName,
+                p.RACE               AS race,
+                op.CURRENT_RARITY    AS currentRarity,
+                COUNT(*)             AS gamesPlayed,
+                SUM(CASE WHEN r.IS_WIN = 'Y' THEN 1 ELSE 0 END) AS wins,
+                SUM(CASE WHEN r.IS_WIN = 'N' THEN 1 ELSE 0 END) AS losses,
+                ROUND(SUM(CASE WHEN r.IS_WIN = 'Y' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS winRate
+            FROM TBL_MATCH_RECORDS r
+            JOIN TBL_OWNED_PLAYERS op ON r.OWNED_PLAYER_SEQ = op.OWNED_PLAYER_SEQ
+            JOIN TBL_PLAYERS p        ON op.PLAYER_SEQ      = p.PLAYER_SEQ
+            WHERE op.USER_ID = #{userId}
+            GROUP BY op.OWNED_PLAYER_SEQ, p.PLAYER_NAME, p.RACE, op.CURRENT_RARITY
+            ORDER BY gamesPlayed DESC, wins DESC
+        )
+        WHERE ROWNUM = 1
+    </select>
+
+    <!-- 최고 승률 선수 TOP 1 (최소 3경기 이상) -->
+    <select id="selectBestWinRatePlayer" parameterType="String" resultType="dto.record.PlayerStatRankDTO">
+        SELECT *
+        FROM (
+            SELECT
+                op.OWNED_PLAYER_SEQ  AS ownedPlayerSeq,
+                p.PLAYER_NAME        AS playerName,
+                p.RACE               AS race,
+                op.CURRENT_RARITY    AS currentRarity,
+                COUNT(*)             AS gamesPlayed,
+                SUM(CASE WHEN r.IS_WIN = 'Y' THEN 1 ELSE 0 END) AS wins,
+                SUM(CASE WHEN r.IS_WIN = 'N' THEN 1 ELSE 0 END) AS losses,
+                ROUND(SUM(CASE WHEN r.IS_WIN = 'Y' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS winRate
+            FROM TBL_MATCH_RECORDS r
+            JOIN TBL_OWNED_PLAYERS op ON r.OWNED_PLAYER_SEQ = op.OWNED_PLAYER_SEQ
+            JOIN TBL_PLAYERS p        ON op.PLAYER_SEQ      = p.PLAYER_SEQ
+            WHERE op.USER_ID = #{userId}
+            GROUP BY op.OWNED_PLAYER_SEQ, p.PLAYER_NAME, p.RACE, op.CURRENT_RARITY
+            HAVING COUNT(*) >= 3
+            ORDER BY winRate DESC, wins DESC
+        )
+        WHERE ROWNUM = 1
+    </select>
+
+    <!-- 최다 승리 선수 TOP 1 -->
+    <select id="selectMostWinsPlayer" parameterType="String" resultType="dto.record.PlayerStatRankDTO">
+        SELECT *
+        FROM (
+            SELECT
+                op.OWNED_PLAYER_SEQ  AS ownedPlayerSeq,
+                p.PLAYER_NAME        AS playerName,
+                p.RACE               AS race,
+                op.CURRENT_RARITY    AS currentRarity,
+                COUNT(*)             AS gamesPlayed,
+                SUM(CASE WHEN r.IS_WIN = 'Y' THEN 1 ELSE 0 END) AS wins,
+                SUM(CASE WHEN r.IS_WIN = 'N' THEN 1 ELSE 0 END) AS losses,
+                ROUND(SUM(CASE WHEN r.IS_WIN = 'Y' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS winRate
+            FROM TBL_MATCH_RECORDS r
+            JOIN TBL_OWNED_PLAYERS op ON r.OWNED_PLAYER_SEQ = op.OWNED_PLAYER_SEQ
+            JOIN TBL_PLAYERS p        ON op.PLAYER_SEQ      = p.PLAYER_SEQ
+            WHERE op.USER_ID = #{userId}
+            GROUP BY op.OWNED_PLAYER_SEQ, p.PLAYER_NAME, p.RACE, op.CURRENT_RARITY
+            ORDER BY wins DESC, winRate DESC
+        )
+        WHERE ROWNUM = 1
+    </select>
+
+ <insert id="insertMatchRecord" parameterType="dto.record.MatchRecordDTO">
+        INSERT INTO TBL_MATCH_RECORDS (
+            MATCH_SEQ,
+            OWNED_PLAYER_SEQ,
+            MATCH_TYPE,
+            OPPONENT_NAME,
+            OPPONENT_RACE, MAP_NAME,
+            IS_WIN,
+            MATCH_DATE
+        ) VALUES (
+            SEQ_MATCH_RECORDS.NEXTVAL, #{ownedPlayerSeq},
+            #{matchType},
+            #{opponentName},
+            #{opponentRace}, #{mapName},
+            #{isWin},
+            #{matchDate}
+        )
+    </insert>
+
+</mapper>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="pveProgress_Mapper">
+
+    <!-- ⭐ resultMap 제거하고 resultType 사용 -->
+    <select id="selectPveProgressByUserId" parameterType="String" resultType="PveProgressDTO">
+        SELECT
+            USER_ID as userId, 
+            STAGE_LEVEL as stageLevel, 
+            STAGE_STATUS as stageStatus, 
+            UPDATED_AT as updatedAt
+        FROM
+            USER_PVE_PROGRESS
+        WHERE
+            USER_ID = #{userId}
+        ORDER BY
+            STAGE_LEVEL ASC
+    </select>
+
+    <select id="selectSinglePveProgress" parameterType="map" resultType="PveProgressDTO">
+        SELECT
+            USER_ID as userId, 
+            STAGE_LEVEL as stageLevel, 
+            STAGE_STATUS as stageStatus, 
+            UPDATED_AT as updatedAt
+        FROM
+            USER_PVE_PROGRESS
+        WHERE
+            USER_ID = #{userId} AND STAGE_LEVEL = #{stageLevel}
+    </select>
+
+    <insert id="insertPveProgress" parameterType="PveProgressDTO">
+        INSERT INTO USER_PVE_PROGRESS (
+            USER_ID, STAGE_LEVEL, STAGE_STATUS, UPDATED_AT
+        ) VALUES (
+            #{userId}, #{stageLevel}, #{stageStatus}, SYSDATE
+        )
+    </insert>
+
+    <update id="updatePveProgress" parameterType="PveProgressDTO">
+        UPDATE
+            USER_PVE_PROGRESS
+        SET
+            STAGE_STATUS = #{stageStatus},
+            UPDATED_AT = SYSDATE
+        WHERE
+            USER_ID = #{userId} AND STAGE_LEVEL = #{stageLevel}
+    </update>
+
+</mapper>

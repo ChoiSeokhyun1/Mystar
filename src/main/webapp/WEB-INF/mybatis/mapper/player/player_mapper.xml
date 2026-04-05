@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="player_mapper">
+
+    <select id="selectPlayerBySeq" parameterType="int" resultType="PlayerDTO">
+        SELECT
+            PLAYER_SEQ,
+            PLAYER_NAME,
+            RACE,
+            RARITY,
+            STAT_ATTACK,
+            STAT_DEFENSE,
+            STAT_MACRO,
+            STAT_MICRO,
+            STAT_LUCK,
+            PLAYER_IMG_URL,
+            PLAYER_COST
+        FROM
+            TBL_PLAYERS
+        WHERE
+            PLAYER_SEQ = #{playerSeq}
+    </select>
+
+</mapper>

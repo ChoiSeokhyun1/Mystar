@@ -1,0 +1,106 @@
+/* ── 인라인에서 이동 ── */
+.admin-page-wrap {
+            position: fixed;
+            top: 60px; left: 0; right: 0; bottom: 0;
+            display: flex; flex-direction: column;
+            padding: 14px 20px;
+            box-sizing: border-box;
+            gap: 10px; overflow: hidden;
+        }
+        .admin-top-bar { display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
+
+        /* 툴바 */
+        .player-toolbar {
+            display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+            background: #0d1424; border: 1px solid #1e2a3a;
+            border-radius: 10px; padding: 10px 14px;
+        }
+        .player-toolbar input[type="text"], .player-toolbar select {
+            background: #111827; border: 1px solid #2d3748; border-radius: 6px;
+            color: #e2e8f0; padding: 6px 10px; font-size: 12px;
+        }
+        .player-toolbar input[type="text"] { width: 180px; }
+        .player-toolbar input[type="text"]:focus,
+        .player-toolbar select:focus { outline: none; border-color: #6366f1; }
+        .toolbar-sep { width:1px; height:20px; background:#1e2a3a; margin: 0 2px; }
+        .player-count { color:#4a5568; font-size:11px; margin-left:auto; white-space:nowrap; }
+
+        /* 테이블 */
+        .player-table-wrap { flex:1; overflow-y:auto; border:1px solid #1e2a3a; border-radius:10px; }
+        .player-table { width:100%; border-collapse:collapse; font-size:12px; }
+        .player-table thead { position:sticky; top:0; background:#090e1c; z-index:10; }
+        .player-table th {
+            padding: 9px 10px; text-align:left; color:#4a5568;
+            font-size:10px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase;
+            border-bottom:1px solid #1e2a3a; white-space:nowrap;
+        }
+        .player-table td { padding:8px 10px; border-bottom:1px solid #0f1729; color:#cbd5e0; vertical-align:middle; }
+        .player-table tbody tr:hover { background:#0d1424; }
+        .player-table tbody tr:last-child td { border-bottom:none; }
+
+        .player-img-thumb { width:34px; height:34px; border-radius:6px; object-fit:cover; border:1px solid #2d3748; display:block; }
+        .no-img { width:34px; height:34px; border-radius:6px; background:#1a2035; border:1px solid #2d3748; display:flex; align-items:center; justify-content:center; font-size:14px; color:#4a5568; }
+
+        /* 팩 배지 */
+        .pack-badge {
+            display: inline-block;
+            background: rgba(99,102,241,0.15); border: 1px solid #4338ca;
+            color: #818cf8; border-radius: 4px;
+            padding: 2px 6px; font-size: 10px; font-weight:600;
+            white-space: nowrap; margin: 1px 2px 1px 0;
+        }
+        .pack-list { display:flex; flex-wrap:wrap; gap:2px; }
+        .no-pack { color:#2d3748; font-size:11px; }
+
+        /* 관리 버튼 - 가로로 */
+        .row-actions { display:flex; flex-direction:row; gap:5px; align-items:center; flex-wrap:nowrap; }
+        .btn-edit { background:rgba(99,102,241,0.1); border:1px solid #4338ca; color:#818cf8; padding:4px 9px; border-radius:5px; font-size:11px; cursor:pointer; white-space:nowrap; }
+        .btn-edit:hover { background:rgba(99,102,241,0.25); }
+        .btn-del  { background:rgba(239,68,68,0.1); border:1px solid #7f1d1d; color:#f87171; padding:4px 9px; border-radius:5px; font-size:11px; cursor:pointer; white-space:nowrap; }
+        .btn-del:hover  { background:rgba(239,68,68,0.25); }
+
+        /* 편집 모달 */
+        .edit-modal {
+            background:#0d1424; border:1px solid #1e2a3a; border-radius:14px;
+            width:620px; max-height:90vh; overflow-y:auto;
+        }
+        .edit-modal-header {
+            display:flex; justify-content:space-between; align-items:center;
+            padding:16px 20px 12px; border-bottom:1px solid #1e2a3a;
+        }
+        .edit-modal-header h2 { color:#e2e8f0; font-size:15px; font-weight:700; margin:0; }
+        .edit-modal-body { padding:18px 20px; }
+        .edit-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .edit-grid .full { grid-column:1/-1; }
+        .form-label { display:block; color:#6b7280; font-size:10px; font-weight:700; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.05em; }
+        .form-input, .form-select {
+            width:100%; background:#111827; border:1px solid #2d3748; border-radius:7px;
+            color:#e2e8f0; padding:8px 10px; font-size:12px; box-sizing:border-box;
+        }
+        .form-input:focus, .form-select:focus { outline:none; border-color:#6366f1; }
+
+        /* 스탯 그리드 */
+        .stat-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+        .stat-item label { font-size:10px; color:#6b7280; text-transform:uppercase; display:block; margin-bottom:3px; }
+        .stat-item input { width:100%; background:#111827; border:1px solid #2d3748; border-radius:6px; color:#e2e8f0; padding:6px 6px; font-size:12px; text-align:center; box-sizing:border-box; }
+        .stat-item input:focus { outline:none; border-color:#6366f1; }
+
+        /* 팩 선택 체크박스 */
+        .pack-checkbox-list { display:flex; flex-direction:column; gap:6px; padding-top:4px; }
+        .pack-checkbox-item { display:flex; align-items:center; gap:8px; }
+        .pack-checkbox-item input[type="checkbox"] { accent-color:#6366f1; width:14px; height:14px; cursor:pointer; flex-shrink:0; }
+        .pack-checkbox-item .pack-cb-label { color:#94a3b8; font-size:12px; cursor:pointer; flex:1; }
+        .pack-checkbox-item:hover .pack-cb-label { color:#e2e8f0; }
+        .prob-input-wrap { display:none; align-items:center; gap:4px; }
+        .pack-checkbox-item.checked .prob-input-wrap { display:flex; }
+        .prob-input {
+            width:70px; background:#0d1117; border:1px solid #2d3748; border-radius:5px;
+            color:#fbbf24; padding:3px 6px; font-size:11px; text-align:center;
+        }
+        .prob-input:focus { outline:none; border-color:#f59e0b; }
+        .prob-unit { color:#4a5568; font-size:10px; }
+
+        .edit-modal-footer {
+            display:flex; justify-content:flex-end; gap:8px;
+            padding:12px 20px 16px; border-top:1px solid #1e2a3a;
+        }

@@ -1,0 +1,301 @@
+/* ============================================================
+   enhance.css — 선수 강화 페이지
+   myTeam.css 기반, 강화 전용 요소 추가
+   ============================================================ */
+
+/* ── 우측 컬럼: 단일 패널 (myTeam은 2행, 강화는 1행) ── */
+.enhance-right-col {
+    grid-template-rows: 1fr !important;
+}
+
+/* ── 강화 상세 패널: 스크롤 + 하단 버튼 고정 구조 ── */
+.enhance-detail-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+/* 스크롤되는 본문 영역 */
+.enhance-scroll-body {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+    flex-direction: column !important;
+}
+
+/* ── 능력치 바 우측 강화 수치 고정 너비 ── */
+.stat-enh-val {
+    display: inline-block;
+    width: 36px;
+    text-align: left;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.1rem;   /* pro-stat-val 과 동일 */
+    font-weight: 900;
+    opacity: 0.75;
+    flex-shrink: 0;
+}
+
+/* ── 목록 강화 컬럼 ── */
+.col-enhance-th {
+    width: 5%;
+}
+.col-enhance-lv {
+    text-align: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #f59e0b;
+}
+/* 강화 없으면 dim 처리 */
+.col-enhance-lv:not(:empty) { }
+
+/* 목록 그리드: 12열로 확장 (강화 컬럼 추가) */
+.enhance-page .myteam-table th:nth-child(1)  { width: 6%; }   /* 종족 */
+.enhance-page .myteam-table th:nth-child(2)  { width: 6%; }   /* 등급 */
+.enhance-page .myteam-table th:nth-child(3)  { width: 5%; }   /* 강화 */
+.enhance-page .myteam-table th.name-header,
+.enhance-page .myteam-table td.col-name      { width: 14%; text-align: left; }
+.enhance-page .myteam-table th:nth-child(5),
+.enhance-page .myteam-table th:nth-child(6),
+.enhance-page .myteam-table th:nth-child(7),
+.enhance-page .myteam-table th:nth-child(8),
+.enhance-page .myteam-table th:nth-child(9) { width: 7%; }    /* ATK~LCK */
+.enhance-page .myteam-table th:nth-child(10) { width: 7%; }   /* 합계 */
+.enhance-page .myteam-table th:nth-child(11) { width: 9%; }   /* 상태 */
+.enhance-page .myteam-table th:nth-child(12) { width: 12%; }  /* 경기력 */
+
+/* ── 강화 현황 박스: 연속 성공/실패 streak ── */
+.streak-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0.6rem 0.5rem;
+    border-radius: 8px;
+    height: 100%;
+    gap: 0.4rem;
+}
+.streak-success {
+    background: rgba(245, 158, 11, 0.06);
+    border: 1px solid rgba(245, 158, 11, 0.15);
+}
+.streak-fail {
+    background: rgba(96, 165, 250, 0.06);
+    border: 1px solid rgba(96, 165, 250, 0.15);
+}
+.streak-icon-big {
+    font-size: 1.4rem;
+    letter-spacing: 1px;
+    line-height: 1.2;
+    word-break: break-all;
+    max-width: 100%;
+}
+.streak-count {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.02em;
+}
+.streak-count.success { color: #f59e0b; }
+.streak-count.fail    { color: #60a5fa; }
+.streak-sub {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+}
+.streak-comment {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin-top: 0.1rem;
+}
+.streak-comment.good  { color: #4caf7d; background: rgba(76,175,125,0.1); }
+.streak-comment.great { color: #f59e0b; background: rgba(245,158,11,0.1); }
+.streak-comment.warn  { color: #ff9800; background: rgba(255,152,0,0.1);  }
+.streak-comment.bad   { color: #ef5350; background: rgba(239,83,80,0.1);  }
+.streak-none {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 0.4rem;
+}
+.streak-icon { font-size: 1.8rem; }
+.streak-none-msg {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    text-align: center;
+}
+
+/* ── 목록 테이블: 경기력 열 원복 ── */
+
+/* ── 강화 레벨 뱃지 (pro-badges 안에 위치) ── */
+.enhance-lv-badge {
+    color: #000 !important;
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+    border-color: #d97706 !important;
+    font-weight: 800 !important;
+}
+.enhance-lv-badge.max {
+    background: linear-gradient(135deg, #ef4444, #b91c1c) !important;
+    border-color: #b91c1c !important;
+    color: #fff !important;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+
+/* ── 강화 전용 섹션 (analytics 아래) ── */
+.enhance-section {
+    margin-top: 1rem;
+    padding: 0 0.2rem;
+}
+
+/* 강화 정보 카드 (레벨 / 성공률 / 재료) */
+.enhance-info-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+    padding: 1rem 0.5rem;
+    margin-bottom: 0.7rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    text-align: center;
+}
+.enhance-info-item-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+}
+.enhance-info-item-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-bright, #fff);
+    line-height: 1;
+}
+.enhance-info-item-val.success-rate          { color: #4caf7d; }
+.enhance-info-item-val.success-rate.warn     { color: #f59e0b; }
+.enhance-info-item-val.success-rate.danger   { color: #ef5350; }
+.enhance-info-item-val.material-count        { color: #60a5fa; }
+.enhance-info-item-val.material-count.empty  { color: #ef5350; }
+
+/* 재료 설명 */
+.enhance-material-desc {
+    font-size: 0.74rem;
+    color: var(--text-dim);
+    line-height: 1.65;
+    margin: 0;
+}
+
+/* ── 강화 버튼 영역 (하단 고정) ── */
+.enhance-action-area {
+    flex-shrink: 0;
+    padding: 0.9rem 1.5rem 1.2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.15);
+}
+.enhance-do-btn {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.95rem !important;
+    padding: 0.75rem 2rem !important;
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+    color: #000 !important;
+    font-weight: 800 !important;
+    border: none !important;
+    cursor: pointer;
+    transition: filter 0.2s, transform 0.15s;
+    letter-spacing: 0.03em;
+}
+.enhance-do-btn:hover:not(:disabled) {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+.enhance-do-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    transform: none;
+    filter: none;
+    background: rgba(255, 255, 255, 0.07) !important;
+    color: var(--text-dim) !important;
+}
+
+/* ── 강화 결과 모달 ── */
+.enhance-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.78);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s;
+    backdrop-filter: blur(4px);
+}
+.enhance-modal-overlay.show {
+    opacity: 1;
+    pointer-events: all;
+}
+.enhance-modal {
+    background: var(--panel, #1a1f2e);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 2rem 2.2rem 1.8rem;
+    width: 340px;
+    max-width: 92vw;
+    text-align: center;
+    transform: scale(0.9) translateY(12px);
+    transition: transform 0.22s cubic-bezier(.4, 0, .2, 1);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+.enhance-modal-overlay.show .enhance-modal {
+    transform: scale(1) translateY(0);
+}
+.enhance-result-icon {
+    font-size: 3.5rem;
+    margin-bottom: 0.6rem;
+    animation: iconBounce 0.35s cubic-bezier(.4, 0, .2, 1);
+}
+@keyframes iconBounce {
+    0%   { transform: scale(0.5); opacity: 0; }
+    70%  { transform: scale(1.15); }
+    100% { transform: scale(1);   opacity: 1; }
+}
+.enhance-result-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.7rem;
+    font-weight: 800;
+    margin-bottom: 0.2rem;
+}
+.enhance-result-title.success { color: #f59e0b; }
+.enhance-result-title.fail    { color: #6b7280; }
+.enhance-result-msg {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+.enhance-result-stat-chip {
+    display: inline-block;
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: #f59e0b;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 5px 16px;
+    border-radius: 20px;
+}
+.enhance-result-next {
+    margin-top: 0.6rem;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+}

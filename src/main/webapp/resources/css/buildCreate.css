@@ -1,0 +1,212 @@
+/* ============================================================
+   buildCreate.css / buildEdit.css 공용
+   msl-layout.css 기반 빌드 페이지 전용 스타일
+   ============================================================ */
+
+/* ── 그리드 ── */
+.build-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+}
+
+/* ── 폼 그룹 ── */
+.msl-form-group { margin-bottom: 1.1rem; }
+.msl-form-group:last-child { margin-bottom: 0; }
+
+.msl-label {
+    display: block;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.73rem; font-weight: 700; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--text-dim);
+    margin-bottom: 0.45rem;
+}
+
+.msl-input, .msl-select {
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    color: var(--text);
+    padding: 0.62rem 0.85rem;
+    font-family: 'Barlow', sans-serif;
+    font-size: 0.93rem;
+    transition: border-color 0.18s;
+    outline: none;
+}
+.msl-input:focus, .msl-select:focus {
+    border-color: var(--green);
+    background: rgba(0,230,118,0.04);
+}
+.msl-select option { background: #0d1525; }
+.msl-input::placeholder { color: var(--text-dim); }
+.msl-input:disabled, .msl-select:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── 페이즈 섹션 ── */
+.phase-section {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 0.85rem;
+}
+.phase-section:last-of-type { margin-bottom: 0; }
+
+.phase-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid var(--border);
+}
+.phase-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--gold);
+}
+
+.btn-add-unit {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em;
+    background: rgba(68,138,255,0.12); color: var(--blue);
+    border: 1px solid rgba(68,138,255,0.28);
+    border-radius: 3px; padding: 0.3rem 0.75rem;
+    cursor: pointer; transition: all 0.15s;
+}
+.btn-add-unit:hover { background: rgba(68,138,255,0.22); }
+
+.unit-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 0.5rem;
+    margin-bottom: 0.45rem;
+    align-items: center;
+}
+.unit-row:last-child { margin-bottom: 0; }
+
+.btn-remove-unit {
+    background: rgba(239,83,80,0.12); color: var(--red);
+    border: 1px solid rgba(239,83,80,0.25);
+    border-radius: 3px; padding: 0.42rem 0.6rem;
+    cursor: pointer; font-size: 0.78rem; font-weight: 700;
+    transition: all 0.15s; line-height: 1;
+}
+.btn-remove-unit:hover { background: rgba(239,83,80,0.22); }
+
+/* ── 종족 선택 전 플레이스홀더 (생성 페이지) ── */
+.unit-placeholder {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 200px; gap: 0.6rem;
+    color: var(--text-dim); font-size: 0.9rem; text-align: center;
+}
+.unit-placeholder-icon { font-size: 2rem; opacity: 0.3; }
+
+/* ── 종족 표시 배지 (수정 페이지) ── */
+.race-badge {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.62rem 0.85rem;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.93rem; color: var(--text-dim);
+    width: 100%;
+}
+.race-badge .race-val { font-weight: 700; color: var(--text); }
+.race-badge .race-lock { font-size: 0.75rem; margin-left: auto; opacity: 0.4; }
+
+/* ============================================================
+   선호 유닛 패널 (buildCreate / buildEdit 공용)
+   ============================================================ */
+
+.build-create-grid { display:grid; grid-template-columns:380px 1fr; gap:20px; align-items:stretch; }
+.preferred-panel { display:flex; flex-direction:column; gap:14px; overflow:visible; }
+
+.punit-section-title { font-size:.75em; font-weight:700; letter-spacing:.08em; color:#888; text-transform:uppercase; margin-bottom:6px; }
+
+.punit-grid { display:flex; flex-wrap:nowrap; gap:6px; overflow-x:auto; padding-bottom:4px; }
+.punit-grid::-webkit-scrollbar { height: 3px; }
+.punit-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+.punit-card { flex-shrink: 0; }
+
+.punit-card {
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    padding:8px 4px 6px; border:2px solid #333; border-radius:10px;
+    cursor:pointer; background:#16161f;
+    transition:border-color .15s,background .15s,transform .1s;
+    user-select:none; position:relative;
+}
+.punit-card:hover  { border-color:#666; background:#22223a; transform:translateY(-2px); }
+.punit-card.selected { border-color:#f0c040; background:#2a2508; }
+.punit-card.disabled { opacity:.35; cursor:not-allowed; pointer-events:none; }
+
+.punit-icon { width:48px; height:48px; border-radius:6px; background:#2a2a3e; display:flex; align-items:center; justify-content:center; font-size:1.5em; overflow:hidden; }
+.punit-icon img { width:100%; height:100%; object-fit:cover; border-radius:6px; }
+.punit-name { font-size:.68em; color:#bbb; text-align:center; line-height:1.2; }
+.punit-card.selected .punit-name { color:#f0c040; }
+
+.punit-tier-badge { position:absolute; top:3px; right:4px; font-size:.6em; font-weight:700; padding:1px 4px; border-radius:4px; color:#fff; }
+.punit-selected-num { position:absolute; top:-6px; left:-6px; width:18px; height:18px; border-radius:50%; background:#f0c040; color:#111; font-size:.7em; font-weight:900; display:flex; align-items:center; justify-content:center; }
+
+/* 슬롯 표시 */
+.slot-bar  { display:flex; gap:6px; align-items:center; }
+.slot-dot  { width:10px; height:10px; border-radius:50%; border:2px solid #444; background:transparent; transition:all .15s; display:inline-block; }
+.slot-dot.filled { background:#f0c040; border-color:#f0c040; }
+.slot-label { font-size:.82rem; color:#888; font-weight:600; margin-left:4px; }
+
+/* 선택 유닛 요약 */
+.selected-units-summary { display:flex; gap:8px; flex-wrap:wrap; min-height:34px; align-items:center; padding:8px 10px; border-radius:8px; background:#111119; border:1px solid #2a2a3a; }
+.selected-unit-chip { display:flex; align-items:center; gap:5px; padding:3px 8px 3px 4px; background:#2a2508; border:1px solid #f0c040; border-radius:20px; font-size:.78em; color:#f0c040; cursor:pointer; }
+.chip-icon { width:20px; height:20px; border-radius:4px; background:#333; display:flex; align-items:center; justify-content:center; font-size:.85em; overflow:hidden; }
+.chip-icon img { width:100%; height:100%; object-fit:cover; border-radius:4px; }
+.summary-empty { color:#555; font-size:.82em; }
+
+/* 상성 패널 */
+.counter-panel  { border-radius:10px; background:#0f0f1a; border:1px solid #2a2a3a; overflow:hidden; }
+.counter-header { padding:10px 14px; background:#181828; border-bottom:1px solid #2a2a3a; display:flex; align-items:center; gap:8px; font-size:.82em; color:#aaa; }
+.counter-sel-icon { width:28px; height:28px; border-radius:5px; background:#2a2a3e; display:flex; align-items:center; justify-content:center; font-size:1.1em; overflow:hidden; }
+.counter-sel-icon img { width:100%; height:100%; object-fit:cover; border-radius:5px; }
+.counter-body { padding:12px 14px; display:flex; gap:14px; }
+.counter-col   { flex:1; }
+.counter-col-title { font-size:.72em; font-weight:700; letter-spacing:.06em; margin-bottom:8px; text-transform:uppercase; }
+.counter-col.good .counter-col-title { color:#5ec46e; }
+.counter-col.bad  .counter-col-title { color:#e05555; }
+.counter-unit-row { display:flex; align-items:center; gap:6px; padding:4px 0; border-bottom:1px solid #1e1e2e; }
+.counter-unit-row:last-child { border-bottom:none; }
+.cu-icon { width:28px; height:28px; border-radius:5px; background:#2a2a3e; display:flex; align-items:center; justify-content:center; font-size:1em; overflow:hidden; flex-shrink:0; }
+.cu-icon img { width:100%; height:100%; object-fit:cover; border-radius:5px; }
+.cu-name  { font-size:.78em; color:#ccc; }
+.counter-empty { font-size:.78em; color:#555; padding:6px 0; }
+/* 전략 생성 페이지 전체 스크롤 방지 */
+.build-create-grid {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+.msl-main:has(.build-create-grid) {
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.msl-main:has(.build-create-grid) .msl-page-header {
+    flex-shrink: 0;
+}
+/* 왼쪽 패널 내부 스크롤 */
+.build-create-grid > .msl-panel {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.build-create-grid > .msl-panel .msl-panel-body {
+    overflow-y: auto;
+    flex: 1;
+}
+/* 오른쪽 컬럼 내부 스크롤 */
+.build-create-grid > div:last-child {
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-width: 0;
+    max-height: calc(100vh - 180px);
+}
+.build-create-grid > div:last-child::-webkit-scrollbar { width: 4px; }
+.build-create-grid > div:last-child::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }

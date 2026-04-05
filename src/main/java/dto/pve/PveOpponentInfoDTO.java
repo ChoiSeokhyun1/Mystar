@@ -1,0 +1,23 @@
+package dto.pve;
+
+import lombok.Data;
+
+@Data
+public class PveOpponentInfoDTO {
+    // TBL_PLAYERS 정보
+    private int playerSeq;
+    private String playerName;
+    private String race;
+    private String rarity;
+    private int statAttack;
+    private int statDefense;
+    private int statMacro;
+    private int statMicro;
+    private int statLuck;
+    private String playerImgUrl;
+    private int playerCost;
+    
+    // TBL_PVE_OPPONENTS 정보
+    private int setNumber; // (★) 배정된 세트 번호 (1~5, 벤치면 0 또는 null)
+    private Integer buildId; // 배정된 빌드 ID (nullable)
+}

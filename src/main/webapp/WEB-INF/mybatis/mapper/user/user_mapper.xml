@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="user_mapper">
+
+    <select id="findUserByIdAndPassword" parameterType="UserDTO" resultType="UserDTO">
+        SELECT
+            USER_ID as userId,
+            USER_PW as userPw,
+            USER_NICK as userNick,
+            CRYSTAL,
+            TRAIN_POINT as trainPoint,
+            TEAM_NAME   as teamName
+        FROM
+            TBL_USERS
+        WHERE
+            USER_ID = #{userId} AND USER_PW = #{userPw}
+    </select>
+
+    <select id="selectUserCurrency" parameterType="String" resultType="UserDTO">
+        SELECT
+            USER_ID as userId,
+            CRYSTAL,
+            TRAIN_POINT as trainPoint
+        FROM
+            TBL_USERS
+        WHERE
+            USER_ID = #{userId}
+    </select>
+
+    <update id="updateUserCurrency" parameterType="UserDTO">
+        UPDATE TBL_USERS
+        SET
+            CRYSTAL = #{crystal}
+        WHERE
+            USER_ID = #{userId}
+    </update>
+
+    <update id="updateUserCrystal" parameterType="map">
+        UPDATE TBL_USERS
+        SET
+            CRYSTAL = CRYSTAL + #{amount}
+        WHERE
+            USER_ID = #{userId}
+    </update>
+
+
+    <update id="updateUserTrainPoint" parameterType="map">
+        UPDATE TBL_USERS
+        SET TRAIN_POINT = TRAIN_POINT + #{amount}
+        WHERE USER_ID = #{userId}
+    </update>
+
+</mapper>

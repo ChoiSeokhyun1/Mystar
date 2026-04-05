@@ -1,0 +1,371 @@
+/* ============================================================
+   gacha.css  —  선수 영입 페이지
+   msl-layout.css 디자인 시스템 기반
+   ============================================================ */
+
+/* gacha 페이지 전용 — msl-main overflow 제어 */
+.gacha-page .msl-main {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 1.75rem;
+}
+
+.gacha-page .msl-page-header {
+    flex-shrink: 0;
+}
+
+.gacha-grid {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    grid-template-rows: auto 1fr;
+    gap: 1rem;
+    flex: 1;
+    min-height: 0;
+}
+
+/* 팩 선택 바 */
+.pack-select-bar {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 0.7rem 1.1rem;
+    flex-shrink: 0;
+}
+
+.pack-select-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.pack-tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.pack-tab {
+    background: transparent;
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    color: var(--text-dim);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 0.38rem 1.1rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.pack-tab:hover { color: var(--text); border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.03); }
+.pack-tab.active { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+.pack-empty-msg { color: var(--text-dim); font-size: 0.88rem; }
+
+/* 좌측 뽑기 패널 */
+.gacha-main-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.pack-banner-wrap {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.pack-banner-wrap img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    transition: opacity 0.3s;
+}
+
+.pack-banner-fallback {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #0d1525 0%, #101d35 100%);
+}
+
+.pack-banner-fallback span {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.1rem; font-weight: 700;
+    letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+.pack-info-area {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    gap: 0.55rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+}
+
+.pack-info-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.6rem; font-weight: 900;
+    color: #fff; line-height: 1;
+}
+
+.pack-info-desc { font-size: 0.88rem; color: var(--text-dim); line-height: 1.5; }
+
+.draw-btn-row { display: flex; gap: 0.75rem; margin-top: 0.25rem; }
+
+.draw-btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.95rem; font-weight: 800;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    border: none; border-radius: 3px;
+    padding: 0.7rem 1.75rem;
+    cursor: pointer;
+    transition: all 0.18s;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 0.15rem;
+    min-width: 140px;
+}
+.draw-btn-cost { font-size: 0.8rem; font-weight: 600; opacity: 0.85; }
+.draw-btn.single { background: var(--green); color: #000; }
+.draw-btn.single:hover:not(:disabled) { background: #69f0ae; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,230,118,0.3); }
+.draw-btn.multi { background: transparent; color: var(--gold); border: 1px solid rgba(255,214,0,0.45); }
+.draw-btn.multi:hover:not(:disabled) { background: rgba(255,214,0,0.08); border-color: var(--gold); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(255,214,0,0.2); }
+.draw-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+/* 우측 주요 선수 패널 */
+.featured-panel { display: flex; flex-direction: column; min-height: 0; }
+
+.featured-scroll {
+    flex: 1; overflow-y: auto;
+    padding: 0.6rem;
+    display: flex; flex-direction: column; gap: 0.4rem;
+}
+
+.featured-item {
+    display: flex; align-items: center; gap: 0.65rem;
+    padding: 0.65rem 0.8rem;
+    background: rgba(255,255,255,0.025);
+    border: 1px solid var(--border); border-radius: 3px;
+    transition: background 0.15s;
+}
+.featured-item { cursor: pointer; }
+.featured-item:hover { background: rgba(255,255,255,0.04); border-color: var(--border2); }
+
+.featured-rarity {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+    padding: 0.15rem 0.45rem; border-radius: 2px;
+    flex-shrink: 0; min-width: 38px; text-align: center;
+}
+.featured-rarity.ur  { background: rgba(255,214,0,0.18); color: var(--rarity-ur); border: 1px solid rgba(255,214,0,0.35); }
+.featured-rarity.ssr { background: rgba(255,152,0,0.15); color: var(--rarity-ssr); border: 1px solid rgba(255,152,0,0.3); }
+.featured-rarity.sr  { background: rgba(68,138,255,0.12); color: var(--rarity-sr); border: 1px solid rgba(68,138,255,0.28); }
+.featured-rarity.r   { background: rgba(0,230,118,0.10); color: var(--rarity-r); border: 1px solid rgba(0,230,118,0.25); }
+.featured-rarity.n   { background: rgba(96,125,139,0.15); color: var(--rarity-n); border: 1px solid rgba(96,125,139,0.25); }
+
+.featured-name { flex: 1; font-size: 0.92rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.featured-race {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.75rem; font-weight: 700;
+    padding: 0.12rem 0.42rem; border-radius: 2px; flex-shrink: 0;
+}
+.featured-race.T { background: rgba(135,206,235,0.12); color: var(--race-t); border: 1px solid rgba(135,206,235,0.25); }
+.featured-race.P { background: rgba(255,250,205,0.10); color: var(--race-p); border: 1px solid rgba(255,250,205,0.22); }
+.featured-race.Z { background: rgba(206,147,216,0.12); color: var(--race-z); border: 1px solid rgba(206,147,216,0.25); }
+
+.featured-empty { color: var(--text-dim); font-size: 0.88rem; text-align: center; padding: 2rem 1rem; }
+
+/* 결과 모달 */
+.draw-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.82);
+    z-index: 500; display: none;
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(6px);
+}
+.draw-modal-overlay.visible { display: flex; }
+
+.draw-modal {
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 2.5rem 3rem;
+    text-align: center;
+    min-width: 320px; max-width: 440px;
+    animation: mslFadeUp 0.25s ease both;
+}
+
+.draw-modal-emoji { font-size: 3.5rem; line-height: 1; margin-bottom: 0.75rem; }
+.draw-modal-rarity {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.4rem; font-weight: 900; letter-spacing: 0.12em;
+    margin-bottom: 0.5rem;
+}
+.draw-modal-name { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 900; color: #fff; margin-bottom: 0.3rem; }
+.draw-modal-sub { font-size: 0.88rem; color: var(--text-dim); margin-bottom: 1.75rem; }
+
+.draw-modal-rarity.ur  { color: var(--rarity-ur); }
+.draw-modal-rarity.ssr { color: var(--rarity-ssr); }
+.draw-modal-rarity.sr  { color: var(--rarity-sr); }
+.draw-modal-rarity.r   { color: var(--rarity-r); }
+.draw-modal-rarity.n   { color: var(--rarity-n); }
+
+/* 10연차 그리드 */
+.multi-result-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 0.5rem; margin-bottom: 1.75rem; }
+.multi-result-card {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 3px; padding: 0.6rem 0.3rem;
+    display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+}
+.multi-card-rarity {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em;
+    padding: 0.1rem 0.35rem; border-radius: 2px;
+}
+.multi-card-name { font-size: 0.7rem; color: var(--text); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; padding: 0 2px; }
+
+/* 선수 상세 모달 */
+.player-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.82);
+    z-index: 600; display: none;
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(6px);
+}
+.player-modal-overlay.visible { display: flex; }
+
+.player-modal {
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    width: 420px;
+    max-width: 95vw;
+    animation: mslFadeUp 0.22s ease both;
+    overflow: hidden;
+}
+
+.player-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.player-modal-close {
+    background: none; border: none;
+    color: var(--text-dim); font-size: 1.25rem;
+    cursor: pointer; line-height: 1; padding: 0;
+    transition: color 0.15s;
+}
+.player-modal-close:hover { color: #fff; }
+
+.player-modal-body {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.player-modal-top {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.player-modal-img {
+    width: 80px; height: 80px;
+    border-radius: 4px;
+    object-fit: cover;
+    border: 1px solid var(--border2);
+    flex-shrink: 0;
+    background: var(--navy);
+}
+
+.player-modal-img-placeholder {
+    width: 80px; height: 80px;
+    border-radius: 4px;
+    background: #111d33;
+    border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.2rem;
+    flex-shrink: 0;
+}
+
+.player-modal-info {
+    display: flex; flex-direction: column; gap: 0.4rem;
+}
+
+.player-modal-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.55rem; font-weight: 900; color: #fff; line-height: 1;
+}
+
+.player-modal-badges {
+    display: flex; gap: 0.4rem; flex-wrap: wrap;
+}
+
+.player-modal-cost {
+    font-size: 0.82rem; color: var(--gold);
+    margin-top: 0.2rem;
+}
+
+.player-modal-stats {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+}
+
+.stat-cell {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.55rem 0.3rem;
+    text-align: center;
+    display: flex; flex-direction: column; gap: 0.2rem;
+}
+
+.stat-cell-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-dim);
+}
+
+.stat-cell-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.35rem; font-weight: 800; color: #fff; line-height: 1;
+}
+
+.stat-cell-value.atk { color: #f87171; }
+.stat-cell-value.def { color: #60a5fa; }
+.stat-cell-value.mac { color: #34d399; }
+.stat-cell-value.mic { color: #fbbf24; }
+.stat-cell-value.lck { color: #a78bfa; }

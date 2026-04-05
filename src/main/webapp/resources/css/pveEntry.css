@@ -1,0 +1,265 @@
+/* ============================================================
+   pveEntry.css  —  엔트리 설정 (체크박스 + 분석 대시보드)
+   ============================================================ */
+
+/* ── 레이아웃 ── */
+.msl-main {
+    position: fixed !important;
+    top: 60px !important; bottom: 0 !important;
+    left: 280px !important; right: 0 !important;
+    display: flex !important; flex-direction: column !important;
+    overflow: hidden !important; padding: 1.5rem !important;
+    box-sizing: border-box;
+}
+.msl-page-header { margin-bottom: 1rem; padding-bottom: 1rem; flex-shrink: 0; }
+
+.entry-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    flex: 1; min-height: 0; height: 100%; overflow: hidden;
+}
+
+/* ── 패널 공통 ── */
+.msl-panel {
+    min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+    background: var(--panel); border: 1px solid var(--border2); border-radius: 4px;
+}
+.msl-panel-head { flex-shrink: 0; }
+.msl-panel-body { flex: 1; overflow-y: auto; min-height: 0; }
+
+/* =======================================
+   좌측: 선수 테이블
+   ======================================= */
+.squad-list-panel { display: flex; flex-direction: column; overflow: hidden; }
+.player-count { margin-left: auto; font-size: 0.95rem; color: #fff; font-weight: 700; }
+.toolbar-sep { width: 1px; height: 18px; background: var(--border2); }
+
+.myteam-toolbar {
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    padding: 0.6rem 1rem; border-bottom: 1px solid var(--border);
+    background: rgba(0,0,0,0.15); flex-wrap: wrap;
+}
+.myteam-toolbar input[type="text"], .myteam-toolbar select {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    border-radius: 5px; color: #fff; padding: 5px 10px; font-size: 0.78rem;
+    outline: none; transition: border-color 0.2s;
+}
+.myteam-toolbar input[type="text"] { width: 160px; }
+.myteam-toolbar input[type="text"]:focus, .myteam-toolbar select:focus { border-color: var(--green); }
+
+.myteam-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.myteam-table th, .myteam-table td {
+    text-align: center; vertical-align: middle; padding: 10px 4px;
+    font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.myteam-table th {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--text-dim);
+}
+.myteam-table .th-chk, .myteam-table .td-chk { width: 4%; }
+.myteam-table th:nth-child(2), .myteam-table th:nth-child(3) { width: 6%; }
+.myteam-table th:nth-child(4) { width: 5%; }  /* 강화 */
+.myteam-table th.name-header, .myteam-table td.col-name { text-align: left; width: 12%; }
+.myteam-table th:nth-child(6), .myteam-table th:nth-child(7), .myteam-table th:nth-child(8),
+.myteam-table th:nth-child(9), .myteam-table th:nth-child(10), .myteam-table th:nth-child(11) { width: 7%; }
+.myteam-table th:nth-child(12) { width: 8%; }
+.myteam-table th:nth-child(13) { width: 11%; }
+
+/* 강화 컬럼 */
+.col-enhance-th { width: 5%; }
+.col-enhance-lv {
+    text-align: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.78rem; font-weight: 800; color: #f59e0b;
+}
+
+/* 툴바 우측 버튼 그룹 */
+.toolbar-entry-actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-left: auto;
+    align-items: center;
+}
+.entry-toolbar-btn {
+    font-size: 0.76rem !important;
+    padding: 0.32rem 0.75rem !important;
+    white-space: nowrap;
+}
+
+.player-table thead { position: sticky; top: 0; background: #090e1c; z-index: 10; }
+.player-table thead th { border-bottom: 1px solid rgba(255,255,255,0.08); }
+.player-table tbody td { border-bottom: 1px solid rgba(255,255,255,0.03); }
+.player-table tbody tr:last-child td { border-bottom: none; }
+
+.myteam-row { cursor: pointer; transition: background 0.15s; border-left: 3px solid transparent; }
+.myteam-row:hover { background: rgba(255,255,255,0.035); }
+.myteam-row.checked { background: rgba(0,230,118,0.08) !important; border-left-color: var(--green); }
+
+.entry-chk { width: 16px; height: 16px; cursor: pointer; accent-color: var(--green); }
+.cond-cell span { white-space: nowrap; font-size: 0.68rem !important; padding: 1px 4px !important; }
+.streak-cell { text-align: center; }
+.streak-cell span { white-space: nowrap; }
+
+.col-race   { font-size: 0.78rem; font-weight: 700; }
+.col-race-T { color: #f87171; } .col-race-P { color: #60a5fa; } .col-race-Z { color: #c084fc; }
+.col-rarity     { font-size: 0.76rem; font-weight: 800; letter-spacing: 0.02em; }
+.col-rarity-ur  { color: #ffd600; } .col-rarity-ssr { color: #ff9800; }
+.col-rarity-sr  { color: #448aff; } .col-rarity-r   { color: #00e676; } .col-rarity-n   { color: #607d8b; }
+.col-name { font-weight: 600; color: #e2e8f0; }
+.col-atk { color: #f87171; } .col-def { color: #60a5fa; } .col-mac { color: #34d399; }
+.col-mic { color: #fbbf24; } .col-luk { color: #a78bfa; }
+.col-tot { color: #94a3b8; font-weight: 700; }
+
+/* =======================================
+   우측: 분석 대시보드
+   ======================================= */
+.analysis-panel {
+    display: flex; flex-direction: column; overflow: hidden;
+    background: radial-gradient(ellipse at top right, #0d1f35 0%, #080c14 100%);
+    border: 1px solid rgba(0,230,118,0.12) !important;
+    position: relative;
+}
+/* SF 꺾쇠 코너 */
+.analysis-panel::before,
+.analysis-panel::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    border-color: rgba(0,230,118,0.35);
+    border-style: solid;
+    z-index: 1;
+}
+.analysis-panel::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+.analysis-panel::after  { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+.analysis-panel .msl-panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.65rem 1rem; border-bottom: 1px solid rgba(0,230,118,0.1);
+}
+.entry-actions { display: flex; gap: 0.5rem; }
+.entry-actions .msl-btn { font-size: 0.76rem; padding: 0.35rem 0.8rem; }
+
+.analysis-body { padding: 0.9rem 1rem !important; display: flex; flex-direction: column; gap: 0.8rem; overflow-y: auto; }
+
+.ana-section {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+}
+.ana-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; color: rgba(0,230,118,0.6);
+    margin-bottom: 0.65rem;
+}
+
+/* ── 1. 선발 슬롯 (이름 표시) ── */
+.ana-slots-section { padding-bottom: 0.4rem; }
+.entry-slots {
+    display: flex; gap: 5px; margin-top: 0.4rem;
+}
+.entry-slot {
+    flex: 1; height: 34px; border-radius: 4px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+}
+.slot-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.68rem; font-weight: 700;
+    color: rgba(255,255,255,0); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    max-width: 90%; text-align: center;
+}
+.entry-slot.active {
+    background: rgba(0,230,118,0.28);
+    border-color: rgba(0,230,118,0.55);
+    box-shadow: 0 0 8px rgba(0,230,118,0.2);
+}
+.entry-slot.active .slot-name { color: #fff; }
+.entry-slots.full .entry-slot.active {
+    background: rgba(0,230,118,0.38);
+    border-color: #00e676;
+    animation: slotGlow 1.8s ease-in-out infinite alternate;
+}
+@keyframes slotGlow {
+    from { box-shadow: 0 0 6px rgba(0,230,118,0.35); }
+    to   { box-shadow: 0 0 16px rgba(0,230,118,0.65), inset 0 0 6px rgba(0,230,118,0.15); }
+}
+
+/* ── 2. 종족 카운터 ── */
+/* ── 종족 + 레이더 2단 레이아웃 ── */
+.ana-two-col {
+    display: flex; gap: 0; padding: 0; overflow: hidden;
+}
+.ana-two-col-left {
+    flex: 1; padding: 0.75rem 0.9rem;
+    display: flex; flex-direction: column;
+}
+.ana-two-col-divider {
+    width: 1px; background: rgba(255,255,255,0.06); flex-shrink: 0;
+}
+.ana-two-col-right {
+    flex: 1; padding: 0.4rem 0.5rem 0.2rem;
+    display: flex; flex-direction: column;
+}
+.ana-two-col-right .ana-title { margin-bottom: 0.1rem; }
+
+.race-counter-wrap {
+    display: flex; justify-content: space-around;
+    align-items: center; flex: 1; padding: 0.2rem 0;
+}
+.race-counter-item {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 0.2rem;
+}
+.race-counter-num {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 2.2rem; font-weight: 900; line-height: 1;
+    transition: color 0.2s;
+}
+.race-counter-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.02em;
+}
+.race-t { color: #f87171; }
+.race-p { color: #60a5fa; }
+.race-z { color: #c084fc; }
+
+/* ── 3. 레이더 차트 ── */
+.radar-wrap {
+    flex: 1; width: 100%; min-height: 0;
+    display: flex; align-items: center; justify-content: center;
+}
+#radarSvg { width: 100%; height: 100%; }
+
+/* ── 4. 팀 진단 ── */
+.team-diagnosis { display: flex; flex-direction: column; gap: 0.35rem; }
+.diag-empty { color: var(--text-dim); font-size: 0.82rem; font-style: italic; }
+.diag-item {
+    display: flex; align-items: flex-start; gap: 0.4rem;
+    font-size: 0.8rem; color: var(--text); line-height: 1.4;
+    padding: 0.3rem 0.5rem; border-radius: 4px;
+}
+.diag-icon { font-size: 0.8rem; flex-shrink: 0; margin-top: 1px; }
+.diag-text { flex: 1; }
+
+.diag-good     { background: rgba(76,175,125,0.06); }
+.diag-warn     { background: rgba(255,152,0,0.06); }
+.diag-bad      { background: rgba(239,83,80,0.06); }
+.diag-info     { background: rgba(96,165,250,0.06); }
+.diag-action   {
+    background: rgba(255,152,0,0.1);
+    border: 1px solid rgba(255,152,0,0.25);
+    animation: diagBlink 2s ease-in-out infinite;
+}
+.diag-complete { background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.25); }
+
+@keyframes diagBlink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.6; }
+}

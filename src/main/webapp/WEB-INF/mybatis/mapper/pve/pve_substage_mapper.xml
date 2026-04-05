@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="pveSubstage_Mapper">
+
+    <select id="selectSubstagesByStageLevel" parameterType="int" resultType="PveSubstageDTO">
+        SELECT
+            STAGE_LEVEL     as stageLevel,
+            SUB_LEVEL       as subLevel,
+            SUB_TITLE       as subTitle
+            -- (★) 테이블에 컬럼 추가 시 여기에 'as 필드명' 추가
+            -- , ENEMY_INFO      as enemyInfo
+            -- , REWARD_INFO     as rewardInfo
+            -- , REQUIRED_COST   as requiredCost
+        FROM
+            TBL_PVE_SUBSTAGES
+        WHERE
+            STAGE_LEVEL = #{stageLevel}
+        ORDER BY
+            SUB_LEVEL ASC
+    </select>
+
+<select id="selectClearedSubstagesForUser" parameterType="map" resultType="UserPveSubstageProgressDTO">
+        SELECT
+            USER_ID         as userId,
+            STAGE_LEVEL     as stageLevel,
+            SUB_LEVEL       as subLevel,
+            IS_CLEARED      as isCleared, CLEARED_AT      as clearedAt
+        FROM
+            USER_PVE_SUBSTAGE_PROGRESS
+        WHERE
+            USER_ID = #{userId} AND STAGE_LEVEL = #{stageLevel}
+        ORDER BY
+            SUB_LEVEL ASC
+    </select>
+
+    <insert id="insertSubstageClearRecord" parameterType="UserPveSubstageProgressDTO">
+        INSERT INTO USER_PVE_SUBSTAGE_PROGRESS (
+            USER_ID, STAGE_LEVEL, SUB_LEVEL
+            -- IS_CLEARED, CLEARED_AT 은 DB DEFAULT 값 사용 (SYSDATE)
+        ) VALUES (
+            #{userId}, #{stageLevel}, #{subLevel}
+        )
+    </insert>
+    
+	<select id="selectMapsBySubstage" parameterType="map" resultType="PveStageMapDTO">
+        SELECT
+            sm.SET_NUMBER       as setNumber,
+            m.MAP_ID            as mapId,
+            m.MAP_NAME          as mapName,
+            m.DESCRIPTION       as description,
+            m.WIN_RATE_T        as winRateT,
+            m.WIN_RATE_P        as winRateP,
+            m.WIN_RATE_Z        as winRateZ
+        FROM
+            TBL_PVE_SUBSTAGE_MAPS sm
+        JOIN
+            TBL_MAPS m ON sm.MAP_ID = m.MAP_ID
+        WHERE
+            sm.STAGE_LEVEL = #{stageLevel} AND sm.SUB_LEVEL = #{subLevel}
+        ORDER BY
+            sm.SET_NUMBER ASC
+    </select>
+    
+    <select id="selectSubstageDetails" parameterType="map" resultType="PveSubstageDTO">
+        SELECT
+            STAGE_LEVEL         as stageLevel,
+            SUB_LEVEL           as subLevel,
+            SUB_TITLE           as subTitle,
+            OPPONENT_TEAM_NAME  as opponentTeamName
+        FROM
+            TBL_PVE_SUBSTAGES
+        WHERE
+            STAGE_LEVEL = #{stageLevel} AND SUB_LEVEL = #{subLevel}
+    </select>
+    
+    <select id="selectMaxStageLevel" resultType="int">
+        SELECT COALESCE(MAX(STAGE_LEVEL), 1) 
+        FROM TBL_PVE_SUBSTAGES
+    </select>
+
+    </mapper>

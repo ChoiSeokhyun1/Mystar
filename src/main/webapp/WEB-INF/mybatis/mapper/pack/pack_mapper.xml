@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="pack_mapper">
+
+    <select id="selectAvailablePacks" resultType="PackDTO">
+        SELECT
+            PACK_SEQ,
+            PACK_NAME,
+            DESCRIPTION,
+            COST_CRYSTAL,
+            BANNER_IMG_URL,
+            IS_AVAILABLE
+        FROM
+            TBL_PACKS
+        WHERE
+            IS_AVAILABLE = 'Y'
+        ORDER BY
+            PACK_SEQ ASC
+    </select>
+
+    <select id="selectPackBySeq" parameterType="int" resultType="PackDTO">
+        SELECT
+            PACK_SEQ,
+            PACK_NAME,
+            DESCRIPTION,
+            COST_CRYSTAL,
+            BANNER_IMG_URL,
+            IS_AVAILABLE
+        FROM
+            TBL_PACKS
+        WHERE
+            PACK_SEQ = #{packSeq}
+    </select>
+
+</mapper>

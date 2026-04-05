@@ -1,0 +1,396 @@
+/* ============================================================
+   myTeam.css  —  선수명단 페이지 전용 스타일
+   ============================================================ */
+
+/* ── 1. 전체 페이지 스크롤 완전 차단 & 100vh 고정 ── */
+.msl-main {
+    position: fixed !important;
+    top: 60px !important;      
+    bottom: 0 !important;      
+    left: 280px !important;    
+    right: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important; 
+    padding: 1.5rem !important;
+    box-sizing: border-box;
+}
+
+.msl-page-header { 
+    margin-bottom: 1rem; 
+    padding-bottom: 1rem; 
+    flex-shrink: 0; 
+}
+
+/* ── 2. 메인 그리드 (좌우 5:5 비율) ── */
+.squad-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; 
+    gap: 1.25rem;
+    flex: 1;
+    min-height: 0; 
+    height: 100%;
+    overflow: hidden;
+}
+
+/* ── 3. 우측 컬럼 (선수정보 : 최근기록 비율 자동 조정) ── */
+.squad-right-col {
+    display: grid;
+    grid-template-rows: auto 1fr; 
+    gap: 1.25rem;
+    min-height: 0; 
+    height: 100%;
+    overflow: hidden;
+}
+
+/* ── 4. 패널 공통 설정 ── */
+.msl-panel {
+    min-height: 0; 
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.msl-panel-head { flex-shrink: 0; }
+.msl-panel-body { flex: 1; overflow-y: auto; min-height: 0; }
+
+/* =======================================
+   패널 1: 선수 목록 (좌측)
+   ======================================= */
+.squad-list-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.player-count {
+    margin-left: auto; font-size: 0.95rem; color: #fff; font-weight: 700;
+}
+.toolbar-sep {
+    width: 1px; height: 18px; background: var(--border2);
+}
+
+/* =======================================
+   패널 2: 프로 스카우팅 대시보드 (우측 상단)
+   ======================================= */
+.squad-detail-panel {
+    overflow: hidden;
+    flex-shrink: 0;
+    /* 고급스러운 심비오트 질감의 다크 그라데이션 */
+    background: radial-gradient(circle at 100% 0%, #152238 0%, #0d121e 60%, #070a10 100%);
+    border: 1px solid rgba(255,255,255,0.05);
+}
+.squad-detail-body {
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem 1.5rem !important; 
+}
+.squad-detail-body#cardPlaceholder {
+    align-items: center; justify-content: center; color: var(--text-dim);
+}
+
+/* ── 1. 아이덴티티 섹션 (사진 + 이름 + 통합 바이오) ── */
+.pro-identity-section {
+    display: flex;
+    align-items: stretch; /* ✨ 핵심: 사진(130px)과 우측 정보의 높이를 동일하게 맞춤 */
+    gap: 1.5rem; 
+    margin-bottom: 1.2rem; 
+    padding-bottom: 1.2rem; 
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+/* 프로필 사진 (더 커진 둥근 네모) */
+.pro-avatar {
+    width: 130px;
+    height: 130px;
+    flex-shrink: 0;
+    border-radius: 12px; /* 둥근 네모 */
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.5) 100%);
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.03), 0 5px 15px rgba(0,0,0,0.5);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.pro-avatar img {
+    width: 100%; height: 100%; object-fit: cover; z-index: 2;
+}
+#cardImgFallback {
+    position: absolute; font-size: 3.5rem; color: rgba(255,255,255,0.1); z-index: 1;
+}
+
+/* 선수 핵심 정보 래퍼 */
+.pro-headline {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* ✨ 핵심: 뱃지-이름-정보를 위아래로 꽉 차게 균등 분배 */
+    padding: 0.4rem 0; /* 130px 안에서 너무 끝에 붙지 않게 위아래 살짝 여백 */
+}
+
+/* 상단 컬러 뱃지들 (종족, 등급, 팩) */
+.pro-badges {
+    display: flex;
+    gap: 0.4rem;
+    margin: 0; /* 공간 균등 분배를 위해 기존 여백 제거 */
+}
+.badge-tag {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 800; 
+    letter-spacing: 0.05em;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.05);
+    color: var(--text-dim);
+}
+
+/* 테이블 색상과 동일하게 뱃지 컬러 연동 */
+.badge-tag.col-race-T { color: #f87171; border-color: rgba(248,113,113,0.3); background: rgba(248,113,113,0.08); }
+.badge-tag.col-race-P { color: #60a5fa; border-color: rgba(96,165,250,0.3); background: rgba(96,165,250,0.08); }
+.badge-tag.col-race-Z { color: #c084fc; border-color: rgba(192,132,252,0.3); background: rgba(192,132,252,0.08); }
+
+.badge-tag.col-rarity-ur  { color: #ffd600; border-color: rgba(255,214,0,0.3); background: rgba(255,214,0,0.08); }
+.badge-tag.col-rarity-ssr { color: #ff9800; border-color: rgba(255,152,0,0.3); background: rgba(255,152,0,0.08); }
+.badge-tag.col-rarity-sr  { color: #448aff; border-color: rgba(68,138,255,0.3); background: rgba(68,138,255,0.08); }
+.badge-tag.col-rarity-r   { color: #00e676; border-color: rgba(0,230,118,0.3); background: rgba(0,230,118,0.08); }
+.badge-tag.col-rarity-n   { color: #607d8b; border-color: rgba(96,125,139,0.3); background: rgba(96,125,139,0.08); }
+
+/* 출시 팩 전용 노란색 뱃지 */
+.badge-tag.pack-yellow {
+    color: #ffd600 !important;
+    border-color: rgba(255, 214, 0, 0.3) !important;
+    background: rgba(255, 214, 0, 0.08) !important;
+}
+
+/* 거대한 선수 이름 */
+.pro-name {
+    margin: 0; /* 공간 균등 분배를 위해 기존 여백 제거 */
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 2.1rem; 
+    font-weight: 900;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+}
+
+/* 통합 바이오 스트립 */
+.pro-bio-strip {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin: 0; /* 공간 균등 분배를 위해 기존 여백 제거 */
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    font-weight: 500;
+}
+.bio-highlight {
+    color: var(--gold);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+.bio-divider {
+    width: 3px; height: 3px; border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+}
+
+
+/* ── 2. 데이터 분석 섹션 (능력치 & 전적) ── */
+.pro-analytics-section {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 1rem; 
+}
+
+/* 공통 글래스모피즘 박스 룩 */
+.pro-data-box {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 8px;
+    padding: 1rem 1.2rem; 
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+}
+.box-title {
+    margin: 0 0 0.8rem 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* 능력치 리스트 */
+.pro-stat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem; 
+}
+.pro-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+.pro-stat-info {
+    width: 50px;
+    display: flex;
+    flex-direction: column;
+}
+.stat-lbl {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.85rem; font-weight: 800; color: #e2e8f0;
+}
+.stat-nm {
+    font-size: 0.65rem; color: var(--text-dim); margin-top: -2px; display: none; 
+}
+.pro-stat-bar-bg {
+    flex: 1; height: 5px; background: rgba(0,0,0,0.5); border-radius: 3px; overflow: hidden;
+}
+.pro-stat-bar-fill {
+    height: 100%; border-radius: 3px; transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pro-stat-val {
+    width: 25px; text-align: right; font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 900;
+}
+
+/* 타이포그래피 전적 디스플레이 */
+.pro-record-display {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: calc(100% - 1.5rem);
+    gap: 0.8rem;
+}
+.record-scores {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+.score-box {
+    display: flex; flex-direction: column; align-items: center;
+}
+.score-box .num {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 2.2rem; font-weight: 900; line-height: 1;
+}
+.score-box .lbl {
+    font-size: 0.7rem; font-weight: 700; color: var(--text-dim); margin-top: 4px; letter-spacing: 0.05em;
+}
+.score-box.win .num { color: #4caf7d; text-shadow: 0 0 10px rgba(76,175,125,0.3); }
+.score-box.lose .num { color: #ef5350; text-shadow: 0 0 10px rgba(239,83,80,0.3); }
+
+.record-winrate {
+    margin-top: 0.3rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+.wr-lbl { font-size: 0.8rem; color: var(--text-dim); font-weight: 600; }
+.wr-val { font-family: 'Barlow Condensed', sans-serif; font-size: 1.5rem; font-weight: 800; color: #e2e8f0; }
+.record-empty { color: var(--text-dim); font-size: 0.9rem; text-align: center; margin-top: 1rem; }
+
+
+/* =======================================
+   최근 기록 패널 (우측 하단 - 슬림화 됨)
+   ======================================= */
+.squad-recent-panel {
+    min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+}
+.squad-match-item {
+    display: flex; align-items: center; gap: 0.8rem; 
+    padding: 0.5rem 1rem; 
+    border-bottom: 1px solid var(--border);
+}
+.squad-match-item:hover { background: rgba(255,255,255,0.02); }
+.squad-match-badge {
+    width: 30px; 
+    text-align: center; padding: 0.15rem 0; border-radius: 4px;
+    font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 0.8rem; color: #fff;
+}
+.squad-match-badge.win { background: var(--green); color: #000; }
+.squad-match-badge.lose { background: var(--red); }
+.squad-match-info { flex: 1; display: flex; flex-direction: column; gap: 0.1rem; }
+.squad-match-vs { font-size: 0.85rem; color: #fff; font-weight: 600; margin-bottom: 0.1rem; }
+.squad-match-meta { font-size: 0.72rem; color: var(--text-dim); }
+
+/* ── 선수명단 툴바 ── */
+.myteam-toolbar {
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.15); flex-wrap: wrap;
+}
+.myteam-toolbar input[type="text"], .myteam-toolbar select {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 5px; color: #fff;
+    padding: 5px 10px; font-size: 0.78rem; outline: none; transition: border-color 0.2s;
+}
+.myteam-toolbar input[type="text"] { width: 160px; }
+.myteam-toolbar input[type="text"]:focus, .myteam-toolbar select:focus { border-color: var(--green); }
+
+/* =======================================
+   선수명단 테이블 (고정 너비)
+   ======================================= */
+.myteam-table {
+    width: 100%; table-layout: fixed; border-collapse: collapse;
+}
+.myteam-table th, .myteam-table td {
+    text-align: center; vertical-align: middle; padding: 10px 4px;
+    font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+}
+.myteam-table th {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim);
+}
+
+/* ── 강화 컬럼 ── */
+.col-enhance-th { width: 5%; }
+.col-enhance-lv {
+    text-align: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: #f59e0b;
+}
+
+.myteam-table th:nth-child(1), .myteam-table th:nth-child(2) { width: 6%; }
+.myteam-table th:nth-child(3) { width: 5%; }
+.myteam-table th.name-header, .myteam-table td.col-name { text-align: left; width: 14%; }
+.myteam-table th:nth-child(5), .myteam-table th:nth-child(6),
+.myteam-table th:nth-child(7), .myteam-table th:nth-child(8),
+.myteam-table th:nth-child(9) { width: 7%; }
+.myteam-table th:nth-child(10) { width: 7%; }
+.myteam-table th:nth-child(11) { width: 9%; }
+.myteam-table th:nth-child(12) { width: 12%; }
+
+.player-table thead { position: sticky; top: 0; background: #090e1c; z-index: 10; }
+.player-table thead th { border-bottom: 1px solid rgba(255,255,255,0.08); }
+.player-table tbody td { border-bottom: 1px solid rgba(255,255,255,0.03); }
+.player-table tbody tr:last-child td { border-bottom: none; }
+
+.myteam-row { cursor: pointer; transition: background 0.15s; border-left: 3px solid transparent; }
+.myteam-row:hover { background: rgba(255,255,255,0.035); }
+.myteam-row.active { background: var(--green-dim) !important; border-left-color: var(--green); }
+
+.cond-cell span, .streak-cell span { white-space: nowrap; font-size: 0.68rem !important; padding: 1px 4px !important; }
+
+.col-race   { font-size: 0.78rem; font-weight: 700; }
+.col-race-T { color: #f87171; }
+.col-race-P { color: #60a5fa; }
+.col-race-Z { color: #c084fc; }
+.col-rarity     { font-size: 0.76rem; font-weight: 800; letter-spacing: 0.02em; }
+.col-rarity-ur  { color: #ffd600; }
+.col-rarity-ssr { color: #ff9800; }
+.col-rarity-sr  { color: #448aff; }
+.col-rarity-r   { color: #00e676; }
+.col-rarity-n   { color: #607d8b; }
+.col-name { font-weight: 600; color: #e2e8f0; }
+
+.col-atk { color: #f87171; font-variant-numeric: tabular-nums; }
+.col-def { color: #60a5fa; font-variant-numeric: tabular-nums; }
+.col-mac { color: #34d399; font-variant-numeric: tabular-nums; }
+.col-mic { color: #fbbf24; font-variant-numeric: tabular-nums; }
+.col-luk { color: #a78bfa; font-variant-numeric: tabular-nums; }
+.col-tot { color: #94a3b8; font-weight: 700; font-variant-numeric: tabular-nums; }

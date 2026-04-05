@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="mapper.mission.dailyMission">
+
+    <!-- 활성화된 모든 일일 미션 조회 -->
+    <select id="selectAllActiveMissions" resultType="dto.mission.DailyMissionDTO">
+        SELECT 
+            MISSION_ID as missionId,
+            MISSION_TYPE as missionType,
+            MISSION_TITLE as missionTitle,
+            MISSION_DESC as missionDesc,
+            TARGET_COUNT as targetCount,
+            REWARD_CRYSTAL as rewardCrystal,
+            REWARD_EXP as rewardExp,
+            MISSION_ICON as missionIcon,
+            DISPLAY_ORDER as displayOrder,
+            IS_ACTIVE as isActive,
+            CREATED_AT as createdAt
+        FROM TBL_DAILY_MISSIONS
+        WHERE IS_ACTIVE = 'Y'
+        ORDER BY DISPLAY_ORDER ASC
+    </select>
+    
+    <!-- 특정 미션 조회 -->
+    <select id="selectMissionById" resultType="dto.mission.DailyMissionDTO" parameterType="int">
+        SELECT 
+            MISSION_ID as missionId,
+            MISSION_TYPE as missionType,
+            MISSION_TITLE as missionTitle,
+            MISSION_DESC as missionDesc,
+            TARGET_COUNT as targetCount,
+            REWARD_CRYSTAL as rewardCrystal,
+            REWARD_EXP as rewardExp,
+            MISSION_ICON as missionIcon,
+            DISPLAY_ORDER as displayOrder,
+            IS_ACTIVE as isActive,
+            CREATED_AT as createdAt
+        FROM TBL_DAILY_MISSIONS
+        WHERE MISSION_ID = #{missionId}
+    </select>
+    
+    <!-- 유저의 오늘 미션 진행 상황 조회 (미션 정보 포함 JOIN) -->
+    <select id="selectUserMissionsToday" resultType="dto.mission.UserDailyMissionDTO" parameterType="string">
+        SELECT 
+            udm.USER_ID as userId,
+            udm.MISSION_ID as missionId,
+            udm.CURRENT_COUNT as currentCount,
+            udm.IS_COMPLETED as isCompleted,
+            udm.IS_CLAIMED as isClaimed,
+            udm.COMPLETED_AT as completedAt,
+            udm.CLAIMED_AT as claimedAt,
+            udm.RESET_DATE as resetDate,
+            dm.MISSION_TYPE as missionType,
+            dm.MISSION_TITLE as missionTitle,
+            dm.MISSION_DESC as missionDesc,
+            dm.TARGET_COUNT as targetCount,
+            dm.REWARD_CRYSTAL as rewardCrystal,
+            dm.REWARD_EXP as rewardExp,
+            dm.MISSION_ICON as missionIcon,
+            dm.DISPLAY_ORDER as displayOrder
+        FROM TBL_USER_DAILY_MISSIONS udm
+        INNER JOIN TBL_DAILY_MISSIONS dm ON udm.MISSION_ID = dm.MISSION_ID
+        WHERE udm.USER_ID = #{userId}
+          AND udm.RESET_DATE = TRUNC(SYSDATE)
+          AND dm.IS_ACTIVE = 'Y'
+        ORDER BY dm.DISPLAY_ORDER ASC
+    </select>
+    
+    <!-- 유저 미션 진행 상황 조회 (단일) -->
+    <select id="selectUserMission" resultType="dto.mission.UserDailyMissionDTO" parameterType="map">
+        SELECT 
+            udm.USER_ID as userId,
+            udm.MISSION_ID as missionId,
+            udm.CURRENT_COUNT as currentCount,
+            udm.IS_COMPLETED as isCompleted,
+            udm.IS_CLAIMED as isClaimed,
+            udm.COMPLETED_AT as completedAt,
+            udm.CLAIMED_AT as claimedAt,
+            udm.RESET_DATE as resetDate,
+            dm.MISSION_TYPE as missionType,
+            dm.MISSION_TITLE as missionTitle,
+            dm.MISSION_DESC as missionDesc,
+            dm.TARGET_COUNT as targetCount,
+            dm.REWARD_CRYSTAL as rewardCrystal,
+            dm.REWARD_EXP as rewardExp,
+            dm.MISSION_ICON as missionIcon,
+            dm.DISPLAY_ORDER as displayOrder
+        FROM TBL_USER_DAILY_MISSIONS udm
+        INNER JOIN TBL_DAILY_MISSIONS dm ON udm.MISSION_ID = dm.MISSION_ID
+        WHERE udm.USER_ID = #{userId}
+          AND udm.MISSION_ID = #{missionId}
+          AND udm.RESET_DATE = TRUNC(SYSDATE)
+    </select>
+    
+    <!-- 유저 미션 진행 상황 생성 -->
+    <insert id="insertUserMission" parameterType="dto.mission.UserDailyMissionDTO">
+        INSERT INTO TBL_USER_DAILY_MISSIONS (
+            USER_ID, MISSION_ID, CURRENT_COUNT, IS_COMPLETED, IS_CLAIMED, RESET_DATE
+        ) VALUES (
+            #{userId}, #{missionId}, 0, 'N', 'N', TRUNC(SYSDATE)
+        )
+    </insert>
+    
+    <!-- 미션 진행도 업데이트 -->
+    <update id="updateMissionProgress" parameterType="map">
+        UPDATE TBL_USER_DAILY_MISSIONS
+        SET CURRENT_COUNT = #{currentCount}
+        WHERE USER_ID = #{userId}
+          AND MISSION_ID = #{missionId}
+          AND RESET_DATE = TRUNC(SYSDATE)
+    </update>
+    
+    <!-- 미션 완료 처리 -->
+    <update id="completeMission" parameterType="map">
+        UPDATE TBL_USER_DAILY_MISSIONS
+        SET IS_COMPLETED = 'Y',
+            COMPLETED_AT = SYSDATE
+        WHERE USER_ID = #{userId}
+          AND MISSION_ID = #{missionId}
+          AND RESET_DATE = TRUNC(SYSDATE)
+          AND IS_COMPLETED = 'N'
+    </update>
+    
+    <!-- 보상 수령 처리 -->
+    <update id="claimReward" parameterType="map">
+        UPDATE TBL_USER_DAILY_MISSIONS
+        SET IS_CLAIMED = 'Y',
+            CLAIMED_AT = SYSDATE
+        WHERE USER_ID = #{userId}
+          AND MISSION_ID = #{missionId}
+          AND RESET_DATE = TRUNC(SYSDATE)
+          AND IS_COMPLETED = 'Y'
+          AND IS_CLAIMED = 'N'
+    </update>
+    
+    <!-- 오늘 날짜의 미션 데이터가 있는지 확인 -->
+    <select id="checkTodayMissionExists" resultType="int" parameterType="string">
+        SELECT COUNT(*)
+        FROM TBL_USER_DAILY_MISSIONS
+        WHERE USER_ID = #{userId}
+          AND RESET_DATE = TRUNC(SYSDATE)
+    </select>
+    
+    <!-- 유저의 오래된 미션 데이터 삭제 (어제 이전 데이터) -->
+    <delete id="deleteOldUserMissions" parameterType="string">
+        DELETE FROM TBL_USER_DAILY_MISSIONS
+        WHERE USER_ID = #{userId}
+          AND RESET_DATE &lt; TRUNC(SYSDATE)
+    </delete>
+    
+    <!-- 완료 가능한 미션 수 조회 -->
+    <select id="countCompletableMissions" resultType="int" parameterType="string">
+        SELECT COUNT(*)
+        FROM TBL_USER_DAILY_MISSIONS udm
+        INNER JOIN TBL_DAILY_MISSIONS dm ON udm.MISSION_ID = dm.MISSION_ID
+        WHERE udm.USER_ID = #{userId}
+          AND udm.RESET_DATE = TRUNC(SYSDATE)
+          AND udm.CURRENT_COUNT >= dm.TARGET_COUNT
+          AND udm.IS_COMPLETED = 'N'
+    </select>
+    
+    <!-- 수령 가능한 보상 개수 조회 -->
+    <select id="countClaimableRewards" resultType="int" parameterType="string">
+        SELECT COUNT(*)
+        FROM TBL_USER_DAILY_MISSIONS
+        WHERE USER_ID = #{userId}
+          AND RESET_DATE = TRUNC(SYSDATE)
+          AND IS_COMPLETED = 'Y'
+          AND IS_CLAIMED = 'N'
+    </select>
+
+</mapper>

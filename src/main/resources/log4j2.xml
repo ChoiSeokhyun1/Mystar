@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="OFF">
+    <Properties>
+        <Property name="logNm">SpringProject_Log4j2</Property>
+        <Property name="layoutPattern">[%d{yyyy/MM/dd HH:mm:ss,SSS}] [%t] [%-5level] [%logger{36}] %m%n</Property>
+    </Properties>
+    
+    <Appenders>
+        <Console name="Console_Appender" target="SYSTEM_OUT">
+            <PatternLayout pattern="${layoutPattern}"/>
+        </Console>
+        
+        <RollingFile name="File_Appender" fileName="C:/logs/${logNm}.log" filePattern="C:/logs/${logNm}_%d{yyyy-MM-dd}_%i.log.gz">
+            <PatternLayout pattern="${layoutPattern}"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="1000KB"/>
+                <TimeBasedTriggeringPolicy interval="1"/>
+            </Policies>
+            <DefaultRolloverStrategy max="10" fileIndex="min"/>
+        </RollingFile>
+    </Appenders>
+    
+    <Loggers>
+        <Root level="OFF" additivity="false">
+            <AppenderRef ref="File_Appender"/>
+        </Root>
+        
+        <Logger name="org.springframework" level="OFF" additivity="false">
+            <AppenderRef ref="File_Appender"/>
+        </Logger>
+        
+        <Logger name="com.fc.controller" level="OFF" additivity="false">
+            <AppenderRef ref="File_Appender"/>
+        </Logger>
+        
+        <Logger name="log4jdbc.log4j2" level="OFF" additivity="false" />
+        <Logger name="jdbc" level="OFF" additivity="false" />
+        <Logger name="jdbc.sqlonly" level="OFF" additivity="false" />
+        <Logger name="jdbc.sqltiming" level="OFF" additivity="false" />
+        <Logger name="jdbc.audit" level="OFF" additivity="false" />
+        <Logger name="jdbc.resultset" level="OFF" additivity="false" />
+        <Logger name="jdbc.resultsettable" level="OFF" additivity="false" />
+        <Logger name="jdbc.connection" level="OFF" additivity="false" />
+        
+    </Loggers>
+</Configuration>

@@ -1,0 +1,101 @@
+/* css/index.css */
+body {
+    background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 50%, #16213e 100%) !important;
+    color: #e0e0e0;
+}
+
+.lobby-container {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    min-height: calc(100vh - 100px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+/* 상단 정보 영역 */
+.hero-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 3rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 1.5rem;
+}
+
+.welcome-text { font-size: 2.5rem; margin: 0; font-weight: 800; }
+.highlight { color: #7a7af0; text-shadow: 0 0 15px rgba(122, 122, 240, 0.5); }
+.team-name-display { color: #888; margin: 5px 0 0 0; font-size: 1.1rem; }
+
+.res-card {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    text-align: right;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+.res-label { display: block; font-size: 0.8rem; color: #aaa; }
+.res-value { font-size: 1.5rem; font-weight: bold; color: #ffd700; }
+
+/* 대시보드 카드 */
+.game-dashboard {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 1fr; /* 전투 카드 강조 */
+    gap: 1.5rem;
+}
+
+.menu-card {
+    background: rgba(42, 42, 62, 0.6);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.menu-card:hover {
+    transform: translateY(-10px);
+    background: rgba(58, 58, 89, 0.8);
+    border-color: #7a7af0;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.battle-main {
+    border: 2px solid #7a7af0;
+    background: rgba(122, 122, 240, 0.1);
+}
+
+.card-tag {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: #e74c3c;
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.card-icon { font-size: 3rem; margin-bottom: 1rem; }
+
+/* 버튼 스타일 */
+.btn-lobby {
+    display: block;
+    width: 100%;
+    padding: 0.8rem;
+    margin-top: 10px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: white;
+    background: #4a4a5f;
+    font-weight: 600;
+    transition: 0.2s;
+}
+.btn-lobby:hover { filter: brightness(1.2); }
+.btn-highlight { background: #7a7af0; font-size: 1.2rem; }
+.btn-success { background: #28a745; }
+
+.status-online { color: #2ecc71; font-weight: bold; }

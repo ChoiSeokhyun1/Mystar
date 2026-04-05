@@ -1,0 +1,279 @@
+/* ============================================================
+   pveLobby.css  —  PVE 로비 전용 스타일
+   ============================================================ */
+
+/* ── 페이지 스크롤 완전 차단 ── */
+.msl-main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 1.4rem 1.75rem;
+}
+.msl-page-header { margin-bottom: 1rem; padding-bottom: 1rem; flex-shrink: 0; }
+.msl-stat-strip  { margin-bottom: 1rem; flex-shrink: 0; }
+
+/* ── 메인 그리드 ── */
+.lobby-grid {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 1.25rem;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ================================================================
+   왼쪽 — 스테이지 패널
+================================================================ */
+.stage-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.stage-panel .msl-panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+/* 스테이지 테이블 */
+.stage-table { width: 100%; border-collapse: collapse; }
+
+.stage-table th {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--text-dim);
+    padding: 0 0.9rem 0.65rem; text-align: left;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0;
+    background: var(--panel); z-index: 1;
+}
+.stage-table td {
+    padding: 0.85rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+.stage-table tr:last-child td { border-bottom: none; }
+.stage-table tbody tr { transition: background 0.14s; }
+.stage-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+.stage-table tbody tr.active-row td { background: var(--green-dim); }
+
+.stage-num {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.05rem; font-weight: 700; color: var(--text-dim);
+}
+.stage-name { color: #fff; font-weight: 500; font-size: 0.92rem; }
+.stage-sub  { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.1rem; }
+
+/* 진행도 바 (테이블 내) */
+.stage-bar-wrap {
+    height: 5px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 0.25rem;
+}
+.stage-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+.stage-bar-fill.cleared     { background: var(--green); }
+.stage-bar-fill.in-progress { background: var(--gold); }
+.stage-bar-fill.locked      { background: transparent; }
+
+.stage-bar-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
+}
+.stage-bar-label.cleared     { color: var(--green); }
+.stage-bar-label.in-progress { color: var(--gold); }
+.stage-bar-label.locked      { color: var(--text-dim); }
+
+/* 상태 필 */
+.status-pill {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 0.2rem 0.55rem; border-radius: 3px;
+    white-space: nowrap;
+}
+.status-pill.cleared     { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-border); }
+.status-pill.in-progress { background: rgba(255,214,0,0.10); color: var(--gold); border: 1px solid rgba(255,214,0,0.25); }
+.status-pill.locked      { background: rgba(255,255,255,0.04); color: var(--text-dim); border: 1px solid var(--border); }
+
+/* 출격 버튼 */
+.stage-btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; text-decoration: none;
+    padding: 0.35rem 0.85rem; border-radius: 3px; border: none;
+    cursor: pointer; transition: all 0.15s; display: inline-block;
+    white-space: nowrap;
+}
+.stage-btn.go { background: var(--green); color: #000; }
+.stage-btn.go:hover { background: #69f0ae; }
+
+/* ================================================================
+   오른쪽 — 사이드 컬럼 (고정 높이 패널)
+================================================================ */
+.side-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    overflow: hidden;   /* 사이드 자체도 넘치지 않게 */
+    min-height: 0;
+}
+
+/* 광고: 고정 높이 220px */
+.side-panel-ad {
+    height: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.side-panel-ad .msl-panel-body { flex: 1; padding: 0; }
+.ad-body {
+    height: 100%;
+    display: flex; align-items: center; justify-content: center;
+}
+.ad-placeholder {
+    display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+}
+.ad-icon { font-size: 1.5rem; opacity: 0.18; }
+.ad-text {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; opacity: 0.28; color: var(--text-dim);
+}
+
+/* 선수 랭킹 슬라이더: 고정 높이 120px */
+.side-panel-rank {
+    height: 120px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.side-panel-rank .msl-panel-body { flex: 1; overflow: hidden; padding: 0; }
+.rank-slider-body { height: 100%; overflow: hidden; }
+
+/* 데일리 퀘스트: 나머지 공간 전부 */
+.side-panel-quest {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.side-panel-quest .msl-panel-body { flex: 1; overflow-y: auto; padding: 0; }
+
+/* ── 슬라이더 내부 ── */
+.rank-nav {
+    display: flex; align-items: center; gap: 0.45rem;
+}
+.rank-nav-btn {
+    background: transparent; border: 1px solid var(--border2);
+    color: var(--text-dim); border-radius: 3px;
+    width: 22px; height: 22px; cursor: pointer;
+    font-size: 1.1rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; padding: 0; flex-shrink: 0;
+}
+.rank-nav-btn:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+
+.rank-dots { display: flex; gap: 4px; align-items: center; }
+.rank-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--border2); cursor: pointer;
+    transition: background 0.2s;
+}
+.rank-dot.active { background: var(--green); }
+
+.rank-slide { display: none; height: 100%; }
+.rank-slide.active { display: block; }
+
+.rank-card {
+    padding: 0.85rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.rank-card-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.63rem; font-weight: 700; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--text-dim);
+}
+.rank-card-label small { font-size: 0.58rem; opacity: 0.7; }
+
+/* 이름 + 뱃지 + 숫자 한 줄 */
+.rank-card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    min-width: 0;
+}
+.rank-card-left {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+}
+.rank-card-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 1.35rem; font-weight: 900; color: #fff;
+    line-height: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex-shrink: 1;
+}
+.rank-card-big {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 2rem; font-weight: 900; color: #fff;
+    line-height: 1;
+    display: flex; align-items: baseline; gap: 0.2rem;
+    flex-shrink: 0;
+}
+.rank-card-big span {
+    font-size: 0.72rem; font-weight: 400; color: var(--text-dim);
+}
+.rank-card-big.green { color: var(--green); }
+.rank-card-big.gold  { color: var(--gold); }
+
+.rank-empty {
+    padding: 1.5rem; text-align: center;
+    color: var(--text-dim); font-size: 0.82rem; line-height: 1.6;
+}
+
+/* ── 데일리 퀘스트 ── */
+.quest-body { padding: 0; }
+.quest-item {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 0.65rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+    opacity: 0.5;
+}
+.quest-item:last-child { border-bottom: none; }
+.quest-icon  { font-size: 1rem; flex-shrink: 0; }
+.quest-info  { flex: 1; min-width: 0; }
+.quest-name  { font-size: 0.85rem; color: var(--text); }
+.quest-reward {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.73rem; color: var(--gold); margin-top: 0.1rem;
+}
+.quest-prog {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.82rem; font-weight: 700;
+    color: var(--text-dim); flex-shrink: 0;
+}
+
+.coming-soon-chip {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.63rem; font-weight: 700; letter-spacing: 0.12em;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border2);
+    color: var(--text-dim); padding: 0.1rem 0.42rem; border-radius: 3px;
+    text-transform: uppercase;
+}

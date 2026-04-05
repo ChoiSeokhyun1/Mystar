@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="pack_content_mapper">
+
+    <select id="selectPackContentsByPackSeq" parameterType="int" resultType="PackContentDTO">
+        SELECT
+            PACK_CONTENT_SEQ,
+            PACK_SEQ,
+            PLAYER_SEQ,
+            DRAW_PROBABILITY
+        FROM
+            TBL_PACK_CONTENTS
+        WHERE
+            PACK_SEQ = #{packSeq}
+        ORDER BY
+            -- 확률 높은 순 또는 희귀도 순 등으로 정렬 가능
+            DRAW_PROBABILITY DESC
+    </select>
+
+</mapper>
