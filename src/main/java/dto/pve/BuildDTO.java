@@ -13,7 +13,8 @@ public class BuildDTO {
     private String vsRace;
     private String playStyle;         // AGGRESSIVE(공격) / NORMAL(일반) / DEFENSIVE(수비)
     private String harassStyle;       // NO_HARASS(견제없음) / NORMAL_HARASS(일반견제) / HEAVY_HARASS(강견제)
-    private String aggression;        // MIN_MULTI / MID_MULTI / MAX_MULTI (확장 성향)
+    private String aggression;        // FAST_MULTI(빠른멀티) / NORMAL_MULTI(일반멀티) / SLOW_MULTI(느린멀티) — 멀티 타이밍 제어
+    private int    maxBases;           // 최대 기지 수 (본진 포함, 0이면 기본값 4 사용)
     private int    maxTier;           // 최대 티어 제한: 1 / 2 / 3 (0이면 무제한=3)
     private int    winCount;
     private int    loseCount;

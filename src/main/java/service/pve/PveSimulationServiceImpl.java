@@ -33,14 +33,6 @@ public class PveSimulationServiceImpl implements PveSimulationService {
             case "AGGRESSIVE":   return new double[]{0.35, 0.50, 0.15}; // 공격 스타일: 초·중반 집중
             case "NORMAL":       return new double[]{0.20, 0.43, 0.37}; // 일반 스타일: 균형 배분
             case "DEFENSIVE":    return new double[]{0.05, 0.35, 0.60}; // 수비 스타일: 후반 결전
-            // 구버전 호환
-            case "HARASS_FOCUS": return new double[]{0.20, 0.43, 0.37};
-            case "EARLY_ALLIN": return new double[]{0.90, 0.10, 0.00};
-            case "MID_TIMING":  return new double[]{0.10, 0.80, 0.10};
-            case "LATE_OPS":    return new double[]{0.00, 0.10, 0.90};
-            case "RUSH":  return new double[]{0.90, 0.10, 0.00};
-            case "EARLY": return new double[]{0.60, 0.25, 0.15};
-            case "LATE":  return new double[]{0.05, 0.15, 0.80};
             default:      return new double[]{0.20, 0.43, 0.37};
         }
     }
@@ -78,22 +70,13 @@ public class PveSimulationServiceImpl implements PveSimulationService {
             case "AGGRESSIVE":   baseCount = 4 + rand.nextInt(2); earlyStart = 60;  break; // 공격스타일: 교전 자주, 초반부터
             case "NORMAL":       baseCount = 3 + rand.nextInt(2); earlyStart = 120; break; // 일반스타일: 중간 교전 빈도
             case "DEFENSIVE":    baseCount = 2 + rand.nextInt(2); earlyStart = 180; break; // 수비스타일: 교전 적게, 후반 위주
-            // 구버전 호환
-            case "HARASS_FOCUS": baseCount = 3 + rand.nextInt(2); earlyStart = 120; break;
-            case "EARLY_ALLIN": baseCount = 3 + rand.nextInt(2); earlyStart = 60;  break;
-            case "MID_TIMING":  baseCount = 3 + rand.nextInt(2); earlyStart = 120; break;
-            case "LATE_OPS":    baseCount = 2 + rand.nextInt(2); earlyStart = 120; break;
-            case "RUSH":        baseCount = 4 + rand.nextInt(2); earlyStart = 60;  break;
-            case "EARLY":       baseCount = 5 + rand.nextInt(3); earlyStart = 90;  break;
-            case "LATE":        baseCount = 2 + rand.nextInt(2); earlyStart = 120; break;
             default:            baseCount = 3 + rand.nextInt(3); earlyStart = 120; break;
         }
 
-        // MAX_MULTI(확장 성향) 최소 멀티: 병력 집중 → 교전 횟수 +1
-        if ("MIN_MULTI".equals(build.getAggression())) baseCount += 1;
-        // MAX_MULTI 최대 멀티: 경제 집중 → 교전 횟수 -1
-        if ("MAX_MULTI".equals(build.getAggression())) baseCount = Math.max(1, baseCount - 1);
-        // 구버전 호환 (expandStyle 필드 제거됨)
+        // 느린 멀티: 병력 집중 → 교전 횟수 +1
+        if ("SLOW_MULTI".equals(build.getAggression())) baseCount += 1;
+        // 빠른 멀티: 경제 집중 → 교전 횟수 -1
+        if ("FAST_MULTI".equals(build.getAggression())) baseCount = Math.max(1, baseCount - 1);
         baseCount = Math.max(1, baseCount);
 
         double[] w = getPhaseAttackWeights(playStyle);
@@ -126,9 +109,6 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         switch (harassStyle) {
             case "HEAVY_HARASS":  base = 9;  break;  // 강한 견제: 7~11회
             case "NORMAL_HARASS": base = 4;  break;  // 일반 견제: 2~6회
-            // 구버전 호환
-            case "HEAVY_HARAS":  base = 9;  break;
-            case "LIGHT_HARAS":  base = 4;  break;
             default:             base = 4;  break;
         }
 
@@ -160,30 +140,35 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         return 240 + rand.nextInt(181);
     }
 
-    // 멀티 간 쿨타임 — aggression(확장 성향)별, ±30초 랜덤
-    // MIN_MULTI: 10분 / MID_MULTI: 7분 / MAX_MULTI: 4분
+    // 멀티 타이밍별 쿨타임: FAST(빠른멀티)=4분 / NORMAL(일반멀티)=7분 / SLOW(느린멀티)=10분
     private int getExpandCooldown(String aggression) {
         int base;
-        switch (aggression == null ? "MID_MULTI" : aggression) {
-            case "MIN_MULTI": base = 600; break;
-            case "MID_MULTI": base = 420; break;
-            case "MAX_MULTI": base = 240; break;
-            default:          base = 420; break;
+        switch (aggression == null ? "NORMAL_MULTI" : aggression) {
+            case "FAST_MULTI":   base = 240; break;
+            case "NORMAL_MULTI": base = 420; break;
+            case "SLOW_MULTI":   base = 600; break;
+            default:             base = 420; break;
         }
         return base + rand.nextInt(61) - 30;
     }
 
-    // 최대 기지 수 (본진 포함)
-    // MIN_MULTI: 멀티 1개 = 기지 2개
-    // MID_MULTI: 멀티 3개 = 기지 4개
-    // MAX_MULTI: 멀티 5개 = 기지 6개
-    private int getMaxBases(String expandScale) {
-        switch (expandScale == null ? "MID_MULTI" : expandScale) {
-            case "MIN_MULTI": return 2;
-            case "MID_MULTI": return 4;
-            case "MAX_MULTI": return 6;
-            default:          return 4;
-        }
+    // 최대 경제 기지 수: BuildDTO.maxBases 직접 사용 (0이면 기본값 4)
+    private int getMaxBases(BuildDTO build) {
+        if (build == null) return 4;
+        int v = build.getMaxBases();
+        return (v > 0) ? v : 4;
+    }
+
+    /**
+     * 저그 전용: 실제 해처리 최대 건설 수 (하이브리드 로직)
+     * 선호건물 hatchery count 설정 O → 그 값이 총 해처리 상한
+     * 선호건물 hatchery count 설정 X → 멀티 성향(maxEcoBases)와 동일
+     */
+    private int resolveMaxHatcheries(BuildDTO build, int maxEcoBases) {
+        if (build == null || !"Z".equals(build.getRace())) return maxEcoBases;
+        // 저그: BuildDTO.maxBases 값 사용 (0이면 eco 기본값)
+        int v = build.getMaxBases();
+        return (v > 0) ? v : maxEcoBases;
     }
 
     // =====================================================
@@ -194,6 +179,12 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         String productionBuilding, techBuilding, requiredBuilding;
         int mineralCost, gasCost, buildTime;
         double combatPower;
+        boolean isAir = false;
+        // GROUND(지상공격), AIR(공중공격), BOTH(양쪽공격), SUPPORT(보조-전투없음)
+        String attackTarget = "BOTH";
+
+        EntityData setAir(boolean air)            { this.isAir = air; return this; }
+        EntityData setAttackTarget(String target) { this.attackTarget = target; return this; }
 
         // 유닛용 (가스 비용 포함)
         EntityData(String id, String name, String type, String race,
@@ -245,19 +236,19 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         // ── 테란 유닛 (mineral, gas, time, prodBld, techBld, power) ──
         // [티어 1 유닛]
         ENTITY_DB.put("scv",     new EntityData("scv",    "SCV",      "unit","T", 50,  0, 26,"command_center",null,       0.0));
-        ENTITY_DB.put("marine",  new EntityData("marine", "마린",     "unit","T", 50,  0, 24,"barracks",      null,       6.0));
-        ENTITY_DB.put("firebat", new EntityData("firebat","파이어뱃", "unit","T", 50, 25, 24,"barracks",      "academy", 16.0));
-        ENTITY_DB.put("medic",   new EntityData("medic",  "메딕",     "unit","T", 50, 25, 30,"barracks",      "academy",  3.0));
+        ENTITY_DB.put("marine",  new EntityData("marine", "마린",     "unit","T", 50,  0, 24,"barracks",      null,       6.0).setAttackTarget("BOTH"));
+        ENTITY_DB.put("firebat", new EntityData("firebat","파이어뱃", "unit","T", 50, 25, 24,"barracks",      "academy", 16.0).setAttackTarget("GROUND"));
+        ENTITY_DB.put("medic",   new EntityData("medic",  "메딕",     "unit","T", 50, 25, 30,"barracks",      "academy",  3.0).setAttackTarget("SUPPORT"));
         // [티어 2 유닛]
-        ENTITY_DB.put("vulture", new EntityData("vulture","벌처",     "unit","T", 75,  0, 30,"factory",       null,      20.0));
-        ENTITY_DB.put("tank",    new EntityData("tank",   "탱크",     "unit","T",150,100, 35,"factory",       "machine_shop", 30.0));
-        ENTITY_DB.put("goliath", new EntityData("goliath","골리앗",   "unit","T",100, 50, 40,"factory",       "armory",  18.0));
-        ENTITY_DB.put("wraith",  new EntityData("wraith", "레이스",   "unit","T",150,100, 40,"starport",      null,      15.0));
-        ENTITY_DB.put("dropship",new EntityData("dropship","드랍쉽",  "unit","T",100,100, 50,"starport",      null,       0.0));
+        ENTITY_DB.put("vulture", new EntityData("vulture","벌처",     "unit","T", 75,  0, 30,"factory",       null,      20.0).setAttackTarget("GROUND"));
+        ENTITY_DB.put("tank",    new EntityData("tank",   "탱크",     "unit","T",150,100, 35,"factory",       "machine_shop", 30.0).setAttackTarget("GROUND"));
+        ENTITY_DB.put("goliath", new EntityData("goliath","골리앗",   "unit","T",100, 50, 40,"factory",       "armory",  18.0).setAttackTarget("BOTH"));
+        ENTITY_DB.put("wraith",  new EntityData("wraith", "레이스",   "unit","T",150,100, 40,"starport",      null,      15.0).setAir(true).setAttackTarget("AIR"));
+        ENTITY_DB.put("dropship",new EntityData("dropship","드랍쉽",  "unit","T",100,100, 50,"starport",      null,       0.0).setAir(true).setAttackTarget("SUPPORT"));
         // [티어 3 유닛]
-        ENTITY_DB.put("vessel",       new EntityData("vessel",       "사이언스베슬","unit","T",100,225, 60,"starport","science_facility",  8.0));
-        ENTITY_DB.put("ghost",        new EntityData("ghost",        "고스트",      "unit","T", 25, 75, 40,"barracks","nuclear_silo",     22.0));
-        ENTITY_DB.put("battlecruiser",new EntityData("battlecruiser","배틀크루저",  "unit","T",400,300,140,"starport","battle_adaptor",   85.0));
+        ENTITY_DB.put("vessel",       new EntityData("vessel",       "사이언스베슬","unit","T",100,225, 60,"starport","science_facility",  8.0).setAir(true).setAttackTarget("SUPPORT"));
+        ENTITY_DB.put("ghost",        new EntityData("ghost",        "고스트",      "unit","T", 25, 75, 40,"barracks","nuclear_silo",     22.0).setAttackTarget("BOTH"));
+        ENTITY_DB.put("battlecruiser",new EntityData("battlecruiser","배틀크루저",  "unit","T",400,300,140,"starport","battle_adaptor",   85.0).setAir(true).setAttackTarget("BOTH"));
         // ── 저그 건물 ── (티어 1 / 2 / 3)
         // [티어 1] 해처리 단계
         ENTITY_DB.put("hatchery",       new EntityData("hatchery",       "해처리",         "building","Z",300,  0, 60,null,             0));
@@ -276,18 +267,18 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         // ── 저그 유닛 ──
         // [티어 1]
         ENTITY_DB.put("drone",      new EntityData("drone",      "드론",           "unit","Z", 50,  0, 26,"hatchery",       null,          0.0));
-        ENTITY_DB.put("zergling",   new EntityData("zergling",   "저글링",         "unit","Z", 25,  0, 28,"spawning_pool",  null,          5.0));
-        ENTITY_DB.put("hydralisk",  new EntityData("hydralisk",  "히드라리스크",   "unit","Z", 75, 25, 28,"hydralisk_den",  null,         10.0));
+        ENTITY_DB.put("zergling",   new EntityData("zergling",   "저글링",         "unit","Z", 25,  0, 28,"spawning_pool",  null,          5.0).setAttackTarget("GROUND"));
+        ENTITY_DB.put("hydralisk",  new EntityData("hydralisk",  "히드라리스크",   "unit","Z", 75, 25, 28,"hydralisk_den",  null,         10.0).setAttackTarget("BOTH"));
         // [티어 2]
-        ENTITY_DB.put("lurker",     new EntityData("lurker",     "러커",           "unit","Z", 50,100, 40,"hydralisk_den",  "lair",       18.0));
-        ENTITY_DB.put("mutalisk",   new EntityData("mutalisk",   "뮤탈리스크",     "unit","Z",100,100, 40,"spire",          null,           9.0));
-        ENTITY_DB.put("scourge",    new EntityData("scourge",    "스컬지",         "unit","Z", 25, 75, 30,"spire",          null,           7.0));
-        ENTITY_DB.put("queen",      new EntityData("queen",      "퀸",             "unit","Z",100,100, 75,"queens_nest",    null,           5.0));
+        ENTITY_DB.put("lurker",     new EntityData("lurker",     "러커",           "unit","Z", 50,100, 40,"hydralisk_den",  "lair",       18.0).setAttackTarget("GROUND"));
+        ENTITY_DB.put("mutalisk",   new EntityData("mutalisk",   "뮤탈리스크",     "unit","Z",100,100, 40,"spire",          null,           9.0).setAir(true).setAttackTarget("BOTH"));
+        ENTITY_DB.put("scourge",    new EntityData("scourge",    "스컬지",         "unit","Z", 25, 75, 30,"spire",          null,           7.0).setAir(true).setAttackTarget("AIR"));
+        ENTITY_DB.put("queen",      new EntityData("queen",      "퀸",             "unit","Z",100,100, 75,"queens_nest",    null,           5.0).setAir(true).setAttackTarget("SUPPORT"));
         // [티어 3]
-        ENTITY_DB.put("guardian",   new EntityData("guardian",   "가디언",         "unit","Z", 50,100, 40,"greater_spire",  null,          22.0));
-        ENTITY_DB.put("devourer",   new EntityData("devourer",   "디바우러",       "unit","Z", 25, 75, 40,"greater_spire",  null,          14.0));
-        ENTITY_DB.put("ultralisk",  new EntityData("ultralisk",  "울트라리스크",   "unit","Z",200,200, 60,"ultralisk_cavern",null,         40.0));
-        ENTITY_DB.put("defiler",    new EntityData("defiler",    "디파일러",       "unit","Z", 50,150, 60,"defiler_mound",  null,          10.0));
+        ENTITY_DB.put("guardian",   new EntityData("guardian",   "가디언",         "unit","Z", 50,100, 40,"greater_spire",  null,          22.0).setAir(true).setAttackTarget("BOTH"));
+        ENTITY_DB.put("devourer",   new EntityData("devourer",   "디바우러",       "unit","Z", 25, 75, 40,"greater_spire",  null,          14.0).setAir(true).setAttackTarget("AIR"));
+        ENTITY_DB.put("ultralisk",  new EntityData("ultralisk",  "울트라리스크",   "unit","Z",200,200, 60,"ultralisk_cavern",null,         40.0).setAttackTarget("GROUND"));
+        ENTITY_DB.put("defiler",    new EntityData("defiler",    "디파일러",       "unit","Z", 50,150, 60,"defiler_mound",  null,          10.0).setAttackTarget("SUPPORT"));
         // ── 프로토스 건물 ── (티어 1 / 2 / 3)
         // [티어 1]
         ENTITY_DB.put("nexus",              new EntityData("nexus",              "넥서스",             "building","P",400, 60,null,0));
@@ -306,18 +297,18 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         // ── 프로토스 유닛 ──
         // [티어 1]
         ENTITY_DB.put("probe",        new EntityData("probe",        "프로브",     "unit","P", 50,  0, 26,"nexus",               null,               0.0));
-        ENTITY_DB.put("zealot",       new EntityData("zealot",       "질럿",       "unit","P",100,  0, 40,"gateway",             null,              16.0));
-        ENTITY_DB.put("dragoon",      new EntityData("dragoon",      "드라군",     "unit","P",125, 50, 50,"cybernetics_core",    null,              20.0));
+        ENTITY_DB.put("zealot",       new EntityData("zealot",       "질럿",       "unit","P",100,  0, 40,"gateway",             null,              16.0).setAttackTarget("GROUND"));
+        ENTITY_DB.put("dragoon",      new EntityData("dragoon",      "드라군",     "unit","P",125, 50, 50,"cybernetics_core",    null,              20.0).setAttackTarget("BOTH"));
         // [티어 2]
-        ENTITY_DB.put("high_templar", new EntityData("high_templar", "하이템플러", "unit","P", 50,150, 50,"gateway",             "templar_archives",22.0));
-        ENTITY_DB.put("dark_templar", new EntityData("dark_templar", "다크템플러", "unit","P",125,100, 50,"gateway",             "templar_archives",26.0));
-        ENTITY_DB.put("shuttle",      new EntityData("shuttle",      "셔틀",       "unit","P",200,  0, 65,"robotics_facility",   null,               0.0));
-        ENTITY_DB.put("reaver",       new EntityData("reaver",       "리버",       "unit","P",200,100, 70,"robotics_facility",   "robotics_support_bay",35.0));
-        ENTITY_DB.put("corsair",      new EntityData("corsair",      "커세어",     "unit","P",150,100, 40,"stargate",            null,              12.0));
-        ENTITY_DB.put("scout",        new EntityData("scout",        "스카우트",   "unit","P",150,100, 80,"stargate",            null,              14.0));
+        ENTITY_DB.put("high_templar", new EntityData("high_templar", "하이템플러", "unit","P", 50,150, 50,"gateway",             "templar_archives",22.0).setAttackTarget("SUPPORT"));
+        ENTITY_DB.put("dark_templar", new EntityData("dark_templar", "다크템플러", "unit","P",125,100, 50,"gateway",             "templar_archives",26.0).setAttackTarget("GROUND"));
+        ENTITY_DB.put("shuttle",      new EntityData("shuttle",      "셔틀",       "unit","P",200,  0, 65,"robotics_facility",   null,               0.0).setAir(true).setAttackTarget("SUPPORT"));
+        ENTITY_DB.put("reaver",       new EntityData("reaver",       "리버",       "unit","P",200,100, 70,"robotics_facility",   "robotics_support_bay",35.0).setAttackTarget("GROUND"));
+        ENTITY_DB.put("corsair",      new EntityData("corsair",      "커세어",     "unit","P",150,100, 40,"stargate",            null,              12.0).setAir(true).setAttackTarget("AIR"));
+        ENTITY_DB.put("scout",        new EntityData("scout",        "스카우트",   "unit","P",150,100, 80,"stargate",            null,              14.0).setAir(true).setAttackTarget("BOTH"));
         // [티어 3]
-        ENTITY_DB.put("carrier",      new EntityData("carrier",      "캐리어",     "unit","P",350,250,140,"stargate",            "fleet_beacon",    70.0));
-        ENTITY_DB.put("arbiter",      new EntityData("arbiter",      "아비터",     "unit","P",100,350,160,"stargate",            "arbiter_tribunal",30.0));
+        ENTITY_DB.put("carrier",      new EntityData("carrier",      "캐리어",     "unit","P",350,250,140,"stargate",            "fleet_beacon",    70.0).setAir(true).setAttackTarget("BOTH"));
+        ENTITY_DB.put("arbiter",      new EntityData("arbiter",      "아비터",     "unit","P",100,350,160,"stargate",            "arbiter_tribunal",30.0).setAir(true).setAttackTarget("BOTH"));
     }
 
     // ── 유닛 상성 테이블 (JSP COUNTER 객체와 동일) ──────────────────────
@@ -448,7 +439,7 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         switch (race) { case "Z": return BUILD_ORDER_Z; case "P": return BUILD_ORDER_P; default: return BUILD_ORDER_T; }
     }
 
-    // =====================================================
+ // =====================================================
     // 메인 시뮬레이션
     // =====================================================
     @Override
@@ -456,7 +447,9 @@ public class PveSimulationServiceImpl implements PveSimulationService {
             Map<String, Integer> myStats, Map<String, Integer> aiStats,
             BuildDTO myBuild, BuildDTO aiBuild,
             String myRace, String aiRace,
-            String myPlayerName, String aiPlayerName) {
+            String myPlayerName, String aiPlayerName,
+            String myCondition, int myWinStreak,     // ★ 이 두 줄이 꼭 있어야 에러가 안 납니다!
+            String aiCondition, int aiWinStreak) {
 
         List<GameState> replay = new ArrayList<>();
         commentaryFired.clear(); // 매 경기마다 해설 초기화
@@ -469,8 +462,7 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         state.setMinerals(50);  state.setAiMinerals(50);
         state.setGas(0);        state.setAiGas(0);
 
-        // ── 스탯 공식 (기본 1~100 / 강화·합성 시 최대 150까지 허용)
-        // ATTACK: stat/150*0.25 → stat150=x1.25, stat100=x1.167, stat50=x1.083, stat1≈x1.0
+        // ── 스탯 공식 
         double myAtkMult = 1.0 + Math.min(myStats.getOrDefault("attack", 50), 150) / 150.0 * 0.25;
         double aiAtkMult = 1.0 + Math.min(aiStats.getOrDefault("attack", 50), 150) / 150.0 * 0.25;
         double myMacro   = Math.min(myStats.getOrDefault("macro",   50), 150);
@@ -482,36 +474,25 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         double myDefStat = Math.min(myStats.getOrDefault("defense", 50), 150);
         double aiDefStat = Math.min(aiStats.getOrDefault("defense", 50), 150);
 
-        // MACRO 파생
-        // 채취보너스: stat100=+12%, stat50=+6%, stat1≈0% (stat150→캡 15%)
         double myMacroEco  = Math.min(0.15, myMacro / 100.0 * 0.12);
         double aiMacroEco  = Math.min(0.15, aiMacro / 100.0 * 0.12);
-        // 건설 속도는 누구나 동일 — macroSpd 제거
-        // 건물/유닛 생산 시작 기준 자원
-        // 최솟값 300 고정, 상한값이 macro에 따라 달라짐
-        // macro100: 300~400 (범위 100 — 안정적 운영)
-        // macro 50: 300~550 (범위 250 — 가끔 타이트, 가끔 여유)
-        // macro  1: 300~700 (범위 400 — 완전 랜덤, 운 좋으면 빠른 건설)
         int myThrRange  = (int) Math.round((1.0 - Math.min(myMacro, 150) / 150.0) * 90);
         int aiThrRange  = (int) Math.round((1.0 - Math.min(aiMacro, 150) / 150.0) * 90);
         int myExpandThr = 150 + rand.nextInt(myThrRange + 1);
         int aiExpandThr = 150 + rand.nextInt(aiThrRange + 1);
-        // MICRO 파생
-        // 전투효율: stat100=+10%, stat50=0%, stat1≈-10% (캡 ±10%)
         double myMicroEff  = Math.min(0.10, Math.max(-0.10, myMicro / 100.0 * 0.20 - 0.10));
         double aiMicroEff  = Math.min(0.10, Math.max(-0.10, aiMicro / 100.0 * 0.20 - 0.10));
         double myMicroHar  = myMicro;
         double aiMicroHar  = aiMicro;
-        // DEFENSE 파생: stat100=12% 경감, stat50=6% (stat150→캡 15%)
         double myDefRed    = Math.min(0.15, myDefStat / 100.0 * 0.12);
         double aiDefRed    = Math.min(0.15, aiDefStat / 100.0 * 0.12);
-        // LUCK 파생: stat100=40% 크리, stat50=20%, stat1≈0% (stat150→캡 50%) ← 역전 요소
         double myLuckCrit  = Math.min(0.50, myLuck / 100.0 * 0.40);
         double aiLuckCrit  = Math.min(0.50, aiLuck / 100.0 * 0.40);
 
-        // 확장 저축 모드 상태 변수
-        int myMaxBases      = getMaxBases(myBuild.getAggression());
-        int aiMaxBases      = getMaxBases(aiBuild.getAggression());
+        int myMaxEcoBases   = getMaxBases(myBuild);
+        int aiMaxEcoBases   = getMaxBases(aiBuild);
+        int myMaxBases      = resolveMaxHatcheries(myBuild, myMaxEcoBases);
+        int aiMaxBases      = resolveMaxHatcheries(aiBuild, aiMaxEcoBases);
         int myExpandMin     = getFirstExpandTime();
         int aiExpandMin     = getFirstExpandTime();
         int myExpandCool    = getExpandCooldown(myBuild.getAggression());
@@ -519,26 +500,20 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         int myLastExpand = 0;
         int aiLastExpand = 0;
 
-        // 선호 건물 맵 (수량 + 우선순위 가중치)
         Map<String, dto.pve.BuildDTO.BuildingPref> myPrefBuildings = myBuild.getPreferredBuildingMap();
         Map<String, dto.pve.BuildDTO.BuildingPref> aiPrefBuildings = aiBuild.getPreferredBuildingMap();
-
-        // ── 건물 건설 딜레이 맵 (macro 기반) ────────────────────────────
         Map<String, Integer> myBuildDelayUntil = new HashMap<>();
         Map<String, Integer> aiBuildDelayUntil = new HashMap<>();
-
         Map<String, List<String>> myUnitPlan = buildUnitPlan(myBuild);
         Map<String, List<String>> aiUnitPlan = buildUnitPlan(aiBuild);
         List<String> myPreferredIds = myBuild.getPreferredUnitIds();
         java.util.Map<String, dto.pve.BuildDTO.UnitPref> myUnitPrefMap = myBuild.getPreferredUnitMap();
         List<String> aiPreferredIds = aiBuild.getPreferredUnitIds();
         java.util.Map<String, dto.pve.BuildDTO.UnitPref> aiUnitPrefMap = aiBuild.getPreferredUnitMap();
-        // 높음 그룹 타겟 추적 (틱 간 유지 — 가중치 비율로 순번 결정)
         String[] myNextTarget = {null};
         String[] aiNextTarget = {null};
         Set<Integer> myBattleSchedule = new TreeSet<>(generateSideSchedule(myBuild));
         Set<Integer> aiBattleSchedule = new TreeSet<>(generateSideSchedule(aiBuild));
-        // 합쳐서 전체 전투 시간표 (중복 제거 + 최소간격 90초)
         Set<Integer> battleSchedule   = generateBattleSchedule(myBuild, aiBuild);
         Set<Integer> myHarasSchedule  = generateHarassSchedule(myBuild.getHarassStyle());
         Set<Integer> aiHarasSchedule  = generateHarassSchedule(aiBuild.getHarassStyle());
@@ -548,6 +523,30 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         // ── 경기 시작 멘트 + 능력치 비교 해설 ───────────────────────
         String MY = state.getMyPlayerName(), AI = state.getAiPlayerName();
         addLog(state, "system", MY + "과 " + AI + "의 경기를 시작합니다!");
+
+        // ★ 신규: 연승(기세) 해설 추가
+        if (myWinStreak >= 5) {
+            addLog(state, "commentary", "🎙 오! " + MY + " 선수, 파죽의 " + myWinStreak + "연승 중입니다! 폼 미쳤습니다!!");
+        } else if (myWinStreak >= 3) {
+            addLog(state, "commentary", "🎙 " + MY + " 선수, " + myWinStreak + "연승을 달리며 기세가 바짝 올라온 상태입니다.");
+        }
+
+        // ★ 신규: 컨디션 해설 추가
+        switch (myCondition != null ? myCondition : "NORMAL") {
+            case "PEAK":
+                addLog(state, "commentary", "🎙 오늘 " + MY + " 선수의 눈빛이 다릅니다. 최상의 컨디션! 오늘 사고 칠 것 같은데요?");
+                break;
+            case "GOOD":
+                addLog(state, "commentary", "🎙 " + MY + " 선수, 몸이 가벼워 보입니다. 쾌조의 컨디션으로 경기에 임합니다.");
+                break;
+            case "TIRED":
+                addLog(state, "commentary", "🎙 아... " + MY + " 선수, 어제 방송을 무리했나요? 조금 피곤해 보입니다.");
+                break;
+            case "WORST":
+                addLog(state, "commentary", "🎙 " + MY + " 선수, 다크서클이 턱 밑까지 내려왔습니다. 최악의 컨디션이라 걱정되네요.");
+                break;
+        }
+
         int myTotal = myStats.values().stream().mapToInt(Integer::intValue).sum();
         int aiTotal = aiStats.values().stream().mapToInt(Integer::intValue).sum();
         int diff    = Math.abs(myTotal - aiTotal);
@@ -563,15 +562,12 @@ public class PveSimulationServiceImpl implements PveSimulationService {
 
         replay.add(deepCopy(state));
 
-        // ── 랜덤 경제/운영 이벤트 스케줄 (각자 1~10회, 1분~30분 랜덤) ──
         Set<Integer> myEcoSchedule = generateEconomySchedule();
         Set<Integer> aiEcoSchedule = generateEconomySchedule();
-        // 디버프 종료 시간 추적
-        int myGasDebuffUntil    = 0;  // 가스 채집 -20% 종료 시간
+        int myGasDebuffUntil    = 0;  
         int aiGasDebuffUntil    = 0;
-        int myWorkerBanUntil    = 0;  // 일꾼 생산 금지 종료 시간
+        int myWorkerBanUntil    = 0;  
         int aiWorkerBanUntil    = 0;
-        // 전투 디버프 (수비측 전투력 감소) — 해당 전투 1회만 적용
         double myBattleDebuff   = 1.0;
         double aiBattleDebuff   = 1.0;
 
@@ -581,20 +577,18 @@ public class PveSimulationServiceImpl implements PveSimulationService {
             state.clearLogs();
 
             processResources(state, myMacroEco, aiMacroEco,
-                    time < myGasDebuffUntil, time < aiGasDebuffUntil);
+                    time < myGasDebuffUntil, time < aiGasDebuffUntil,
+                    myMaxEcoBases, aiMaxEcoBases);
             processLarva(state);
             processQueue(state, false, myAtkMult);
             processQueue(state, true,  aiAtkMult);
 
-            // ── 방어력 성장 (초기 200 → 30분 최대 1000) ──────────────
             double defGrowth = 800.0 / GAME_DURATION;
             state.setDefense(Math.min(1000, state.getDefense() + defGrowth));
             state.setAiDefense(Math.min(1000, state.getAiDefense() + defGrowth));
 
             String myPhase = getCurrentPhase(time);
-            String myNext  = nextPhase(myPhase);
 
-            // ── 랜덤 경제/운영 이벤트 처리 ──────────────────────────
             if (myEcoSchedule.contains(time)) {
                 int[] result = applyEconomyEvent(state, false);
                 if (result[0] > 0) myGasDebuffUntil   = time + result[0];
@@ -606,18 +600,12 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                 if (result[1] > 0) aiWorkerBanUntil   = time + result[1];
             }
 
-            // ── 일꾼 생산 최우선 (자원/슬롯 확인 후 즉시 생산) ──────
             if (time >= myWorkerBanUntil) produceWorker(state, myRace, false);
             if (time >= aiWorkerBanUntil) produceWorker(state, aiRace, true);
 
-            // ── 정제소/추출기/동화기: 기지 수에 맞게 2순위 건설 ──────
             autoGasBuilding(state, myRace, false);
             autoGasBuilding(state, aiRace, true);
 
-            // ── 확장 시도: 조건 충족 시 매 틱 바로 시도
-            // tryExpand() 내부에서 minerals >= 400 체크 → 돈 있으면 즉시 짓고, 없으면 skip
-            // 확장 대기 중일 때는 유닛/건물 생산에 400미네랄 예약 (소프트 예약)
-            // 첫 멀티는 쿨타임 미적용 (myLastExpand=0이면 아직 한 번도 안 지은 것)
             boolean myExpandPending = time >= myExpandMin
                     && (myLastExpand == 0 || time - myLastExpand >= myExpandCool)
                     && needsExpand(state, myRace, false, myMaxBases);
@@ -638,19 +626,14 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                 }
             }
 
-            // 테크/생산건물 건설 + 유닛 생산
-            // ── 확장 예약 + 유닛 생산비 동적 예약 ──
-            // 확장 대기 중이면 400미네랄 예약 (소프트 예약)
             int myExpandReserve = myExpandPending ? 400 : 0;
             int aiExpandReserve = aiExpandPending ? 400 : 0;
-            // 유닛 생산 1회치 비용을 계산해 건물 건설 시 남겨둠 (병력 우선 보장)
             int myTechReserve = calcTechReserve(myUnitPlan.get(myPhase), myRace, state, false, myBuild.getPlayStyle());
             int aiTechReserve = calcTechReserve(aiUnitPlan.get(myPhase), aiRace, state, true,  aiBuild.getPlayStyle());
             int myReserve = myExpandReserve + myTechReserve;
             int aiReserve = aiExpandReserve + aiTechReserve;
-            // 유닛 생산 먼저 — 병력 생산을 건물 건설보다 우선 (techReserve는 유닛 생산엔 적용 안 함)
+
             produceUnits(state, myRace, myUnitPlan.get(myPhase), false, resolveMaxTier(myBuild), myExpandReserve, myPreferredIds, myUnitPrefMap, myNextTarget);
-            // 남은 자원으로 건물 건설 (유닛 생산비 예약분 제외)
             autoTech(state, myRace, false, resolveMaxTier(myBuild), myReserve, myMacro, myBuildDelayUntil, myPrefBuildings);
             autoExpandProduction(state, myRace, myUnitPlan.get(myPhase), false, myExpandThr, myReserve, myPrefBuildings);
 
@@ -658,9 +641,6 @@ public class PveSimulationServiceImpl implements PveSimulationService {
             autoTech(state, aiRace, true, resolveMaxTier(aiBuild), aiReserve, aiMacro, aiBuildDelayUntil, aiPrefBuildings);
             autoExpandProduction(state, aiRace, aiUnitPlan.get(myPhase), true, aiExpandThr, aiReserve, aiPrefBuildings);
 
-            // [Fix2] 큐 선반영 제거 — 유닛은 생산 완료 시점에만 전투력에 반영됨
-
-            // 견제 처리 (전투 스케줄과 독립)
             if (myHarasSchedule.contains(time))
                 executeHarassment(state, true,  myMicroHar, aiMicroHar);
             if (aiHarasSchedule.contains(time))
@@ -677,12 +657,10 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                 aiBattleDebuff = 1.0;
             }
 
-            // ── 해설 주입 ─────────────────────────────────────────
             injectCommentary(state, time, myBuild, aiBuild, myRace, aiRace, myMacro, aiMacro);
 
             if (state.getDefense() <= 0 || state.getAiDefense() <= 0) gameOver = true;
             if (time == GAME_DURATION) {
-                // 30분 종료 — 점수 낮은 쪽 방어력/전투력 0으로 강제
                 double myScore = state.getDefense() * 0.5 + state.getCombatPower() * 0.5;
                 double aiScore = state.getAiDefense() * 0.5 + state.getAiCombatPower() * 0.5;
                 if (myScore < aiScore) {
@@ -698,11 +676,6 @@ public class PveSimulationServiceImpl implements PveSimulationService {
             replay.add(deepCopy(state));
         }
         return replay;
-    }
-
-    private boolean isPreparingForNextPhase(int time) {
-        int la = 120;
-        return (time >= EARLY_END - la && time < EARLY_END) || (time >= MID_END - la && time < MID_END);
     }
 
     // =====================================================
@@ -777,12 +750,8 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                                     List<String> myUnits, List<String> aiUnits,
                                     Set<Integer> myBattleSchedule, Set<Integer> aiBattleSchedule,
                                     double myBattleDebuff, double aiBattleDebuff) {
-        String myStyle = myBuild.getPlayStyle() != null ? myBuild.getPlayStyle() : "MID_TIMING";
-        String aiStyle = aiBuild.getPlayStyle() != null ? aiBuild.getPlayStyle() : "MID_TIMING";
-        boolean myPassive = "LATE_OPS".equals(myStyle) && time < MID_END;
-        boolean aiPassive = "LATE_OPS".equals(aiStyle) && time < MID_END;
-        if ("TURTLE".equals(myBuild.getAggression()) && time < MID_END) myPassive = true;
-        if ("TURTLE".equals(aiBuild.getAggression()) && time < MID_END) aiPassive = true;
+        boolean myPassive = false;
+        boolean aiPassive = false;
 
         double myPower = state.getCombatPower();
         double aiPower = state.getAiCombatPower();
@@ -855,7 +824,7 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                 "zergling","hydralisk","lurker",
                 "mutalisk","scourge","queen",
                 "guardian","devourer","ultralisk","defiler"));
-        RACE_UNITS.put("P", Arrays.asList("zealot","dragoon","dark_templar",
+        RACE_UNITS.put("P", Arrays.asList("zealot","dragoon",
                 "high_templar","dark_templar","shuttle","reaver",
                 "corsair","scout","carrier","arbiter"));
         List<String> all = RACE_UNITS.getOrDefault(race, new ArrayList<>());
@@ -878,20 +847,16 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         return plan;
     }
 
-    private List<String> combineUnitLists(List<String> current, List<String> upcoming) {
-        List<String> result = new ArrayList<>();
-        if (current  != null) result.addAll(current);
-        if (upcoming != null) for (String u : upcoming) if (!result.contains(u)) result.add(u);
-        return result;
-    }
-
     // =====================================================
     // 자원 채취 (미네랄 + 가스)
     // =====================================================
     private void processResources(GameState state, double myMacroEco, double aiMacroEco,
-                                   boolean myGasDebuff, boolean aiGasDebuff) {
-        int myBases = countBases(state.getBuildingCounts());
-        int aiBases = countBases(state.getAiBuildingCounts());
+                                   boolean myGasDebuff, boolean aiGasDebuff,
+                                   int myMaxEcoBases, int aiMaxEcoBases) {
+        String myRaceR = getRaceFromBuildings(state.getBuildingCounts());
+        String aiRaceR = getRaceFromBuildings(state.getAiBuildingCounts());
+        int myBases = countEcoBases(state.getBuildingCounts(),   myRaceR, myMaxEcoBases);
+        int aiBases = countEcoBases(state.getAiBuildingCounts(), aiRaceR, aiMaxEcoBases);
         int myEffW  = Math.min(state.getWorkerCount(),   myBases * 6);
         int aiEffW  = Math.min(state.getAiWorkerCount(), aiBases * 6);
         double myMps = myEffW * 0.75 * (1.0 + myMacroEco);
@@ -910,7 +875,17 @@ public class PveSimulationServiceImpl implements PveSimulationService {
     }
 
     private int countBases(Map<String, Integer> b) {
-        return b.getOrDefault("커맨드센터", 0) + b.getOrDefault("해처리", 0) + b.getOrDefault("넥서스", 0);
+        // 저그: 해처리 + 레어 + 하이브 모두 기지로 카운트 (라바 계산용 전체 기지 수)
+        return b.getOrDefault("커맨드센터", 0)
+             + b.getOrDefault("해처리", 0) + b.getOrDefault("레어", 0) + b.getOrDefault("하이브", 0)
+             + b.getOrDefault("넥서스", 0);
+    }
+
+    /** 경제 전용 기지 수: 저그는 min(전체, maxEcoBases), 나머지는 countBases 그대로 */
+    private int countEcoBases(Map<String, Integer> b, String race, int maxEcoBases) {
+        int total = countBases(b);
+        if ("Z".equals(race)) return Math.min(total, maxEcoBases);
+        return total;
     }
 
     private int countRefineries(Map<String, Integer> b) {
@@ -919,13 +894,18 @@ public class PveSimulationServiceImpl implements PveSimulationService {
 
     // ── 저그 라바 ────────────────────────────────────────────
     private void processLarva(GameState state) {
-        int hatch = state.getBuildingCounts().getOrDefault("해처리", 0);
+        // 해처리 + 레어 + 하이브 모두 기지로 계산 (라바 생성 기준)
+        int hatch = state.getBuildingCounts().getOrDefault("해처리", 0)
+                  + state.getBuildingCounts().getOrDefault("레어", 0)
+                  + state.getBuildingCounts().getOrDefault("하이브", 0);
         if (hatch > 0) {
             int timer = state.getLarvaTimer() + 1, count = state.getLarvaCount();
             if (count < hatch * 3 && timer >= 14) { count++; timer = 0; }
             state.setLarvaTimer(timer); state.setLarvaCount(count);
         }
-        int aiHatch = state.getAiBuildingCounts().getOrDefault("해처리", 0);
+        int aiHatch = state.getAiBuildingCounts().getOrDefault("해처리", 0)
+                    + state.getAiBuildingCounts().getOrDefault("레어", 0)
+                    + state.getAiBuildingCounts().getOrDefault("하이브", 0);
         if (aiHatch > 0) {
             int timer = state.getAiLarvaTimer() + 1, count = state.getAiLarvaCount();
             if (count < aiHatch * 3 && timer >= 14) { count++; timer = 0; }
@@ -959,6 +939,14 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                 else      state.setCombatPower(state.getCombatPower() + power);
             }
         }
+        // 저그 업그레이드 체인: 레어 완성 → 해처리 -1 / 하이브 완성 → 레어 -1
+        if ("lair".equals(entity.id)) {
+            int h = buildings.getOrDefault("해처리", 0);
+            if (h > 0) buildings.put("해처리", h - 1);
+        } else if ("hive".equals(entity.id)) {
+            int l = buildings.getOrDefault("레어", 0);
+            if (l > 0) buildings.put("레어", l - 1);
+        }
         // 완성 로그 없음 — 건설/생산 시작 시에만 로그 출력
     }
 
@@ -969,7 +957,10 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         // 커맨드센터(넥서스/해처리) 1개당 일꾼 8마리 상한
         String baseBldId = getBaseIdByRace(race);
         EntityData baseBld = ENTITY_DB.get(baseBldId);
-        int prodBldCount = baseBld != null ? blds.getOrDefault(baseBld.name, 0) : 0;
+        // 저그: 해처리+레어+하이브 합산으로 일꾼 상한 계산
+        int prodBldCount = "Z".equals(race)
+            ? countBases(blds)
+            : (baseBld != null ? blds.getOrDefault(baseBld.name, 0) : 0);
         int cap = prodBldCount * 8;
         String workerId = getWorkerIdByRace(race);
         List<ProductionItem> queue = isAi ? state.getAiProductionQueue() : state.getProductionQueue();
@@ -1034,7 +1025,7 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         switch (playStyle == null ? "NORMAL" : playStyle) {
             case "AGGRESSIVE": mult = 2.0; break;
             case "DEFENSIVE":  mult = 1.0; break;
-            default:           mult = 1.5; break; // NORMAL + 구버전 호환
+            default:           mult = 1.5; break;
         }
 
         // 현재 테크에서 생산 가능한 유닛 중 최저 미네랄 비용
@@ -1067,7 +1058,9 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                 if (b == null || !"building".equals(b.type)) continue;
                 if (getTier(bid) > maxTier) continue;
                 if (!isTechAvailable(state, b, isAi)) continue;
-                if (blds.getOrDefault(b.name, 0) > 0) continue;
+                // 레어/하이브는 업그레이드이므로 이미 있어도 추가 건설 가능
+                boolean isZergUpgrade = "lair".equals(bid) || "hive".equals(bid);
+                if (!isZergUpgrade && blds.getOrDefault(b.name, 0) > 0) continue;
                 if (queue.stream().anyMatch(q -> q.getEntityId().equals(bid))) continue;
                 if (!canAfford(state, b, isAi, reserve)) continue;
                 String dk = bid + "_0";
@@ -1077,8 +1070,9 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                 }
                 if (curTime < buildDelayUntil.get(dk)) break;
                 spend(state, b, isAi); enqueue(state, b, isAi, -1);
+                String _buildVerb = ("lair".equals(bid) || "hive".equals(bid)) ? "으로 업그레이드합니다." : "을(를) 건설합니다.";
                 addLog(state, isAi ? "ai_action" : "user_action",
-                    (isAi ? state.getAiPlayerName() : state.getMyPlayerName()) + " 선수가 " + b.name + "을(를) 건설합니다.");
+                    (isAi ? state.getAiPlayerName() : state.getMyPlayerName()) + " 선수가 " + b.name + _buildVerb);
                 break;
             }
             return;
@@ -1095,8 +1089,18 @@ public class PveSimulationServiceImpl implements PveSimulationService {
             if (b == null || !"building".equals(b.type)) continue;
             if (getTier(bid) > maxTier) continue;
             if (!isTechAvailable(state, b, isAi)) continue;
-            int total = blds.getOrDefault(b.name, 0)
+            // 저그 해처리: 레어·하이브도 기지로 포함해서 목표 수량 비교
+            int total;
+            if ("hatchery".equals(bid)) {
+                total = countBases(blds)
+                      + (int) queue.stream().filter(q ->
+                            "hatchery".equals(q.getEntityId()) ||
+                            "lair".equals(q.getEntityId()) ||
+                            "hive".equals(q.getEntityId())).count();
+            } else {
+                total = blds.getOrDefault(b.name, 0)
                       + (int) queue.stream().filter(q -> q.getEntityId().equals(bid)).count();
+            }
             if (total >= pref.count) continue;
             if (!canAfford(state, b, isAi, reserve)) continue;
             candidates.add(bid);
@@ -1195,19 +1199,6 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                     spend(state, pb, isAi); enqueue(state, pb, isAi, -1);
                 }
             }
-        }
-    }
-
-    private void collectRequiredBuildings(String entityId, Set<String> result) {
-        EntityData e = ENTITY_DB.get(entityId);
-        if (e == null) return;
-        if (e.productionBuilding != null && !result.contains(e.productionBuilding)) {
-            collectRequiredBuildings(e.productionBuilding, result);
-            result.add(e.productionBuilding);
-        }
-        if (e.techBuilding != null && !result.contains(e.techBuilding)) {
-            collectRequiredBuildings(e.techBuilding, result);
-            result.add(e.techBuilding);
         }
     }
 
@@ -1458,7 +1449,7 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         if (base == null) return false;
 
         // 완료 + 큐 대기 기지 합산
-        int completed = countBases(blds);
+        int completed = countBases(blds);  // 해처리+레어+하이브 합산
         long inQueue  = queue.stream().filter(q -> q.getEntityId().equals(baseId)).count();
         if (completed + (int) inQueue >= maxBases) return false;
 
@@ -1511,6 +1502,73 @@ public class PveSimulationServiceImpl implements PveSimulationService {
             return;
         }
 
+        // ── 공중/지상 효율 보정 ───────────────────────────────
+        Map<String, Integer> myBldCounts = state.getBuildingCounts();
+        Map<String, Integer> aiBldCounts = state.getAiBuildingCounts();
+        double myMedicBonus  = calcMedicBonus(myBldCounts);
+        double aiMedicBonus  = calcMedicBonus(aiBldCounts);
+        double myEffPower    = calcEffectivePower(myPower + myMedicBonus, myBldCounts, aiBldCounts);
+        double aiEffPower    = calcEffectivePower(aiPower + aiMedicBonus, aiBldCounts, myBldCounts);
+        // 베슬 디버프 (상대 베슬이 나를 디버프)
+        double myVesselDebuff = calcVesselDebuff(aiBldCounts, myBldCounts);
+        double aiVesselDebuff = calcVesselDebuff(myBldCounts, aiBldCounts);
+        if (myVesselDebuff > 0) {
+            myEffPower = Math.max(0, myEffPower - myVesselDebuff);
+            addLog(state, "ai_action",   "🔬 " + state.getAiPlayerName() + " 선수 베슬 스킬 사용! " + state.getMyPlayerName() + " 선수 전투력 약화!");
+        }
+        if (aiVesselDebuff > 0) {
+            aiEffPower = Math.max(0, aiEffPower - aiVesselDebuff);
+            addLog(state, "user_action", "🔬 " + state.getMyPlayerName() + " 선수 베슬 스킬 사용! " + state.getAiPlayerName() + " 선수 전투력 약화!");
+        }
+
+        // ── 하이템플러 사이오닉 스톰 보너스 ───────────────────
+        double myHtBonus = calcHtStormBonus(myBldCounts, aiBldCounts);  // 내 HT → 적 유닛에 스톰
+        double aiHtBonus = calcHtStormBonus(aiBldCounts, myBldCounts);  // 적 HT → 내 유닛에 스톰
+        if (myHtBonus > 0) {
+            myEffPower += myHtBonus;
+            addLog(state, "user_action", "⚡ " + state.getMyPlayerName() + " 선수 사이오닉 스톰 발동! 전투력 +" + (int)myHtBonus + "!");
+        }
+        if (aiHtBonus > 0) {
+            aiEffPower += aiHtBonus;
+            addLog(state, "ai_action",   "⚡ " + state.getAiPlayerName() + " 선수 사이오닉 스톰 발동! 전투력 +" + (int)aiHtBonus + "!");
+        }
+
+        // ── 아비터 스테이시스 필드 (상대 전투력 일부 동결) ──────
+        double myStasisDebuff = calcArbiterStasisDebuff(myBldCounts, aiEffPower);
+        double aiStasisDebuff = calcArbiterStasisDebuff(aiBldCounts, myEffPower);
+        if (myStasisDebuff > 0) {
+            aiEffPower = Math.max(0, aiEffPower - myStasisDebuff);
+            addLog(state, "user_action", "🔮 " + state.getMyPlayerName() + " 선수 아비터 스테이시스 필드! " + state.getAiPlayerName() + " 선수 병력 일부가 얼어붙습니다! 전투력 -" + (int)myStasisDebuff + "!");
+        }
+        if (aiStasisDebuff > 0) {
+            myEffPower = Math.max(0, myEffPower - aiStasisDebuff);
+            addLog(state, "ai_action",   "🔮 " + state.getAiPlayerName() + " 선수 아비터 스테이시스 필드! " + state.getMyPlayerName() + " 선수 병력 일부가 얼어붙습니다! 전투력 -" + (int)aiStasisDebuff + "!");
+        }
+
+        // ── 퀸 인스네어 (상대 유닛 전투력 하락) ─────────────────
+        double myQueenDebuff = calcQueenEnsnareDebuff(myBldCounts, aiEffPower);
+        double aiQueenDebuff = calcQueenEnsnareDebuff(aiBldCounts, myEffPower);
+        if (myQueenDebuff > 0) {
+            aiEffPower = Math.max(0, aiEffPower - myQueenDebuff);
+            addLog(state, "user_action", "🕷 " + state.getMyPlayerName() + " 선수 퀸 인스네어! " + state.getAiPlayerName() + " 선수 유닛이 느려집니다! 전투력 -" + (int)myQueenDebuff + "!");
+        }
+        if (aiQueenDebuff > 0) {
+            myEffPower = Math.max(0, myEffPower - aiQueenDebuff);
+            addLog(state, "ai_action",   "🕷 " + state.getAiPlayerName() + " 선수 퀸 인스네어! " + state.getMyPlayerName() + " 선수 유닛이 느려집니다! 전투력 -" + (int)aiQueenDebuff + "!");
+        }
+
+        // ── 디파일러 다크스웜 (아군 지상유닛 전투력 상승) ────────
+        double myDarkSwarmBonus = calcDefilerDarkSwarmBonus(myBldCounts);
+        double aiDarkSwarmBonus = calcDefilerDarkSwarmBonus(aiBldCounts);
+        if (myDarkSwarmBonus > 0) {
+            myEffPower += myDarkSwarmBonus;
+            addLog(state, "user_action", "🌑 " + state.getMyPlayerName() + " 선수 다크스웜 전개! 아군 지상군 전투력 +" + (int)myDarkSwarmBonus + "!");
+        }
+        if (aiDarkSwarmBonus > 0) {
+            aiEffPower += aiDarkSwarmBonus;
+            addLog(state, "ai_action",   "🌑 " + state.getAiPlayerName() + " 선수 다크스웜 전개! 아군 지상군 전투력 +" + (int)aiDarkSwarmBonus + "!");
+        }
+
         // ── 상성 배율 계산 (0.85 ~ 1.15) ──────────────────────
         double myMatchupMult = calcMatchupMult(state.getBuildingCounts(),   state.getAiBuildingCounts());
         double aiMatchupMult = calcMatchupMult(state.getAiBuildingCounts(), state.getBuildingCounts());
@@ -1527,12 +1585,12 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         boolean aiCrit = rand.nextDouble() < aiLuckCrit;
 
         // MICRO → 전투 효율 (±10%), 랜덤 변동 (±5%), 상성 배율 적용
-        double myEff = myPower
+        double myEff = myEffPower
                 * myMatchupMult
                 * (1.0 + myMicroEff)
                 * (0.90 + rand.nextDouble() * 0.20)
                 * (myCrit ? 1.60 : 1.0);
-        double aiEff = aiPower
+        double aiEff = aiEffPower
                 * aiMatchupMult
                 * (1.0 + aiMicroEff)
                 * (0.90 + rand.nextDouble() * 0.20)
@@ -1764,8 +1822,17 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         if (success) {
             // 기본 피해 2~3마리 + 견제 특화 유닛 보너스
             int bonus = calcHarassBonus(atkCounts);
-            int workerLoss = 2 + rand.nextInt(2) + bonus;
-            String bonusDesc = bonus > 0 ? " (특화유닛 +" + bonus + ")" : "";
+            int dropshipBonus = calcDropshipHarassBonus(atkCounts);
+            int shuttleBonus  = calcShuttleHarassBonus(atkCounts);
+            int arbiterBonus  = calcArbiterRecallBonus(atkCounts);
+            int workerLoss = 2 + rand.nextInt(2) + bonus + dropshipBonus + shuttleBonus + arbiterBonus;
+            String bonusDesc = (bonus + dropshipBonus + shuttleBonus + arbiterBonus) > 0
+                ? " (특화유닛 +" + bonus
+                    + (dropshipBonus > 0 ? ", 드랍쉽 +" + dropshipBonus : "")
+                    + (shuttleBonus  > 0 ? ", 셔틀 +"   + shuttleBonus  : "")
+                    + (arbiterBonus  > 0 ? ", 리콜 +"   + arbiterBonus  : "")
+                    + ")"
+                : "";
 
             if (isMy) {
                 int current = state.getAiWorkerCount();
@@ -1781,6 +1848,24 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                     "🐝 " + _atkN + " 선수 " + _myHarUnit + " 날카롭게 들어갑니다! " + _defN + " 선수 일꾼 " + _wl + "마리 손실. 경제 타격이에요!" + bonusDesc
                 };
                 addLog(state, "user_action", pick(_sl));
+                // 하이템플러 스톰 견제 지원
+                int _myHts = atkCounts.getOrDefault("하이템플러", 0);
+                if (_myHts > 0) {
+                    // 스톰 대상: 적 전투 유닛 수(지상+공중) 기준
+                    double _htDmg = _myHts * 50.0;
+                    state.setAiCombatPower(Math.max(0, state.getAiCombatPower() - _htDmg));
+                    addLog(state, "user_action", "⚡ 하이템플러 사이오닉 스톰 견제! " + _defN + " 선수 전투력 -" + (int)_htDmg + "!");
+                }
+                // 베슬 견제 지원 (이레데이트/이엠피)
+                int _myVessels = atkCounts.getOrDefault("사이언스베슬", 0);
+                if (_myVessels > 0) {
+                    String _aiRaceV = getRaceFromBuildings(state.getAiBuildingCounts());
+                    double _vDmg = "Z".equals(_aiRaceV) ? _myVessels * 15.0
+                                 : "P".equals(_aiRaceV) ? _myVessels * 12.0 : _myVessels * 8.0;
+                    String _vSkill = "Z".equals(_aiRaceV) ? "이레데이트" : "P".equals(_aiRaceV) ? "이엠피" : "스캔";
+                    state.setAiCombatPower(Math.max(0, state.getAiCombatPower() - _vDmg));
+                    addLog(state, "user_action", "🔬 베슬 " + _vSkill + " 지원! " + _defN + " 선수 유닛 전투력 " + (int)_vDmg + " 감소!");
+                }
             } else {
                 int current = state.getWorkerCount();
                 workerLoss = Math.min(workerLoss, Math.max(0, current - 1));
@@ -1795,6 +1880,24 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                     "🐝 " + _atkN + " 선수 " + _aiHarUnit + " 견제가 적중했습니다! " + _defN + " 선수 일꾼 " + _wl + "마리가 잡혔어요!" + bonusDesc
                 };
                 addLog(state, "ai_action", pick(_sl));
+                // AI 하이템플러 스톰 견제 지원
+                int _aiHts = atkCounts.getOrDefault("하이템플러", 0);
+                if (_aiHts > 0) {
+                    // 스톰 대상: 적(내) 전투 유닛 수(지상+공중) 기준
+                    double _htDmg2 = _aiHts * 50.0;
+                    state.setCombatPower(Math.max(0, state.getCombatPower() - _htDmg2));
+                    addLog(state, "ai_action", "⚡ " + _atkN + " 선수 하이템플러 스톰 견제! " + _defN + " 선수 전투력 -" + (int)_htDmg2 + "!");
+                }
+                // AI 베슬 견제 지원
+                int _aiVessels = atkCounts.getOrDefault("사이언스베슬", 0);
+                if (_aiVessels > 0) {
+                    String _myRaceV = getRaceFromBuildings(state.getBuildingCounts());
+                    double _vDmg2 = "Z".equals(_myRaceV) ? _aiVessels * 15.0
+                                  : "P".equals(_myRaceV) ? _aiVessels * 12.0 : _aiVessels * 8.0;
+                    String _vSkill2 = "Z".equals(_myRaceV) ? "이레데이트" : "P".equals(_myRaceV) ? "이엠피" : "스캔";
+                    state.setCombatPower(Math.max(0, state.getCombatPower() - _vDmg2));
+                    addLog(state, "ai_action", "🔬 " + _atkN + " 선수 베슬 " + _vSkill2 + " 지원! " + _defN + " 선수 유닛 전투력 " + (int)_vDmg2 + " 감소!");
+                }
             }
         } else {
             String _harFailUnit = getHarassUnit(atkCounts);
@@ -1850,7 +1953,7 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         build.setRace(race); build.setVsRace(vsRace);
         build.setPlayStyle("AGGRESSIVE");
         build.setHarassStyle("NORMAL_HARASS");
-        build.setAggression("MID_MULTI");
+        build.setAggression("NORMAL_MULTI");
         build.setMaxTier(3);
         build.setPreferredBuildings("");
         return build;
@@ -1895,7 +1998,8 @@ public class PveSimulationServiceImpl implements PveSimulationService {
     }
 
     private boolean isTechAvailable(GameState state, EntityData entity, boolean isAi) {
-        Map<String, Integer> blds = isAi ? state.getAiBuildingCounts() : state.getBuildingCounts();
+        Map<String, Integer> blds  = isAi ? state.getAiBuildingCounts() : state.getBuildingCounts();
+        List<ProductionItem> queue = isAi ? state.getAiProductionQueue() : state.getProductionQueue();
         if (entity.productionBuilding != null) {
             EntityData prod = ENTITY_DB.get(entity.productionBuilding);
             if (prod != null && blds.getOrDefault(prod.name, 0) == 0) return false;
@@ -1903,6 +2007,19 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         if (entity.techBuilding != null) {
             EntityData tech = ENTITY_DB.get(entity.techBuilding);
             if (tech != null && blds.getOrDefault(tech.name, 0) == 0) return false;
+        }
+        // 저그 업그레이드 체인 추가 조건
+        // 레어: 업그레이드할 해처리가 큐에 없이 실물로 남아있어야 함
+        if ("lair".equals(entity.id)) {
+            int hatcheries = blds.getOrDefault("해처리", 0);
+            long lairInQueue = queue.stream().filter(q -> "lair".equals(q.getEntityId())).count();
+            if (hatcheries - lairInQueue <= 0) return false;
+        }
+        // 하이브: 업그레이드할 레어가 남아있어야 함
+        if ("hive".equals(entity.id)) {
+            int lairs = blds.getOrDefault("레어", 0);
+            long hiveInQueue = queue.stream().filter(q -> "hive".equals(q.getEntityId())).count();
+            if (lairs - hiveInQueue <= 0) return false;
         }
         return true;
     }
@@ -1993,58 +2110,29 @@ public class PveSimulationServiceImpl implements PveSimulationService {
             case "AGGRESSIVE":   return "공격스타일";
             case "NORMAL":       return "일반스타일";
             case "DEFENSIVE":    return "수비스타일";
-            // 구버전 호환
-            case "HARASS_FOCUS": return "일반스타일";
-            case "EARLY_ALLIN": return "초반올인"; case "MID_TIMING": return "중반타이밍";
-            case "LATE_OPS": return "후반운영"; case "EARLY": return "초반주도"; case "LATE": return "후반한방";
             default: return "균형";
         }
     }
 
-    private String expandLabel(String s) {
+ // 1. 확장(멀티) 성향 라벨 (이전 harassLabel을 이름 변경하고 정리)
+    private String aggressionLabel(String s) {
         if (s == null) return "일반멀티";
         switch (s) {
-            case "FAST_MULTI":   return "패스트멀티";
+            case "FAST_MULTI":   return "빠른멀티";
             case "NORMAL_MULTI": return "일반멀티";
-            case "LATE_MULTI":   return "늦은멀티";
-            // 구버전 호환
-            case "ONE_BASE": return "원베이스"; case "EARLY": return "빠른멀티";
-            case "BALANCED": return "정석멀티"; case "GREEDY": return "욕심멀티";
+            case "SLOW_MULTI":   return "느린멀티";
             default: return "일반멀티";
         }
     }
 
-    private String harassLabel(String s) {
-        if (s == null) return "중간멀티";
-        switch (s) {
-            case "MIN_MULTI": return "최소멀티";
-            case "MID_MULTI": return "중간멀티";
-            case "MAX_MULTI": return "최대멀티";
-            // 구버전 호환
-            case "NONE": return "견제없음"; case "LIGHT_HARAS": return "조금견제"; case "HEAVY_HARAS": return "자주견제";
-            default: return "중간멀티";
-        }
-    }
-
+    // 2. 견제 성향 라벨
     private String harassStyleLabel(String s) {
         if (s == null) return "일반견제";
         switch (s) {
             case "NO_HARASS":     return "견제없음";
             case "NORMAL_HARASS": return "일반견제";
             case "HEAVY_HARASS":  return "강한견제";
-            // 구버전 호환
-            case "LIGHT_HARAS": return "일반견제"; case "HEAVY_HARAS": return "강한견제";
             default: return "일반견제";
-        }
-    }
-
-    private String techLabel(String s) {
-        if (s == null) return "중간테크";
-        switch (s) {
-            case "FAST_TECH": return "빠른테크";
-            case "MID_TECH":  return "중간테크";
-            case "LATE_TECH": return "느린테크";
-            default: return "중간테크";
         }
     }
 
@@ -2089,12 +2177,6 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                 .max(Comparator.comparingInt(e -> counts.getOrDefault(e.name, 0)))
                 .map(e -> e.name)
                 .orElse(null);
-    }
-
-    private void fire(GameState state, String type, String msg, String key) {
-        if (commentaryFired.contains(key)) return;
-        commentaryFired.add(key);
-        addLog(state, type, msg);
     }
 
     private String pick(String[] arr) {
@@ -2280,6 +2362,211 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                 .max(Comparator.comparingInt(e -> counts.getOrDefault(e.name, 0)))
                 .map(e -> e.name)
                 .orElse(null);
+    }
+
+
+    // =====================================================
+    // 공중/지상 유닛 시스템 헬퍼
+    // =====================================================
+
+    /**
+     * 아군 전투력의 공중 공격 가능 비율 (AIR + BOTH 유닛 전투력 / 전체)
+     * SUPPORT 유닛은 전투 기여 없으므로 분자/분모 모두 제외
+     */
+    private double calcAirAttackFrac(Map<String, Integer> counts) {
+        double canHitAir = 0, combatTotal = 0;
+        for (EntityData e : ENTITY_DB.values()) {
+            if (!"unit".equals(e.type) || e.combatPower <= 0) continue;
+            if ("SUPPORT".equals(e.attackTarget)) continue;
+            int cnt = counts.getOrDefault(e.name, 0);
+            if (cnt == 0) continue;
+            double pow = cnt * e.combatPower;
+            combatTotal += pow;
+            if ("AIR".equals(e.attackTarget) || "BOTH".equals(e.attackTarget)) canHitAir += pow;
+        }
+        return combatTotal > 0 ? canHitAir / combatTotal : 1.0;
+    }
+
+    /**
+     * 아군 전투력의 지상 공격 가능 비율 (GROUND + BOTH 유닛 전투력 / 전체)
+     */
+    private double calcGroundAttackFrac(Map<String, Integer> counts) {
+        double canHitGround = 0, combatTotal = 0;
+        for (EntityData e : ENTITY_DB.values()) {
+            if (!"unit".equals(e.type) || e.combatPower <= 0) continue;
+            if ("SUPPORT".equals(e.attackTarget)) continue;
+            int cnt = counts.getOrDefault(e.name, 0);
+            if (cnt == 0) continue;
+            double pow = cnt * e.combatPower;
+            combatTotal += pow;
+            if ("GROUND".equals(e.attackTarget) || "BOTH".equals(e.attackTarget)) canHitGround += pow;
+        }
+        return combatTotal > 0 ? canHitGround / combatTotal : 1.0;
+    }
+
+    /**
+     * 적 군대의 공중 유닛 전투력 비율
+     */
+    private double calcAirFrac(Map<String, Integer> counts) {
+        double airPow = 0, totalPow = 0;
+        for (EntityData e : ENTITY_DB.values()) {
+            if (!"unit".equals(e.type) || e.combatPower <= 0) continue;
+            if ("SUPPORT".equals(e.attackTarget)) continue;
+            int cnt = counts.getOrDefault(e.name, 0);
+            if (cnt == 0) continue;
+            double pow = cnt * e.combatPower;
+            totalPow += pow;
+            if (e.isAir) airPow += pow;
+        }
+        return totalPow > 0 ? airPow / totalPow : 0.0;
+    }
+
+    /**
+     * 공중/지상 상성을 반영한 실제 유효 전투력
+     * 지상만 공격 가능한 유닛은 적 공중에 효과 없음, 반대도 마찬가지
+     * floor 15% — 완전 무력화는 방지
+     */
+    private double calcEffectivePower(double power, Map<String, Integer> myCounts, Map<String, Integer> enemyCounts) {
+        double myGroundAtkFrac = calcGroundAttackFrac(myCounts);
+        double myAirAtkFrac    = calcAirAttackFrac(myCounts);
+        double enemyAirFrac    = calcAirFrac(enemyCounts);
+        double enemyGroundFrac = 1.0 - enemyAirFrac;
+        // 공격 가능한 적이 없으면 효율 0 — 탱크/벌처 vs 뮤탈처럼 아무것도 못 함
+        double efficiency = myGroundAtkFrac * enemyGroundFrac + myAirAtkFrac * enemyAirFrac;
+        return power * efficiency;
+    }
+
+    /**
+     * 메딕 버프 전투력 계산
+     * 메딕 1마리 → 마린·파이어뱃·고스트 3마리의 전투력 ×1.4 (= +0.4)
+     * 버프 대상 = min(eligible, medic × 3)
+     */
+    private double calcMedicBonus(Map<String, Integer> counts) {
+        int medics   = counts.getOrDefault("메딕", 0);
+        if (medics == 0) return 0;
+        int marines  = counts.getOrDefault("마린",     0);
+        int firebats = counts.getOrDefault("파이어뱃", 0);
+        int ghosts   = counts.getOrDefault("고스트",   0);
+        int eligible = marines + firebats + ghosts;
+        if (eligible == 0) return 0;
+        int buffed = Math.min(eligible, medics * 3);
+        double totalEligiblePow = marines * 6.0 + firebats * 16.0 + ghosts * 22.0;
+        // 버프받은 비율 × 전체 eligible 전투력 × +0.4
+        return totalEligiblePow * ((double) buffed / eligible) * 0.4;
+    }
+
+    /**
+     * 베슬 디버프 계산 (아군 베슬 → 적 전투력 감소)
+     * 저그전: 이레데이트 (베슬당 35 고정 — 대형유닛 집중 타격)
+     * 토스전: 이엠피    (베슬당 적 전투력의 8% 감소 — 실드 제거)
+     * 테란전: 스캔 지원  (베슬당 10 — 소폭 약화)
+     */
+    private double calcVesselDebuff(Map<String, Integer> myCounts, Map<String, Integer> enemyCounts) {
+        int vessels = myCounts.getOrDefault("사이언스베슬", 0);
+        if (vessels == 0) return 0;
+        String enemyRace = getRaceFromBuildings(enemyCounts);
+        if ("Z".equals(enemyRace)) {
+            return vessels * 35.0;
+        } else if ("P".equals(enemyRace)) {
+            double enemyPow = ENTITY_DB.values().stream()
+                .filter(e -> "unit".equals(e.type) && e.combatPower > 0)
+                .mapToDouble(e -> enemyCounts.getOrDefault(e.name, 0) * e.combatPower)
+                .sum();
+            return enemyPow * 0.08 * vessels;
+        }
+        return vessels * 10.0; // vs Terran
+    }
+
+    /**
+     * 드랍쉽 견제 보너스 (드랍쉽 1기 = +1, 2기 = +2, 4기 이상 = +3 추가 일꾼 피해)
+     */
+    private int calcDropshipHarassBonus(Map<String, Integer> counts) {
+        int dropships = counts.getOrDefault("드랍쉽", 0);
+        if (dropships >= 4) return 3;
+        if (dropships >= 2) return 2;
+        if (dropships >= 1) return 1;
+        return 0;
+    }
+
+    /**
+     * 셔틀 견제 보너스 (셔틀 1기 = +1, 2기 = +2, 4기 이상 = +3 추가 일꾼 피해)
+     * 드랍쉽과 동일 구조
+     */
+    private int calcShuttleHarassBonus(Map<String, Integer> counts) {
+        int shuttles = counts.getOrDefault("셔틀", 0);
+        if (shuttles >= 4) return 3;
+        if (shuttles >= 2) return 2;
+        if (shuttles >= 1) return 1;
+        return 0;
+    }
+
+    /**
+     * 하이템플러 사이오닉 스톰 전투 보너스
+     * HT 1기당 아군 지상 전투유닛(질럿·드라군·다크템플러·리버) 전투력을 25 증폭
+     * 스톰 대상 = min(eligible, ht수 × 2) — 1스톰 2유닛 그룹 타격 기준
+     */
+    /**
+     * 하이템플러 사이오닉 스톰 보너스
+     * HT 1기 = 스톰 1발 고정, 발당 50 전투력 피해
+     * 적 유닛 수와 무관하게 HT 수에만 비례
+     */
+    private double calcHtStormBonus(Map<String, Integer> myCounts, Map<String, Integer> enemyCounts) {
+        int hts = myCounts.getOrDefault("하이템플러", 0);
+        if (hts == 0) return 0;
+        return hts * 50.0;
+    }
+
+    /**
+     * 아비터 스테이시스 필드 디버프
+     * 아비터 1기당 적 전투력의 12%를 동결 (전투에서 제외)
+     * 최대 50% 동결 상한
+     */
+    private double calcArbiterStasisDebuff(Map<String, Integer> myCounts, double enemyEffPower) {
+        int arbiters = myCounts.getOrDefault("아비터", 0);
+        if (arbiters == 0) return 0;
+        double rate = Math.min(0.50, arbiters * 0.12);
+        return enemyEffPower * rate;
+    }
+
+    /**
+     * 아비터 리콜 견제 보너스
+     * 아비터 1기 = +2, 2기 = +4, 3기 이상 = +5 추가 일꾼 피해
+     * 리콜로 병력을 순간이동시켜 대규모 견제 가능
+     */
+    private int calcArbiterRecallBonus(Map<String, Integer> counts) {
+        int arbiters = counts.getOrDefault("아비터", 0);
+        if (arbiters >= 3) return 5;
+        if (arbiters >= 2) return 4;
+        if (arbiters >= 1) return 2;
+        return 0;
+    }
+
+    /**
+     * 퀸 인스네어 디버프 — 아비터 스테이시스와 동일 구조
+     * 퀸 1기당 적 전투력의 10% 하락, 최대 40%
+     */
+    private double calcQueenEnsnareDebuff(Map<String, Integer> myCounts, double enemyEffPower) {
+        int queens = myCounts.getOrDefault("퀸", 0);
+        if (queens == 0) return 0;
+        double rate = Math.min(0.40, queens * 0.10);
+        return enemyEffPower * rate;
+    }
+
+    /**
+     * 디파일러 다크스웜 보너스 — 아군 지상 전투유닛 전투력 상승
+     * 다크스웜은 아군 지상유닛(저글링·히드라·러커·울트라)을 원거리 공격으로부터 보호
+     * 디파일러 1기당 아군 지상 전투유닛 전투력 50 증폭
+     */
+    private double calcDefilerDarkSwarmBonus(Map<String, Integer> counts) {
+        int defilers = counts.getOrDefault("디파일러", 0);
+        if (defilers == 0) return 0;
+        // 다크스웜 혜택받는 지상 전투유닛 보유 여부 확인
+        int groundUnits = counts.getOrDefault("저글링", 0)
+                        + counts.getOrDefault("히드라리스크", 0)
+                        + counts.getOrDefault("러커", 0)
+                        + counts.getOrDefault("울트라리스크", 0);
+        if (groundUnits == 0) return 0;
+        return defilers * 50.0;
     }
 
     private void addLog(GameState state, String type, String msg) {

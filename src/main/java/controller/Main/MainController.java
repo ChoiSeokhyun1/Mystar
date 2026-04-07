@@ -253,7 +253,7 @@ public class MainController {
         } catch (Exception e) {
             e.printStackTrace();
             model.addAttribute("myPlayerList", new ArrayList<>());
-            model.addAttribute("errorMessage", "선수 목록을 불러오는 데 실패했습니다.");
+            model.addAttribute("errorMessage", "선 목록을 불러오는 데 실패했습니다.");
         }
         return "myTeam";
     }
@@ -779,7 +779,6 @@ public class MainController {
         if (loginUser == null) { mv.setViewName("redirect:/login"); return mv; }
         String userId = loginUser.getUserId();
 
-        // ★ 이미 진행중인 배틀이 있으면 새로 만들지 않고 기존 배틀로 이동
         try {
             Map<String, Object> checkParams = new HashMap<>();
             checkParams.put("userId", userId);
@@ -809,8 +808,6 @@ public class MainController {
             String myRace = (String) currentMatchup.get("myPlayerRace");
             String aiRace = (String) currentMatchup.get("aiPlayerRace");
 
-            System.out.println("[Simulation Start] User: " + userId + ", Set: 1, MyRace: " + myRace + ", AiRace: " + aiRace);
-
             BuildDTO myBuildDto = (myBuildIds[0] > 0) ? buildService.getBuildById(myBuildIds[0]) : null;
             if (myBuildDto == null) myBuildDto = pveSimulationService.generateDefaultBuild(myRace, aiRace);
 
@@ -820,11 +817,19 @@ public class MainController {
 
             String myPlayerName = (String) currentMatchup.getOrDefault("myPlayerName", "아군");
             String aiPlayerName = (String) currentMatchup.getOrDefault("aiPlayerName", "AI");
+            
+            // ★ 신규 파라미터 추출
+            String myCondition = (String) currentMatchup.getOrDefault("myPlayerCondition", "NORMAL");
+            int myWinStreak = safeInt(currentMatchup.get("myPlayerWinStreak"), 0);
+            String aiCondition = (String) currentMatchup.getOrDefault("aiPlayerCondition", "NORMAL");
+            int aiWinStreak = safeInt(currentMatchup.get("aiPlayerWinStreak"), 0);
+
+            // ★ 파라미터 전달 추가
             List<GameState> replayData = pveSimulationService.runFullSimulation(
                 myStats, aiStats, myBuildDto, aiBuildDto, myRace, aiRace,
-                myPlayerName, aiPlayerName
+                myPlayerName, aiPlayerName,
+                myCondition, myWinStreak, aiCondition, aiWinStreak
             );
-            System.out.println("[Simulation Done] Generated frames: " + (replayData != null ? replayData.size() : "null"));
 
             BattleSessionDTO newSession = new BattleSessionDTO();
             newSession.setUserId(userId);
@@ -836,7 +841,6 @@ public class MainController {
             newSession.setMyWins(0);
             newSession.setAiWins(0);
             newSession.setGameStateData(gson.toJson(replayData));
-            // ★ setResults도 DB에 함께 저장 — 세션 만료 후 복구용
             List<SetResult> initialSetResults = (List<SetResult>) creationResult.get("setResults");
             newSession.setSetResultsData(gson.toJson(initialSetResults));
             battleSessionDAO.insertNewBattle(newSession);
@@ -850,7 +854,6 @@ public class MainController {
 
             mv.setViewName("redirect:/pve/battle/result?level=" + stageLevel + "&subLevel=" + subLevel);
         } catch (Exception e) {
-            System.err.println("전투 시작 오류: " + e.getMessage());
             e.printStackTrace();
             mv.setViewName("redirect:/pve/lobby");
         }
@@ -970,7 +973,6 @@ public class MainController {
         @SuppressWarnings("unchecked")
         List<SetResult> setResults = (List<SetResult>) session.getAttribute("setResults");
 
-        // ★ 세션에 setResults 없으면 DB에서 복구
         if (setResults == null) {
             String savedSetResults = activeBattle.getSetResultsData();
             if (savedSetResults != null && !savedSetResults.isEmpty()) {
@@ -978,9 +980,8 @@ public class MainController {
                     Type srType = new TypeToken<List<SetResult>>() {}.getType();
                     setResults = gson.fromJson(savedSetResults, srType);
                     session.setAttribute("setResults", setResults);
-                } catch (Exception e) { /* 역직렬화 실패 시 null 유지 */ }
+                } catch (Exception e) { }
             }
-            // 그래도 null이면 matchupList에서 최소 재구성
             if (setResults == null) {
                 setResults = new ArrayList<>();
                 for (int i = 0; i < matchupList.size(); i++) {
@@ -1003,7 +1004,6 @@ public class MainController {
             OwnedPlayerDTO player = ownedPlayerDAO.selectOwnedPlayer(completedSet.getMyOwnedPlayerSeq());
             if (player != null) {
                 Map<String, Object> currentMatchup = matchupList.get(currentSet - 1);
-
                 int usedBuildId = safeInt(currentMatchup.get("myBuildId"), 0);
                 BuildDTO usedBuild = (usedBuildId > 0) ? buildService.getBuildById(usedBuildId) : null;
 
@@ -1023,7 +1023,6 @@ public class MainController {
                         : applyRandomStatDecrease(player, myTotal, aiTotal);
                 ownedPlayerDAO.updatePlayerStats(player);
 
-                // 연승(경기력) 업데이트
                 if (lastSetMyWin) {
                     player.setWinStreak(Math.min(player.getWinStreak() + 1, 5));
                 } else {
@@ -1041,19 +1040,13 @@ public class MainController {
                 record.setOpponentRace((String) currentMatchup.getOrDefault("aiPlayerRace", "A"));
                 matchRecordDAO.insertMatchRecord(record);
 
-                // ★ 빌드 전적 업데이트 (세트 결과 반영)
                 if (usedBuildId > 0) {
-                    try {
-                        buildService.recordBuildResult(usedBuildId, lastSetMyWin);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    try { buildService.recordBuildResult(usedBuildId, lastSetMyWin); } catch (Exception e) {}
                 }
 
                 completedSet.setMyWin(lastSetMyWin);
                 completedSet.setStatChanges(changes);
 
-                // ★ 세트 완료마다 setResults를 DB에 저장 — 세션 만료 복구용
                 try {
                     Map<String, Object> srParams = new HashMap<>();
                     srParams.put("userId", userId);
@@ -1061,7 +1054,7 @@ public class MainController {
                     srParams.put("subLevel", subLevel);
                     srParams.put("setResultsData", gson.toJson(setResults));
                     battleSessionDAO.updateSetResultsData(srParams);
-                } catch (Exception e) { e.printStackTrace(); }
+                } catch (Exception e) {}
             }
         }
 
@@ -1085,19 +1078,13 @@ public class MainController {
                     pveSubstageService.clearSubstage(userId, stageLevel, subLevel);
                     response.put("message", "승리! 전체 매치를 승리하여 모든 선수가 성장했습니다.");
                     
-                    // ★ 일일 미션 업데이트
                     try {
-                        // 라운드 클리어 미션
                         dailyMissionService.incrementMissionProgress(userId, "PVE_WIN", 1);
-                        
-                        // 3승0패 완벽한 승리 미션
                         if (myWins == 3 && aiWins == 0) {
                             dailyMissionService.incrementMissionProgress(userId, "PVE_PERFECT", 1);
                         }
-                    } catch (Exception e) {
-                        System.err.println("PVE 미션 업데이트 실패: " + e.getMessage());
-                    }
-                } catch (Exception e) { e.printStackTrace(); }
+                    } catch (Exception e) {}
+                } catch (Exception e) {}
             } else {
                 battleSessionDAO.deletePveBattleSession(params);
                 response.put("message", "패배했습니다. 선수들의 사기가 떨어졌습니다.");
@@ -1125,9 +1112,18 @@ public class MainController {
 
                 String myPName = (String) nextMatchup.getOrDefault("myPlayerName", "아군");
                 String aiPName = (String) nextMatchup.getOrDefault("aiPlayerName", "AI");
+                
+                // ★ 신규 파라미터 추출
+                String myCondition = (String) nextMatchup.getOrDefault("myPlayerCondition", "NORMAL");
+                int myWinStreak = safeInt(nextMatchup.get("myPlayerWinStreak"), 0);
+                String aiCondition = (String) nextMatchup.getOrDefault("aiPlayerCondition", "NORMAL");
+                int aiWinStreak = safeInt(nextMatchup.get("aiPlayerWinStreak"), 0);
+
+                // ★ 파라미터 전달 추가
                 List<GameState> nextReplay = pveSimulationService.runFullSimulation(
                     myStats, aiStats, myBuildDto, aiBuildDto, myRace, aiRace,
-                    myPName, aiPName
+                    myPName, aiPName,
+                    myCondition, myWinStreak, aiCondition, aiWinStreak
                 );
 
                 BattleProgressDTO progress = new BattleProgressDTO();
@@ -1452,6 +1448,7 @@ public class MainController {
         catch (Exception e) { return defaultVal; }
     }
 
+    // ★★★ 핵심 수정 부분: 새로운 컨디션/연승 배율 로직 반영 ★★★
     private Map<String, Integer> extractStats(Map<String, Object> matchup, String prefix) {
         Map<String, Integer> stats = new HashMap<>();
         int atk  = safeInt(matchup.get(prefix + "Attack"),  50);
@@ -1460,18 +1457,33 @@ public class MainController {
         int mic  = safeInt(matchup.get(prefix + "Micro"),   50);
         int luk  = safeInt(matchup.get(prefix + "Luck"),    50);
 
-        // 컨디션 보정
+        // 1. 컨디션 배율 적용 (데이터가 없으면 NORMAL)
         String condition = (String) matchup.getOrDefault(prefix + "Condition", "NORMAL");
         double condMult = 1.0;
-        if      ("PEAK".equals(condition))  condMult = 1.10;
-        else if ("GOOD".equals(condition))  condMult = 1.05;
-        else if ("TIRED".equals(condition)) condMult = 0.95;
-        else if ("WORST".equals(condition)) condMult = 0.90;
+        switch (condition) {
+            case "PEAK":   condMult = 1.20; break; // 20% 증가
+            case "GOOD":   condMult = 1.10; break; // 10% 증가
+            case "NORMAL": condMult = 1.00; break; // 기본
+            case "TIRED":  condMult = 0.90; break; // 10% 감소
+            case "WORST":  condMult = 0.80; break; // 20% 감소
+        }
 
-        // 경기력 보정 (연승 1~5 → +1~+5%)
+        // 2. 경기력 보정 (연승 1~5 → 최대 10%)
         int winStreak = safeInt(matchup.get(prefix + "WinStreak"), 0);
-        double streakMult = 1.0 + Math.min(winStreak, 5) / 100.0;
+        double streakMult = 1.0;
+        if (winStreak >= 5) {
+            streakMult = 1.10; // 5연승 이상: 10% 증가
+        } else if (winStreak == 4) {
+            streakMult = 1.08; // 4연승: 8% 증가
+        } else if (winStreak == 3) {
+            streakMult = 1.06; // 3연승: 6% 증가
+        } else if (winStreak == 2) {
+            streakMult = 1.03; // 2연승: 3% 증가
+        } else {
+            streakMult = 1.00; // 0~1연승: 효과 없음
+        }
 
+        // 3. 최종 배율 적용
         double totalMult = condMult * streakMult;
 
         stats.put("attack",  (int) Math.round(atk * totalMult));
@@ -1479,6 +1491,7 @@ public class MainController {
         stats.put("macro",   (int) Math.round(mac * totalMult));
         stats.put("micro",   (int) Math.round(mic * totalMult));
         stats.put("luck",    (int) Math.round(luk * totalMult));
+        
         return stats;
     }
 
@@ -1486,13 +1499,13 @@ public class MainController {
      * ★ 수정된 스탯 성장 메서드
      *
      * DB의 CHECK 제약 조건과 일치하도록 switch-case 전면 교체
-     *   PLAY_STYLE  : AGGRESSIVE / NORMAL / DEFENSIVE
-     *   AGGRESSION  : MIN_MULTI / MID_MULTI / MAX_MULTI
+     * PLAY_STYLE  : AGGRESSIVE / NORMAL / DEFENSIVE
+     * AGGRESSION  : MIN_MULTI / MID_MULTI / MAX_MULTI
      *
      * 총 포인트:
-     *   강한 상대(aiTotal > myTotal+50) → 8점
-     *   비슷한 상대(±50 이내)           → 5점
-     *   약한 상대(myTotal > aiTotal+50) → 3점
+     * 강한 상대(aiTotal > myTotal+50) → 8점
+     * 비슷한 상대(±50 이내)           → 5점
+     * 약한 상대(myTotal > aiTotal+50) → 3점
      */
     private Map<String, Object> applyBuildBasedStatIncrease(
             OwnedPlayerDTO player, BuildDTO build, int myTotal, int aiTotal) {
