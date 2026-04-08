@@ -25,6 +25,8 @@
         <result property="playStyle"          column="PLAY_STYLE"/>
         <result property="harassStyle"        column="HARASS_STYLE"/>
         <result property="aggression"         column="AGGRESSION"/>
+        <result property="maxBases"           column="MAX_BASES"/>
+        <result property="focusAttackTime"    column="FOCUS_ATTACK_TIME"/>
         <result property="maxTier"            column="MAX_TIER"/>
         <result property="winCount"           column="WIN_COUNT"/>
         <result property="loseCount"          column="LOSE_COUNT"/>
@@ -45,11 +47,11 @@
     </selectKey>
     INSERT INTO TBL_BUILDS (
         BUILD_ID, USER_ID, BUILD_NAME, RACE, VS_RACE,
-        PLAY_STYLE, HARASS_STYLE, AGGRESSION, MAX_TIER,
+        PLAY_STYLE, HARASS_STYLE, AGGRESSION, MAX_BASES, FOCUS_ATTACK_TIME, MAX_TIER,
         PREFERRED_UNITS, PREFERRED_BUILDINGS
     ) VALUES (
         #{buildId}, #{userId}, #{buildName}, #{race}, #{vsRace},
-        #{playStyle}, #{harassStyle}, #{aggression}, #{maxTier},
+        #{playStyle}, #{harassStyle}, #{aggression}, #{maxBases}, #{focusAttackTime}, #{maxTier},
         #{preferredUnits}, #{preferredBuildings}
     )
 </insert>
@@ -61,6 +63,8 @@
             PLAY_STYLE          = #{playStyle},
             HARASS_STYLE        = #{harassStyle},
             AGGRESSION          = #{aggression},
+            MAX_BASES           = #{maxBases},
+            FOCUS_ATTACK_TIME   = #{focusAttackTime},
             MAX_TIER            = #{maxTier},
             PREFERRED_UNITS     = #{preferredUnits},
             PREFERRED_BUILDINGS = #{preferredBuildings},
@@ -100,9 +104,11 @@
                b.BUILD_NAME,
                b.RACE,
                b.VS_RACE,
-               NVL(b.PLAY_STYLE,    'AGGRESSIVE')    AS PLAY_STYLE,
+               NVL(b.PLAY_STYLE,    'NORMAL')    AS PLAY_STYLE,
                NVL(b.HARASS_STYLE,  'NORMAL_HARASS') AS HARASS_STYLE,
-               NVL(b.AGGRESSION,  'MID_MULTI')  AS AGGRESSION,
+               NVL(b.AGGRESSION,  'NORMAL_MULTI')  AS AGGRESSION,
+               NVL(b.MAX_BASES,   4)               AS MAX_BASES,
+               NVL(b.FOCUS_ATTACK_TIME, 0)         AS FOCUS_ATTACK_TIME,
                NVL(b.MAX_TIER,    3)             AS MAX_TIER,
                NVL(b.WIN_COUNT,   0)             AS WIN_COUNT,
                NVL(b.LOSE_COUNT,  0)             AS LOSE_COUNT,
@@ -126,9 +132,11 @@
                b.BUILD_NAME,
                b.RACE,
                b.VS_RACE,
-               NVL(b.PLAY_STYLE,    'AGGRESSIVE')    AS PLAY_STYLE,
+               NVL(b.PLAY_STYLE,    'NORMAL')    AS PLAY_STYLE,
                NVL(b.HARASS_STYLE,  'NORMAL_HARASS') AS HARASS_STYLE,
-               NVL(b.AGGRESSION,  'MID_MULTI')  AS AGGRESSION,
+               NVL(b.AGGRESSION,  'NORMAL_MULTI')  AS AGGRESSION,
+               NVL(b.MAX_BASES,   4)               AS MAX_BASES,
+               NVL(b.FOCUS_ATTACK_TIME, 0)         AS FOCUS_ATTACK_TIME,
                NVL(b.MAX_TIER,    3)             AS MAX_TIER,
                NVL(b.WIN_COUNT,   0)             AS WIN_COUNT,
                NVL(b.LOSE_COUNT,  0)             AS LOSE_COUNT,
@@ -183,9 +191,11 @@
     <!-- 보유 선수의 빌드 목록 (유닛 포함) -->
     <select id="selectBuildsByOwnedPlayerSeq" parameterType="int" resultMap="buildMap">
         SELECT b.BUILD_ID, b.USER_ID, b.BUILD_NAME, b.RACE, b.VS_RACE,
-               NVL(b.PLAY_STYLE,    'AGGRESSIVE')    AS PLAY_STYLE,
+               NVL(b.PLAY_STYLE,    'NORMAL')    AS PLAY_STYLE,
                NVL(b.HARASS_STYLE,  'NORMAL_HARASS') AS HARASS_STYLE,
-               NVL(b.AGGRESSION,  'MID_MULTI')  AS AGGRESSION,
+               NVL(b.AGGRESSION,  'NORMAL_MULTI')  AS AGGRESSION,
+               NVL(b.MAX_BASES,   4)               AS MAX_BASES,
+               NVL(b.FOCUS_ATTACK_TIME, 0)         AS FOCUS_ATTACK_TIME,
                NVL(b.MAX_TIER,    3)             AS MAX_TIER,
                NVL(b.WIN_COUNT,   0)             AS WIN_COUNT,
                NVL(b.LOSE_COUNT,  0)             AS LOSE_COUNT,

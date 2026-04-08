@@ -15,6 +15,7 @@ public class BuildDTO {
     private String harassStyle;       // NO_HARASS(견제없음) / NORMAL_HARASS(일반견제) / HEAVY_HARASS(강견제)
     private String aggression;        // FAST_MULTI(빠른멀티) / NORMAL_MULTI(일반멀티) / SLOW_MULTI(느린멀티) — 멀티 타이밍 제어
     private int    maxBases;           // 최대 기지 수 (본진 포함, 0이면 기본값 4 사용)
+    private int    focusAttackTime;    // 집중 공격 타이밍 (초 단위, 0이면 미설정 — 예: 5분=300)
     private int    maxTier;           // 최대 티어 제한: 1 / 2 / 3 (0이면 무제한=3)
     private int    winCount;
     private int    loseCount;

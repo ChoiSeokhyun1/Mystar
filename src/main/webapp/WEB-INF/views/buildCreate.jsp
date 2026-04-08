@@ -85,12 +85,30 @@
                         </select>
                     </div>
                     <div class="msl-form-group">
-                        <label class="msl-label">멀티 성향</label>
+                        <label class="msl-label">집중 공격 타이밍</label>
+                        <div style="display:flex;align-items:center;gap:0.5rem;">
+                            <input type="number" id="focusMinutes" name="focusMinutes"
+                                   class="msl-select" style="width:70px;text-align:center;"
+                                   min="0" max="29" value="0" placeholder="0">
+                            <span style="font-size:0.78rem;color:#888;">분 (0이면 미설정 — 전 구간 균등 배분)</span>
+                        </div>
+                    </div>
+                    <div class="msl-form-group">
+                        <label class="msl-label">멀티 타이밍</label>
                         <select id="aggression" name="aggression" class="msl-select">
-                            <option value="MIN_MULTI">🏠 최소 멀티 (멀티 1개)</option>
-                            <option value="MID_MULTI" selected>⚖️ 중간 멀티 (멀티 3개)</option>
-                            <option value="MAX_MULTI">💰 다수 멀티 (멀티 5개)</option>
+                            <option value="FAST_MULTI">⚡ 빠른 멀티</option>
+                            <option value="NORMAL_MULTI" selected>⚖️ 일반 멀티</option>
+                            <option value="SLOW_MULTI">🐢 느린 멀티</option>
                         </select>
+                    </div>
+                    <div class="msl-form-group">
+                        <label class="msl-label">멀티 수</label>
+                        <div style="display:flex;align-items:center;gap:0.5rem;">
+                            <input type="number" id="multiCount" name="multiCount"
+                                   class="msl-select" style="width:80px;text-align:center;"
+                                   min="0" max="9" value="3">
+                            <span style="font-size:0.78rem;color:#888;">개 (본진 제외)</span>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -249,6 +267,7 @@ const BUILDING_DATA = {
         {id:'battle_adaptor',   name:'배틀 어댑터',      tier:3}
     ],
     Z:[
+        {id:'hatchery',        name:'해처리',             tier:1},
         {id:'spawning_pool',   name:'스포닝풀',           tier:1},
         {id:'hydralisk_den',   name:'히드라덴',           tier:1},
         {id:'lair',            name:'레어',               tier:2},
@@ -642,6 +661,8 @@ function submitBuild() {
     }
     const d = Object.fromEntries(new FormData(form).entries());
     d.maxTier            = 3;
+    d.maxBases           = (parseInt(document.getElementById('multiCount').value) || 0) + 1;
+    d.focusAttackTime    = (parseInt(document.getElementById('focusMinutes').value) || 0) * 60;
     d.preferredUnits     = document.getElementById('preferredUnits').value;
     d.preferredBuildings = document.getElementById('preferredBuildings').value;
     d.units = [];

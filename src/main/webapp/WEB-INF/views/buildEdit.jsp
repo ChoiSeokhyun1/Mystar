@@ -87,12 +87,21 @@
                         </select>
                     </div>
                     <div class="msl-form-group">
-                        <label class="msl-label">멀티 성향</label>
+                        <label class="msl-label">멀티 타이밍</label>
                         <select name="aggression" class="msl-select">
-                            <option value="MIN_MULTI" <c:if test="${build.aggression == 'MIN_MULTI'}">selected</c:if>>🏠 최소 멀티 (멀티 1개)</option>
-                            <option value="MID_MULTI" <c:if test="${build.aggression == 'MID_MULTI' || (build.aggression != 'MIN_MULTI' && build.aggression != 'MAX_MULTI')}">selected</c:if>>⚖️ 중간 멀티 (멀티 3개)</option>
-                            <option value="MAX_MULTI" <c:if test="${build.aggression == 'MAX_MULTI'}">selected</c:if>>💰 다수 멀티 (멀티 5개)</option>
+                            <option value="FAST_MULTI"   <c:if test="${build.aggression == 'FAST_MULTI'}">selected</c:if>>⚡ 빠른 멀티</option>
+                            <option value="NORMAL_MULTI" <c:if test="${build.aggression == 'NORMAL_MULTI' || (build.aggression != 'FAST_MULTI' && build.aggression != 'SLOW_MULTI')}">selected</c:if>>⚖️ 일반 멀티</option>
+                            <option value="SLOW_MULTI"   <c:if test="${build.aggression == 'SLOW_MULTI'}">selected</c:if>>🐢 느린 멀티</option>
                         </select>
+                    </div>
+                    <div class="msl-form-group">
+                        <label class="msl-label">멀티 수</label>
+                        <div style="display:flex;align-items:center;gap:0.5rem;">
+                            <input type="number" id="multiCount" name="multiCount"
+                                   class="msl-select" style="width:80px;text-align:center;"
+                                   min="0" max="9" value="${build.maxBases > 1 ? build.maxBases - 1 : 3}">
+                            <span style="font-size:0.78rem;color:#888;">개 (본진 제외)</span>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -203,7 +212,7 @@ const COUNTER = {
 };
 const BUILDING_DATA = {
     T:[{id:'barracks',name:'배럭스',tier:1},{id:'academy',name:'아카데미',tier:1},{id:'factory',name:'팩토리',tier:2},{id:'machine_shop',name:'머신샵',tier:2},{id:'armory',name:'아머리',tier:2},{id:'starport',name:'스타포트',tier:2},{id:'science_facility',name:'사이언스 퍼실리티',tier:3},{id:'nuclear_silo',name:'뉴클리어 어댑터',tier:3},{id:'battle_adaptor',name:'배틀 어댑터',tier:3}],
-    Z:[{id:'spawning_pool',name:'스포닝풀',tier:1},{id:'hydralisk_den',name:'히드라덴',tier:1},
+    Z:[{id:'hatchery',name:'해처리',tier:1},{id:'spawning_pool',name:'스포닝풀',tier:1},{id:'hydralisk_den',name:'히드라덴',tier:1},
        {id:'lair',name:'레어',tier:2},{id:'spire',name:'스파이어',tier:2},{id:'queens_nest',name:'퀸즈 네스트',tier:2},
        {id:'hive',name:'하이브',tier:3},{id:'greater_spire',name:'그레이트 스파이어',tier:3},
        {id:'defiler_mound',name:'디파일러 마운드',tier:3},{id:'ultralisk_cavern',name:'울트라리스크 케이번',tier:3}],
@@ -391,7 +400,9 @@ function submitBuildEdit(){
     var bldNames={};(BUILDING_DATA[RACE]||[]).forEach(function(b){bldNames[b.id]=b.name;});
     for(var bid of required){if(!buildingCounts[bid]||buildingCounts[bid]<1){alert('['+( bldNames[bid]||bid)+'] 은(는) 선호 유닛 생산에 필요한 건물입니다. 최소 1개 이상 설정해주세요.');return;}}
     var d=Object.fromEntries(new FormData(form).entries());
-    d.maxTier=3;d.preferredUnits=document.getElementById('preferredUnits').value;d.preferredBuildings=document.getElementById('preferredBuildings').value;d.units=[];
+    d.maxTier=3;
+    d.maxBases=(parseInt(document.getElementById('multiCount').value)||0)+1;
+    d.focusAttackTime=(parseInt(document.getElementById('focusMinutes').value)||0)*60;d.preferredUnits=document.getElementById('preferredUnits').value;d.preferredBuildings=document.getElementById('preferredBuildings').value;d.units=[];
     fetch('<c:url value="/build/edit" />',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})
     .then(function(r){return r.json();})
     .then(function(res){if(res.success){alert('전략이 수정되었습니다.\n⚠️ 전략 내용이 변경되었으므로 기존 승/패 전적이 초기화되었습니다.');location.href='<c:url value="/build/manage" />';}else alert('수정 실패: '+res.message);})

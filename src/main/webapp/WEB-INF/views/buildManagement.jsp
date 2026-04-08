@@ -145,6 +145,10 @@
                         <span class="t-badge t-badge-harass" id="dtHarassStyle"></span>
                         <span class="dt-tend-sep">·</span>
                         <span class="t-badge t-badge-agg" id="dtAggression"></span>
+                        <span class="dt-tend-sep">·</span>
+                        <span class="t-badge t-badge-agg" id="dtMaxBases"></span>
+                        <span class="dt-tend-sep">·</span>
+                        <span class="t-badge t-badge-agg" id="dtFocusTime"></span>
                     </div>
 
                     <div class="dt-pref-columns">
@@ -197,14 +201,14 @@
     };
     const pStyleMap = { 'AGGRESSIVE':'⚔️ 공격 스타일 — 교전 자주, 초반 집중', 'NORMAL':'⚖️ 일반 스타일 — 균형 운영', 'DEFENSIVE':'🛡️ 수비 스타일 — 교전 적게, 후반 결전' };
     const hStyleMap = { 'NO_HARASS':'🚫 견제 안 함', 'NORMAL_HARASS':'🐝 일반 견제 (2~6회)', 'HEAVY_HARASS':'🔥 강한 견제 (7~11회)' };
-    const aMap      = { 'MIN_MULTI':'🏠 최소 멀티 — 멀티 건설 적게', 'MID_MULTI':'⚖️ 중간 멀티 — 멀티 건설 평균', 'MAX_MULTI':'💰 최대 멀티 — 멀티 건설 자주' };
+    const aMap      = { 'FAST_MULTI':'⚡ 빠른 멀티 — 빠른 확장 타이밍', 'NORMAL_MULTI':'⚖️ 일반 멀티 — 평균 확장 타이밍', 'SLOW_MULTI':'🐢 느린 멀티 — 병력 집중 후 확장' };
     const PRIO_LABEL = { high:'높음', mid:'보통', low:'낮음' };
     const PRIO_COLOR = { high:'#e8a020', mid:'#4e9de0', low:'#888' };
     const BUILDING_NAME = {
         barracks:'배럭스', factory:'팩토리', starport:'스타포트', academy:'아카데미',
         machine_shop:'머신샵', armory:'아머리', science_facility:'사이언스 퍼실리티',
         nuclear_silo:'뉴클리어 어댑터', battle_adaptor:'배틀 어댑터',
-        spawning_pool:'스포닝풀', hydralisk_den:'히드라덴', spire:'스파이어', lurker_aspect:'러커어스펙트',
+        hatchery:'해처리', spawning_pool:'스포닝풀', hydralisk_den:'히드라덴', spire:'스파이어', lurker_aspect:'러커어스펙트',
         gateway:'게이트웨이', cybernetics_core:'사이버네틱스코어', citadel:'시타델', robotics:'로보틱스'
     };
 
@@ -280,6 +284,8 @@
         document.getElementById('dtPlayStyle').textContent   = pStyleMap[build.playStyle]   || build.playStyle   || '-';
         document.getElementById('dtHarassStyle').textContent = hStyleMap[build.harassStyle] || build.harassStyle || '🐝 일반 견제 (2~6회)';
         document.getElementById('dtAggression').textContent  = aMap[build.aggression]       || build.aggression  || '-';
+        document.getElementById('dtMaxBases').textContent    = build.maxBases > 0 ? '🏗 멀티 ' + (build.maxBases - 1) + '개' : '🏗 멀티 설정 없음';
+        document.getElementById('dtFocusTime').textContent   = build.focusAttackTime > 0 ? '⚔️ 집중타이밍 ' + Math.round(build.focusAttackTime / 60) + '분' : '⚔️ 전구간 균등';
 
         // 선호 유닛
         var puWrap = document.getElementById('dtPreferredUnits');

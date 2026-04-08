@@ -17,7 +17,7 @@ public class GameState {
     private double gas = 0;
     private int workerCount = 4;
     private double combatPower = 0;
-    private double defense = 1000; // 기본 방어력
+    private double defense = 200; // 기본 방어력
     private double mineralsPerSecond = 0; // 화면 표시용
     private double gasPerSecond = 0;      // 화면 표시용
     
@@ -39,7 +39,7 @@ public class GameState {
     private double aiGas = 0;
     private int aiWorkerCount = 4;
     private double aiCombatPower = 0;
-    private double aiDefense = 1000; // 기본 방어력
+    private double aiDefense = 200; // 기본 방어력
     private double aiMineralsPerSecond = 0; // 화면 표시용
     private double aiGasPerSecond = 0;      // 화면 표시용
     

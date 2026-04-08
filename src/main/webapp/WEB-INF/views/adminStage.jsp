@@ -323,12 +323,26 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="bf-label">확장 성향</label>
+                                <label class="bf-label">집중 공격 타이밍</label>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <input type="number" id="bfFocusMinutes" class="bf-select" style="width:60px;text-align:center;" min="0" max="29" value="0">
+                                    <span style="font-size:0.75rem;color:#888;">분 (0=미설정)</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="bf-label">멀티 타이밍</label>
                                 <select id="bfAggression" class="bf-select">
-                                    <option value="MIN_MULTI">🏠 최소 멀티</option>
-                                    <option value="MID_MULTI" selected>⚖️ 중간 멀티</option>
-                                    <option value="MAX_MULTI">💰 최대 멀티</option>
+                                    <option value="FAST_MULTI">⚡ 빠른 멀티</option>
+                                    <option value="NORMAL_MULTI" selected>⚖️ 일반 멀티</option>
+                                    <option value="SLOW_MULTI">🐢 느린 멀티</option>
                                 </select>
+                            </div>
+                            <div>
+                                <label class="bf-label">멀티 수</label>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <input type="number" id="bfMaxBases" class="bf-select" style="width:70px;text-align:center;" min="0" max="9" value="3">
+                                    <span style="font-size:0.78rem;color:#888;">개 (본진 제외)</span>
+                                </div>
                             </div>
                             <div style="grid-column:1/-1;">
                                 <label class="bf-label">최종 테크 제한</label>
@@ -710,7 +724,7 @@ function renderPlayerTable() {
 function renderBuildList() {
     var STYLE_LABEL  = {AGGRESSIVE:'⚔️공격스타일', NORMAL:'⚖️일반스타일', DEFENSIVE:'🛡️수비스타일'};
     var HARASS_LABEL = {NO_HARASS:'🚫견제없음', NORMAL_HARASS:'🐝일반견제', HEAVY_HARASS:'🔥강한견제'};
-    var MULTI_LABEL = {MIN_MULTI:'🏠최소멀티', MID_MULTI:'⚖️중간멀티', MAX_MULTI:'💰최대멀티'};
+    var MULTI_LABEL = {FAST_MULTI:'⚡빠른멀티', NORMAL_MULTI:'⚖️일반멀티', SLOW_MULTI:'🐢느린멀티'};
     var list = ALL_BUILDS.filter(function(b){
         return buildRaceFilter === 'ALL' || b.race === buildRaceFilter;
     });
@@ -940,7 +954,7 @@ function setBuildListFilter(race, btn) {
 }
 
 function renderBuildManagerList() {
-    var MULTI_LABEL2 = {MIN_MULTI:'🏠최소멀티', MID_MULTI:'⚖️중간멀티', MAX_MULTI:'💰최대멀티'};
+    var MULTI_LABEL2 = {FAST_MULTI:'⚡빠른멀티', NORMAL_MULTI:'⚖️일반멀티', SLOW_MULTI:'🐢느린멀티'};
     var list = ALL_BUILDS.filter(function(b){
         return buildListFilter === 'ALL' || b.race === buildListFilter;
     });
@@ -1141,7 +1155,9 @@ function openBuildForm(buildId) {
         document.getElementById('bfVsRace').value = 'A';
         document.getElementById('bfPlayStyle').value   = 'AGGRESSIVE';
         document.getElementById('bfHarassStyle').value = 'NORMAL_HARASS';
-        document.getElementById('bfAggression').value  = 'MID_MULTI';
+        document.getElementById('bfAggression').value  = 'NORMAL_MULTI';
+        document.getElementById('bfMaxBases').value    = '3';
+        document.getElementById('bfFocusMinutes').value = '0';
         document.getElementById('bfMaxTier').value    = '3';
         document.getElementById('bfMaxTier').value = '3';
         document.getElementById('buildFormPanelTitle').textContent = '새 빌드 생성';
@@ -1166,7 +1182,9 @@ function openBuildForm(buildId) {
             document.getElementById('bfVsRace').value = b.vsRace || 'A';
             document.getElementById('bfPlayStyle').value   = b.playStyle   || 'AGGRESSIVE';
             document.getElementById('bfHarassStyle').value = b.harassStyle || 'NORMAL_HARASS';
-            document.getElementById('bfAggression').value  = b.aggression  || 'MID_MULTI';
+            document.getElementById('bfAggression').value  = b.aggression  || 'NORMAL_MULTI';
+            document.getElementById('bfMaxBases').value    = b.maxBases > 0 ? (b.maxBases - 1) : 3;
+            document.getElementById('bfFocusMinutes').value = b.focusAttackTime > 0 ? Math.round(b.focusAttackTime / 60) : 0;
             document.getElementById('bfMaxTier').value = b.maxTier || 3;
             document.getElementById('buildFormPanelTitle').textContent = '빌드 수정';
             document.getElementById('buildDeleteBtn').style.display = 'inline-block';
@@ -1196,6 +1214,8 @@ function saveBuildFromManager() {
         playStyle:    document.getElementById('bfPlayStyle').value,
         harassStyle:  document.getElementById('bfHarassStyle').value,
         aggression:   document.getElementById('bfAggression').value,
+        maxBases:     (parseInt(document.getElementById('bfMaxBases').value) || 0) + 1,
+        focusAttackTime: (parseInt(document.getElementById('bfFocusMinutes').value) || 0) * 60,
         maxTier:             parseInt(document.getElementById('bfMaxTier').value) || 3,
         preferredUnits:      document.getElementById('bfPreferredUnits').value,
         preferredBuildings:  document.getElementById('bfPreferredBuildings').value,

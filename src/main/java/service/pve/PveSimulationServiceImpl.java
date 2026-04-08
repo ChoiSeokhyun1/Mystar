@@ -21,11 +21,6 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         return "LATE";
     }
 
-    private String nextPhase(String phase) {
-        if ("EARLY".equals(phase)) return "MID";
-        if ("MID".equals(phase))   return "LATE";
-        return "LATE";
-    }
 
     // ── 플레이스타일별 페이즈 가중치 ──────────────────────────
     private double[] getPhaseAttackWeights(String playStyle) {
@@ -63,22 +58,37 @@ public class PveSimulationServiceImpl implements PveSimulationService {
     private List<Integer> generateSideSchedule(BuildDTO build) {
         String playStyle = build.getPlayStyle();
 
-        // playStyle 기반으로 전투 횟수 + 타이밍 결정
+        // playStyle 기반 공격 횟수: DEFENSIVE=5, NORMAL=10, AGGRESSIVE=15
         int baseCount;
         int earlyStart;
         switch (playStyle == null ? "AGGRESSIVE" : playStyle) {
-            case "AGGRESSIVE":   baseCount = 4 + rand.nextInt(2); earlyStart = 60;  break; // 공격스타일: 교전 자주, 초반부터
-            case "NORMAL":       baseCount = 3 + rand.nextInt(2); earlyStart = 120; break; // 일반스타일: 중간 교전 빈도
-            case "DEFENSIVE":    baseCount = 2 + rand.nextInt(2); earlyStart = 180; break; // 수비스타일: 교전 적게, 후반 위주
-            default:            baseCount = 3 + rand.nextInt(3); earlyStart = 120; break;
+            case "AGGRESSIVE":   baseCount = 15; earlyStart = 60;  break;
+            case "NORMAL":       baseCount = 10; earlyStart = 120; break;
+            case "DEFENSIVE":    baseCount = 5;  earlyStart = 180; break;
+            default:             baseCount = 10; earlyStart = 120; break;
         }
 
-        // 느린 멀티: 병력 집중 → 교전 횟수 +1
-        if ("SLOW_MULTI".equals(build.getAggression())) baseCount += 1;
-        // 빠른 멀티: 경제 집중 → 교전 횟수 -1
-        if ("FAST_MULTI".equals(build.getAggression())) baseCount = Math.max(1, baseCount - 1);
-        baseCount = Math.max(1, baseCount);
+        // 멀티 타이밍 보정
+        if ("SLOW_MULTI".equals(build.getAggression())) baseCount += 2;
+        if ("FAST_MULTI".equals(build.getAggression())) baseCount = Math.max(1, baseCount - 2);
 
+        // ── 집중 공격 타이밍 적용 ──────────────────────────────────
+        int focusSec = build.getFocusAttackTime(); // 초 단위, 0이면 미설정
+        if (focusSec > 0 && focusSec < GAME_DURATION) {
+            // 집중 타이밍 ±120초 구간에 전체 횟수의 60% 배치
+            int focusCount   = (int) Math.round(baseCount * 0.60);
+            int spreadCount  = baseCount - focusCount;
+            int focusStart   = Math.max(60,            focusSec - 120);
+            int focusEnd     = Math.min(GAME_DURATION, focusSec + 120);
+            // 집중 구간 이후 시간에 나머지 배치
+            int spreadStart  = Math.min(GAME_DURATION - 60, focusEnd);
+            List<Integer> times = new ArrayList<>();
+            times.addAll(randomTimes(focusCount,  focusStart,  focusEnd));
+            times.addAll(randomTimes(spreadCount, spreadStart, GAME_DURATION));
+            return times;
+        }
+
+        // ── 집중 타이밍 없음: 페이즈별 배분 ──────────────────────
         double[] w = getPhaseAttackWeights(playStyle);
         int earlyCount = (int) Math.round(baseCount * w[0]);
         int midCount   = (int) Math.round(baseCount * w[1]);
@@ -160,15 +170,15 @@ public class PveSimulationServiceImpl implements PveSimulationService {
     }
 
     /**
-     * 저그 전용: 실제 해처리 최대 건설 수 (하이브리드 로직)
-     * 선호건물 hatchery count 설정 O → 그 값이 총 해처리 상한
-     * 선호건물 hatchery count 설정 X → 멀티 성향(maxEcoBases)와 동일
+     * 저그 전용: tryExpand가 사용하는 eco 기지 상한 반환
+     * → 항상 maxEcoBases(= build.maxBases = 멀티수+1) 반환
+     * 매크로 해처리 추가 건설은 autoExpandProduction이 prefBuildings.hatchery.count 기준으로 담당
      */
     private int resolveMaxHatcheries(BuildDTO build, int maxEcoBases) {
+        // 비저그는 그대로 반환
         if (build == null || !"Z".equals(build.getRace())) return maxEcoBases;
-        // 저그: BuildDTO.maxBases 값 사용 (0이면 eco 기본값)
-        int v = build.getMaxBases();
-        return (v > 0) ? v : maxEcoBases;
+        // 저그: eco 기지 상한 = maxBases (멀티수+1), 매크로 해처리와 무관
+        return maxEcoBases;
     }
 
     // =====================================================
@@ -600,11 +610,11 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                 if (result[1] > 0) aiWorkerBanUntil   = time + result[1];
             }
 
-            if (time >= myWorkerBanUntil) produceWorker(state, myRace, false);
-            if (time >= aiWorkerBanUntil) produceWorker(state, aiRace, true);
+            if (time >= myWorkerBanUntil) produceWorker(state, myRace, false, myMaxEcoBases);
+            if (time >= aiWorkerBanUntil) produceWorker(state, aiRace, true,  aiMaxEcoBases);
 
-            autoGasBuilding(state, myRace, false);
-            autoGasBuilding(state, aiRace, true);
+            autoGasBuilding(state, myRace, false, myMaxEcoBases);
+            autoGasBuilding(state, aiRace, true,  aiMaxEcoBases);
 
             boolean myExpandPending = time >= myExpandMin
                     && (myLastExpand == 0 || time - myLastExpand >= myExpandCool)
@@ -659,6 +669,9 @@ public class PveSimulationServiceImpl implements PveSimulationService {
 
             injectCommentary(state, time, myBuild, aiBuild, myRace, aiRace, myMacro, aiMacro);
 
+            // 매 초 종료 시점: buildingCounts 기준으로 전투력 완전 동기화
+            syncCombatPower(state, myAtkMult, aiAtkMult);
+
             if (state.getDefense() <= 0 || state.getAiDefense() <= 0) gameOver = true;
             if (time == GAME_DURATION) {
                 double myScore = state.getDefense() * 0.5 + state.getCombatPower() * 0.5;
@@ -704,9 +717,8 @@ public class PveSimulationServiceImpl implements PveSimulationService {
             // 병력 흘림 — 보유 전투력 5% 즉시 손실
             double power = isAi ? state.getAiCombatPower() : state.getCombatPower();
             double loss  = power * 0.05;
+            // syncCombatPower가 매 초 전투력을 재동기화하므로 별도 차감 불필요
             removeUnitsForAttrition(state, loss, isAi);
-            if (isAi) state.setAiCombatPower(Math.max(0, power - loss));
-            else      state.setCombatPower(Math.max(0, power - loss));
             addLog(state, logType, "⚡ " + name + " 선수, 병력 일부를 흘렸습니다! 전투력 5% 손실.");
             return new int[]{0, 0};
 
@@ -801,8 +813,7 @@ public class PveSimulationServiceImpl implements PveSimulationService {
             }
         }
 
-        // 임시로 state 전투력 교체 후 전투 실행, 복원
-        double origMy = state.getCombatPower(), origAi = state.getAiCombatPower();
+        // 디버프 적용된 전투력으로 교체 후 전투 실행
         state.setCombatPower(myFinalPower);
         state.setAiCombatPower(aiFinalPower);
         executeBattle(state, myMicroEff, aiMicroEff, myLuckCrit, aiLuckCrit, myDefRed, aiDefRed, myUnits, aiUnits);
@@ -951,15 +962,15 @@ public class PveSimulationServiceImpl implements PveSimulationService {
     }
 
     // ── 일꾼 생산 ─────────────────────────────────────────────
-    private void produceWorker(GameState state, String race, boolean isAi) {
+    private void produceWorker(GameState state, String race, boolean isAi, int maxEcoBases) {
         int workers = isAi ? state.getAiWorkerCount() : state.getWorkerCount();
         Map<String, Integer> blds = isAi ? state.getAiBuildingCounts() : state.getBuildingCounts();
         // 커맨드센터(넥서스/해처리) 1개당 일꾼 8마리 상한
         String baseBldId = getBaseIdByRace(race);
         EntityData baseBld = ENTITY_DB.get(baseBldId);
-        // 저그: 해처리+레어+하이브 합산으로 일꾼 상한 계산
+        // 저그: eco 기지(멀티 성향 상한)만으로 드론 상한 계산 — 매크로 해처리는 드론 생산 안 함
         int prodBldCount = "Z".equals(race)
-            ? countBases(blds)
+            ? countEcoBases(blds, race, maxEcoBases)
             : (baseBld != null ? blds.getOrDefault(baseBld.name, 0) : 0);
         int cap = prodBldCount * 8;
         String workerId = getWorkerIdByRace(race);
@@ -978,15 +989,17 @@ public class PveSimulationServiceImpl implements PveSimulationService {
     // 기지 1개당 정제소/추출기/동화기 1개 상한
     // =====================================================
     private void autoGasBuilding(GameState state, String race,
-                                  boolean isAi) {
-        int bases = countBases(isAi ? state.getAiBuildingCounts() : state.getBuildingCounts());
+                                  boolean isAi, int maxEcoBases) {
+        // 저그: 매크로 해처리에는 추출기 불필요 → eco 기지 수만큼만 건설
+        Map<String, Integer> _blds = isAi ? state.getAiBuildingCounts() : state.getBuildingCounts();
+        int bases = countEcoBases(_blds, race, maxEcoBases);
         if (bases <= 0) return;
 
         String gasBldId = getGasBuildingByRace(race);
         EntityData gasBld = ENTITY_DB.get(gasBldId);
         if (gasBld == null) return;
 
-        Map<String, Integer> blds  = isAi ? state.getAiBuildingCounts() : state.getBuildingCounts();
+        Map<String, Integer> blds  = _blds;
         List<ProductionItem> queue = isAi ? state.getAiProductionQueue() : state.getProductionQueue();
 
         int built    = blds.getOrDefault(gasBld.name, 0);
@@ -1129,7 +1142,47 @@ public class PveSimulationServiceImpl implements PveSimulationService {
     private void autoExpandProduction(GameState state, String race, List<String> targetUnits,
                                       boolean isAi, int expandThreshold, int reserve,
                                       Map<String, dto.pve.BuildDTO.BuildingPref> prefBuildings) {
-        if ("Z".equals(race) || targetUnits == null || targetUnits.isEmpty()) return;
+        if (targetUnits == null || targetUnits.isEmpty()) return;
+
+        // ── 저그 전용: 매크로 해처리 하이브리드 로직 ────────────────
+        if ("Z".equals(race)) {
+            Map<String, Integer> zBlds  = isAi ? state.getAiBuildingCounts() : state.getBuildingCounts();
+            List<ProductionItem> zQueue = isAi ? state.getAiProductionQueue() : state.getProductionQueue();
+            double zMinerals = isAi ? state.getAiMinerals() : state.getMinerals();
+            EntityData hatch = ENTITY_DB.get("hatchery");
+            if (hatch == null) return;
+            int currentTotal = countBases(zBlds);
+            long inQ = zQueue.stream().filter(q ->
+                "hatchery".equals(q.getEntityId()) ||
+                "lair".equals(q.getEntityId()) ||
+                "hive".equals(q.getEntityId())).count();
+            dto.pve.BuildDTO.BuildingPref hPref = prefBuildings.get("hatchery");
+            int hatchTarget = (hPref != null && hPref.count > 0) ? hPref.count : Integer.MAX_VALUE;
+
+            // 조건 1: prefBuildings에 해처리 목표 수 설정 → 목표 미달이면 건설
+            boolean needByPref = (hPref != null && hPref.count > 0)
+                              && (currentTotal + (int) inQ < hatchTarget)
+                              && zMinerals >= expandThreshold
+                              && canAfford(state, hatch, isAi, reserve);
+
+            // 조건 2: 자원 적체 (1500 이상) → 설정 없어도 자동으로 해처리 추가
+            //         단, 큐에 이미 해처리 건설 중이면 스킵
+            boolean needByMinerals = zMinerals >= 1500
+                              && inQ == 0
+                              && canAfford(state, hatch, isAi, reserve);
+
+            if (needByPref || needByMinerals) {
+                spend(state, hatch, isAi);
+                enqueue(state, hatch, isAi, -1);
+                String pName = isAi ? state.getAiPlayerName() : state.getMyPlayerName();
+                String reason = needByPref
+                    ? "(" + (currentTotal + (int)inQ + 1) + "/" + hatchTarget + "기지)"
+                    : "(자원 적체 해소)";
+                addLog(state, isAi ? "ai_action" : "user_action",
+                    "🦠 " + pName + " 선수 해처리 추가 건설! " + reason);
+            }
+            return;
+        }
         Map<String, Integer> blds  = isAi ? state.getAiBuildingCounts() : state.getBuildingCounts();
         List<ProductionItem> queue = isAi ? state.getAiProductionQueue() : state.getProductionQueue();
         double minerals = isAi ? state.getAiMinerals() : state.getMinerals();
@@ -1437,7 +1490,16 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         List<ProductionItem> queue = isAi ? state.getAiProductionQueue() : state.getProductionQueue();
         String baseId = getBaseIdByRace(race);
         int completed = countBases(blds);
-        long inQueue  = queue.stream().filter(q -> q.getEntityId().equals(baseId)).count();
+        // 저그: 레어/하이브 업그레이드 큐도 기지 증가 예정으로 포함
+        long inQueue;
+        if ("Z".equals(race)) {
+            inQueue = queue.stream().filter(q ->
+                "hatchery".equals(q.getEntityId()) ||
+                "lair".equals(q.getEntityId()) ||
+                "hive".equals(q.getEntityId())).count();
+        } else {
+            inQueue = queue.stream().filter(q -> q.getEntityId().equals(baseId)).count();
+        }
         return (completed + (int) inQueue) < maxBases;
     }
 
@@ -1839,7 +1901,8 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                 workerLoss = Math.min(workerLoss, Math.max(0, current - 1));
                 state.setAiWorkerCount(Math.max(1, current - workerLoss));
                 String aiWorkerName = getWorkerNameByRace(getRaceFromBuildings(state.getAiBuildingCounts()));
-                state.getAiBuildingCounts().merge(aiWorkerName, -workerLoss, Integer::sum);
+                state.getAiBuildingCounts().merge(aiWorkerName, -workerLoss,
+                    (a, b) -> (a + b <= 0) ? null : a + b);
                 int _wl = workerLoss;
                 String _myHarUnit = getHarassUnit(atkCounts);
                 String[] _sl = {
@@ -1871,7 +1934,8 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                 workerLoss = Math.min(workerLoss, Math.max(0, current - 1));
                 state.setWorkerCount(Math.max(1, current - workerLoss));
                 String myWorkerName = getWorkerNameByRace(getRaceFromBuildings(state.getBuildingCounts()));
-                state.getBuildingCounts().merge(myWorkerName, -workerLoss, Integer::sum);
+                state.getBuildingCounts().merge(myWorkerName, -workerLoss,
+                    (a, b) -> (a + b <= 0) ? null : a + b);
                 int _wl = workerLoss;
                 String _aiHarUnit = getHarassUnit(atkCounts);
                 String[] _sl = {
@@ -1954,6 +2018,7 @@ public class PveSimulationServiceImpl implements PveSimulationService {
         build.setPlayStyle("AGGRESSIVE");
         build.setHarassStyle("NORMAL_HARASS");
         build.setAggression("NORMAL_MULTI");
+        build.setMaxBases(4);
         build.setMaxTier(3);
         build.setPreferredBuildings("");
         return build;
@@ -2095,7 +2160,8 @@ public class PveSimulationServiceImpl implements PveSimulationService {
     }
 
     private String getRaceFromBuildings(Map<String, Integer> b) {
-        if (b.containsKey("해처리")) return "Z";
+        // 해처리가 레어/하이브로 업그레이드되면 "해처리" 키가 사라지므로 모두 체크
+        if (b.containsKey("해처리") || b.containsKey("레어") || b.containsKey("하이브")) return "Z";
         if (b.containsKey("넥서스")) return "P";
         return "T";
     }
@@ -2567,6 +2633,20 @@ public class PveSimulationServiceImpl implements PveSimulationService {
                         + counts.getOrDefault("울트라리스크", 0);
         if (groundUnits == 0) return 0;
         return defilers * 50.0;
+    }
+
+    // ── 살아있는 유닛 기준 전투력 재동기화 ─────────────────────
+    // buildingCounts × atkMult 로 combatPower를 매 초 정확하게 리셋
+    // removeUnitsForAttrition 오차 + atkMult 미반영 문제를 동시에 해결
+    private void syncCombatPower(GameState state, double myAtkMult, double aiAtkMult) {
+        double myPow = 0, aiPow = 0;
+        for (EntityData e : ENTITY_DB.values()) {
+            if (!"unit".equals(e.type) || e.combatPower <= 0) continue;
+            myPow += state.getBuildingCounts().getOrDefault(e.name, 0)   * e.combatPower * myAtkMult;
+            aiPow += state.getAiBuildingCounts().getOrDefault(e.name, 0) * e.combatPower * aiAtkMult;
+        }
+        state.setCombatPower(myPow);
+        state.setAiCombatPower(aiPow);
     }
 
     private void addLog(GameState state, String type, String msg) {
