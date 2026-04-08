@@ -121,7 +121,9 @@
             p.PLAYER_IMG_URL as playerImgUrl,
             opp.SET_NUMBER  as setNumber,
             opp.OPPONENT_ID as opponentId,
-            opp.BUILD_ID    as buildId
+            opp.BUILD_ID_VS_T as buildIdVsT,
+            opp.BUILD_ID_VS_Z as buildIdVsZ,
+            opp.BUILD_ID_VS_P as buildIdVsP
         FROM TBL_PVE_OPPONENTS opp
         JOIN TBL_PLAYERS p ON opp.PLAYER_SEQ = p.PLAYER_SEQ
         WHERE opp.STAGE_LEVEL = #{stageLevel} AND opp.SUB_LEVEL = #{subLevel}
@@ -180,12 +182,20 @@
 
     <!-- AI 선수 세트 배정 추가 -->
     <insert id="insertOpponent" parameterType="map">
-        INSERT INTO TBL_PVE_OPPONENTS (OPPONENT_ID, STAGE_LEVEL, SUB_LEVEL, PLAYER_SEQ, SET_NUMBER, BUILD_ID)
-        VALUES (SEQ_PVE_OPPONENTS.NEXTVAL, #{stageLevel}, #{subLevel}, #{playerSeq}, #{setNumber},
-                <choose>
-                    <when test="buildId != null">#{buildId}</when>
-                    <otherwise>NULL</otherwise>
-                </choose>)
+        INSERT INTO TBL_PVE_OPPONENTS (
+            OPPONENT_ID, STAGE_LEVEL, SUB_LEVEL, PLAYER_SEQ, SET_NUMBER,
+            BUILD_ID_VS_T, BUILD_ID_VS_Z, BUILD_ID_VS_P
+        )
+        VALUES (
+            SEQ_PVE_OPPONENTS.NEXTVAL, 
+            #{stageLevel}, 
+            #{subLevel}, 
+            #{playerSeq}, 
+            #{setNumber},
+            #{buildIdVsT, jdbcType=NUMERIC},
+            #{buildIdVsZ, jdbcType=NUMERIC},
+            #{buildIdVsP, jdbcType=NUMERIC}
+        )
     </insert>
 
     <!-- =====================================================

@@ -23,7 +23,6 @@
             <h1 style="color:#e2e8f0;font-size:18px;font-weight:800;margin:0;">스테이지 &amp; 라운드 관리</h1>
         </div>
         <div style="display:flex;gap:8px;">
-            <button class="btn btn-secondary" onclick="openBuildManagerModal()">🧪 빌드 관리</button>
             <button class="btn btn-primary" onclick="addStage()">+ 스테이지 추가</button>
         </div>
     </div>
@@ -159,7 +158,7 @@
                     </select>
                 </div>
                 <div class="modal-filter">
-                    <button class="filter-btn active" onclick="setRaceFilter('ALL',this)">전체</button>
+                    <!-- 전체 버튼 제거됨 -->
                     <button class="filter-btn" onclick="setRaceFilter('T',this)">테란 T</button>
                     <button class="filter-btn" onclick="setRaceFilter('P',this)">프로토스 P</button>
                     <button class="filter-btn" onclick="setRaceFilter('Z',this)">저그 Z</button>
@@ -177,25 +176,38 @@
                 </div>
             </div>
 
-            <!-- 우측: 빌드 선택 -->
+            <!-- 우측: 종족별 빌드 선택 -->
             <div class="modal-right-col">
-                <div class="modal-col-header">🧪 빌드 선택 <span style="color:#4a5568;font-weight:400;">(선택사항)</span></div>
-                <div class="build-race-filter">
-                    <button class="filter-btn active" onclick="setBuildRaceFilter('ALL',this)">전체</button>
-                    <button class="filter-btn" onclick="setBuildRaceFilter('T',this)">T</button>
-                    <button class="filter-btn" onclick="setBuildRaceFilter('P',this)">P</button>
-                    <button class="filter-btn" onclick="setBuildRaceFilter('Z',this)">Z</button>
+                <div class="modal-col-header">🧪 빌드 설정 (종족별)</div>
+                <div style="padding:20px;">
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block;color:#00ff88;margin-bottom:8px;font-size:13px;">vs 테란 (T)</label>
+                        <select id="buildSelectT" style="width:100%;background:#111827;border:1px solid #2d3748;border-radius:6px;color:#e2e8f0;padding:10px;font-size:13px;">
+                            <option value="">빌드 미지정 (랜덤)</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block;color:#00ff88;margin-bottom:8px;font-size:13px;">vs 저그 (Z)</label>
+                        <select id="buildSelectZ" style="width:100%;background:#111827;border:1px solid #2d3748;border-radius:6px;color:#e2e8f0;padding:10px;font-size:13px;">
+                            <option value="">빌드 미지정 (랜덤)</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <label style="display:block;color:#00ff88;margin-bottom:8px;font-size:13px;">vs 프로토스 (P)</label>
+                        <select id="buildSelectP" style="width:100%;background:#111827;border:1px solid #2d3748;border-radius:6px;color:#e2e8f0;padding:10px;font-size:13px;">
+                            <option value="">빌드 미지정 (랜덤)</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="build-list" id="buildList"></div>
             </div>
         </div>
 
         <!-- 하단 푸터: 선택 현황 + 배정 버튼 -->
         <div class="modal-footer">
             <div class="selected-build-label">
-                선수: <span id="selectedPlayerLabel" style="color:#00e676;font-weight:700;">미선택</span>
+                선수: <span id="selectedPlayerLabel" style="color:#00ff88;font-weight:700;">미선택</span>
                 &nbsp;/&nbsp;
-                빌드: <span id="selectedBuildLabel">없음 (랜덤)</span>
+                빌드: <span style="color:#aaa;font-size:12px;">종족별 선택 →</span>
             </div>
             <button class="btn btn-primary" id="assignBtn" disabled onclick="confirmAssign()">배정</button>
         </div>
@@ -323,26 +335,12 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="bf-label">집중 공격 타이밍</label>
-                                <div style="display:flex;align-items:center;gap:6px;">
-                                    <input type="number" id="bfFocusMinutes" class="bf-select" style="width:60px;text-align:center;" min="0" max="29" value="0">
-                                    <span style="font-size:0.75rem;color:#888;">분 (0=미설정)</span>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="bf-label">멀티 타이밍</label>
+                                <label class="bf-label">확장 성향</label>
                                 <select id="bfAggression" class="bf-select">
-                                    <option value="FAST_MULTI">⚡ 빠른 멀티</option>
-                                    <option value="NORMAL_MULTI" selected>⚖️ 일반 멀티</option>
-                                    <option value="SLOW_MULTI">🐢 느린 멀티</option>
+                                    <option value="MIN_MULTI">🏠 최소 멀티</option>
+                                    <option value="MID_MULTI" selected>⚖️ 중간 멀티</option>
+                                    <option value="MAX_MULTI">💰 최대 멀티</option>
                                 </select>
-                            </div>
-                            <div>
-                                <label class="bf-label">멀티 수</label>
-                                <div style="display:flex;align-items:center;gap:6px;">
-                                    <input type="number" id="bfMaxBases" class="bf-select" style="width:70px;text-align:center;" min="0" max="9" value="3">
-                                    <span style="font-size:0.78rem;color:#888;">개 (본진 제외)</span>
-                                </div>
                             </div>
                             <div style="grid-column:1/-1;">
                                 <label class="bf-label">최종 테크 제한</label>
@@ -424,10 +422,11 @@ var currentSubLevel    = null;
 var currentSetSlot     = null;
 var addRoundStageLevel = null;
 var confirmCallback    = null;
-var raceFilter         = 'ALL';
-var selectedBuildId    = null;
-var buildRaceFilter    = 'ALL';
+var raceFilter         = 'T';  // 기본값을 T로 변경
 var selectedPlayerSeq  = null;
+var selectedBuildIdT   = null;
+var selectedBuildIdZ   = null;
+var selectedBuildIdP   = null;
 var slotData           = {1:null,2:null,3:null,4:null,5:null};
 
 /* ============================================================
@@ -564,13 +563,27 @@ function renderSlot(n) {
     rmBtn.style.display = 'inline-block';
     var total = (p.statAttack||0)+(p.statDefense||0)+(p.statMacro||0)+(p.statMicro||0)+(p.statLuck||0);
     var buildLabel = '';
-    if (p.buildId) {
-        var found = ALL_BUILDS.filter(function(b){ return b.id === p.buildId; })[0];
-        buildLabel = '<div style="font-size:11px;color:#6366f1;margin-top:4px;padding:2px 6px;background:rgba(99,102,241,0.15);border-radius:4px;display:inline-block;">🧪 ' + (found ? safeStr(found.name) : 'ID:'+p.buildId) + '</div>';
-    } else {
-        buildLabel = '<div style="font-size:11px;color:#64748b;margin-top:4px;padding:2px 6px;background:rgba(100,116,139,0.15);border-radius:4px;display:inline-block;">🎲 빌드 없음 (랜덤)</div>';
+    var buildLabel = '';
+    var buildInfo = [];
+    
+    if (p.buildIdVsT) {
+        var bt = ALL_BUILDS.find(function(b){ return b.id == p.buildIdVsT; });
+        if (bt) buildInfo.push('T:' + bt.name);
     }
-    info.innerHTML =
+    if (p.buildIdVsZ) {
+        var bz = ALL_BUILDS.find(function(b){ return b.id == p.buildIdVsZ; });
+        if (bz) buildInfo.push('Z:' + bz.name);
+    }
+    if (p.buildIdVsP) {
+        var bp = ALL_BUILDS.find(function(b){ return b.id == p.buildIdVsP; });
+        if (bp) buildInfo.push('P:' + bp.name);
+    }
+    
+    if (buildInfo.length > 0) {
+        buildLabel = '<div style=\"font-size:11px;color:#6366f1;margin-top:4px;padding:2px 6px;background:rgba(99,102,241,0.15);border-radius:4px;display:inline-block;\">🧪 ' + buildInfo.join(' / ') + '</div>';
+    } else {
+        buildLabel = '<div style=\"font-size:11px;color:#64748b;margin-top:4px;padding:2px 6px;background:rgba(100,116,139,0.15);border-radius:4px;display:inline-block;\">🎲 빌드 없음 (랜덤)</div>';
+    }
         '<div class="slot-player-race">' + (RACE_ICON[p.race]||'?') + '</div>' +
         '<div class="slot-player-name">' + safeStr(p.playerName) + '</div>' +
         '<span class="slot-player-rarity rarity-' + (p.rarity||'N') + '">' + (p.rarity||'N') + '</span>' +
@@ -653,21 +666,49 @@ function confirmDeleteRound(level, subLevel) {
    선수 모달 (2단: 좌=선수, 우=빌드)
    ============================================================ */
 function openPlayerModal(setNum) {
-    currentSetSlot    = setNum;
+    currentSetSlot = setNum;
     selectedPlayerSeq = null;
-    selectedBuildId   = null;
-    buildRaceFilter   = 'ALL';
+    selectedBuildIdT = null;
+    selectedBuildIdZ = null;
+    selectedBuildIdP = null;
+    
     document.getElementById('modalTitle').textContent = '선수 선택 — SET ' + setNum;
     document.getElementById('playerSearch').value = '';
     document.getElementById('packSelect').value = '';
-    document.getElementById('selectedBuildLabel').textContent = '없음 (랜덤)';
     document.getElementById('selectedPlayerLabel').textContent = '미선택';
     document.getElementById('assignBtn').disabled = true;
-    raceFilter = 'ALL';
-    document.querySelectorAll('.modal-left-col .filter-btn').forEach(function(b,i){ b.classList.toggle('active',i===0); });
-    document.querySelectorAll('.build-race-filter .filter-btn').forEach(function(b,i){ b.classList.toggle('active',i===0); });
+    
+    // 빌드 셀렉트박스 초기화
+    document.getElementById('buildSelectT').value = '';
+    document.getElementById('buildSelectZ').value = '';
+    document.getElementById('buildSelectP').value = '';
+    
+    // 기존 데이터 로드
+    var existingOpp = slotData[setNum];
+    if (existingOpp && existingOpp.playerSeq) {
+        selectedPlayerSeq = existingOpp.playerSeq;
+        selectedBuildIdT = existingOpp.buildIdVsT || null;
+        selectedBuildIdZ = existingOpp.buildIdVsZ || null;
+        selectedBuildIdP = existingOpp.buildIdVsP || null;
+        
+        var player = ALL_PLAYERS.find(function(p){ return p.seq === selectedPlayerSeq; });
+        if (player) {
+            document.getElementById('selectedPlayerLabel').textContent = player.name;
+            document.getElementById('assignBtn').disabled = false;
+            
+            if (selectedBuildIdT) document.getElementById('buildSelectT').value = selectedBuildIdT;
+            if (selectedBuildIdZ) document.getElementById('buildSelectZ').value = selectedBuildIdZ;
+            if (selectedBuildIdP) document.getElementById('buildSelectP').value = selectedBuildIdP;
+        }
+    }
+    
+    raceFilter = 'T';
+    document.querySelectorAll('.modal-left-col .filter-btn').forEach(function(b,i){ 
+        b.classList.toggle('active', i===0); 
+    });
+    
     renderPlayerTable();
-    renderBuildList();
+    loadBuildOptions();
     document.getElementById('playerModal').classList.add('visible');
 }
 function closePlayerModal() { document.getElementById('playerModal').classList.remove('visible'); }
@@ -678,11 +719,37 @@ function setRaceFilter(race, btn) {
     btn.classList.add('active');
     renderPlayerTable();
 }
-function setBuildRaceFilter(race, btn) {
-    buildRaceFilter = race;
-    document.querySelectorAll('.build-race-filter .filter-btn').forEach(function(b){ b.classList.remove('active'); });
-    btn.classList.add('active');
-    renderBuildList();
+function loadBuildOptions() {
+    var selectT = document.getElementById('buildSelectT');
+    var selectZ = document.getElementById('buildSelectZ');
+    var selectP = document.getElementById('buildSelectP');
+    
+    selectT.innerHTML = '<option value="">빌드 미지정 (랜덤)</option>';
+    selectZ.innerHTML = '<option value="">빌드 미지정 (랜덤)</option>';
+    selectP.innerHTML = '<option value="">빌드 미지정 (랜덤)</option>';
+    
+    if (!selectedPlayerSeq) return;
+    
+    var player = ALL_PLAYERS.find(function(p){ return p.seq === selectedPlayerSeq; });
+    if (!player) return;
+    
+    var playerRace = player.race;
+    
+    ALL_BUILDS.forEach(function(build){
+        if (build.race === playerRace) {
+            var opt = document.createElement('option');
+            opt.value = build.id;
+            opt.textContent = build.name;
+            
+            selectT.appendChild(opt.cloneNode(true));
+            selectZ.appendChild(opt.cloneNode(true));
+            selectP.appendChild(opt.cloneNode(true));
+        }
+    });
+    
+    selectT.onchange = function(){ selectedBuildIdT = this.value || null; };
+    selectZ.onchange = function(){ selectedBuildIdZ = this.value || null; };
+    selectP.onchange = function(){ selectedBuildIdP = this.value || null; };
 }
 function filterPlayers() { renderPlayerTable(); }
 
@@ -721,45 +788,6 @@ function renderPlayerTable() {
     }).join('');
 }
 
-function renderBuildList() {
-    var STYLE_LABEL  = {AGGRESSIVE:'⚔️공격스타일', NORMAL:'⚖️일반스타일', DEFENSIVE:'🛡️수비스타일'};
-    var HARASS_LABEL = {NO_HARASS:'🚫견제없음', NORMAL_HARASS:'🐝일반견제', HEAVY_HARASS:'🔥강한견제'};
-    var MULTI_LABEL = {FAST_MULTI:'⚡빠른멀티', NORMAL_MULTI:'⚖️일반멀티', SLOW_MULTI:'🐢느린멀티'};
-    var list = ALL_BUILDS.filter(function(b){
-        return buildRaceFilter === 'ALL' || b.race === buildRaceFilter;
-    });
-    var noneClass = 'build-item build-item-none' + (selectedBuildId === null ? ' selected' : '');
-    var html = '<div class="' + noneClass + '" onclick="selectBuild(null,this)">'
-        + '<div class="build-item-name">🎲 빌드 없음 (랜덤)</div>'
-        + '</div>';
-    if (list.length === 0) {
-        html += '<div class="build-empty">빌드가 없습니다.</div>';
-    } else {
-        html += list.map(function(b){
-            var isSelected = (selectedBuildId === b.id);
-            var vsRace  = b.vsRace || b.vsrace || b.VSRACE || 'A';
-            var aggr    = b.aggression || b.AGGRESSION || '';
-            var style   = b.playStyle   || b.playstyle   || b.PLAYSTYLE   || '';
-            var harass  = b.harassStyle || b.harassstyle || b.HARASSSTYLE || 'NORMAL_HARASS';
-            var vsLabel = (vsRace === 'A' || vsRace === 'ALL') ? 'ALL' : vsRace;
-            var vsTag   = '<span class="build-tag race-' + vsRace + '">vs ' + vsLabel + '</span>';
-            var agTag   = '<span class="build-tag agg">' + (MULTI_LABEL[aggr] || aggr || '-') + '</span>';
-            var harTag  = '<span class="build-tag style">' + (HARASS_LABEL[harass] || harass) + '</span>';
-            return '<div class="build-item'+(isSelected?' selected':'')+'" onclick="selectBuild('+b.id+',this)">'
-                +'<div class="build-item-name">'+safeStr(b.name)+'</div>'
-                +'<div class="build-item-tags">'
-                +'<span class="build-tag race-'+b.race+'">'+b.race+'</span>'
-                +vsTag
-                +'<span class="build-tag style">'+(STYLE_LABEL[style]||style||'?')+'</span>'
-                +harTag
-                +agTag
-                +'</div>'
-                +'</div>';
-        }).join('');
-    }
-    document.getElementById('buildList').innerHTML = html;
-}
-
 function selectPlayerRow(seq) {
     selectedPlayerSeq = seq;
     document.getElementById('assignBtn').disabled = false;
@@ -767,51 +795,58 @@ function selectPlayerRow(seq) {
     var p = ALL_PLAYERS.filter(function(p){ return p.seq === seq; })[0];
     if (p) {
         document.getElementById('selectedPlayerLabel').textContent = p.name + ' (' + p.race + ')';
-        buildRaceFilter = p.race;
-        document.querySelectorAll('.build-race-filter .filter-btn').forEach(function(b, i){
-            var races = ['ALL','T','P','Z'];
-            b.classList.toggle('active', races[i] === p.race);
-        });
+        
+        // 빌드 옵션 재로드
+        selectedBuildIdT = null;
+        selectedBuildIdZ = null;
+        selectedBuildIdP = null;
+        loadBuildOptions();
     }
 
     renderPlayerTable();
-    renderBuildList();
 }
 
-function selectBuild(id, el) {
-    selectedBuildId = id;
-    document.querySelectorAll('#buildList .build-item').forEach(function(item){ item.classList.remove('selected'); });
-    el.classList.add('selected');
-    var found = id ? ALL_BUILDS.filter(function(b){ return b.id === id; })[0] : null;
-    document.getElementById('selectedBuildLabel').textContent = found ? found.name : '없음 (랜덤)';
-}
 
 function confirmAssign() {
     if (!selectedPlayerSeq) { showToast('선수를 먼저 선택하세요','error'); return; }
-    var payload = {
-        stageLevel:currentStageLevel, subLevel:currentSubLevel,
-        setNumber:currentSetSlot, playerSeq:selectedPlayerSeq
+    
+    var p = ALL_PLAYERS.find(function(pl){ return pl.seq === selectedPlayerSeq; });
+    if (!p) return;
+    
+    // slotData 업데이트
+    slotData[currentSetSlot] = {
+        playerSeq: selectedPlayerSeq,
+        playerName: p.name,
+        race: p.race,
+        rarity: p.rarity,
+        setNumber: currentSetSlot,
+        buildIdVsT: selectedBuildIdT,
+        buildIdVsZ: selectedBuildIdZ,
+        buildIdVsP: selectedBuildIdP
     };
-    if (selectedBuildId) payload.buildId = selectedBuildId;
-    fetchPost('<c:url value="/admin/round/opponent/assign"/>', payload, function(data){
-        if (data.success) {
-            var p = null;
-            for(var i=0;i<ALL_PLAYERS.length;i++){ if(ALL_PLAYERS[i].seq===selectedPlayerSeq){ p=ALL_PLAYERS[i]; break; } }
-            if (p) {
-                slotData[currentSetSlot] = {
-                    playerName:p.name, race:p.race, rarity:p.rarity,
-                    statAttack:p.atk, statDefense:p.def, statMacro:p.mac, statMicro:p.mic, statLuck:p.lck,
-                    setNumber:currentSetSlot, buildId:selectedBuildId||null
-                };
-                renderSlot(currentSetSlot);
-            }
-            closePlayerModal();
-            var buildName = selectedBuildId ? (ALL_BUILDS.filter(function(b){return b.id===selectedBuildId;})[0]||{}).name||'' : '';
-            showToast('SET '+currentSetSlot+' 배정 완료 ✓'+(buildName?' ['+buildName+']':''),'success');
-        } else { showToast(data.message||'배정 실패','error'); }
-    });
+    
+    // UI 업데이트
+    renderSlot(currentSetSlot);
+    closePlayerModal();
+    
+    var buildInfo = [];
+    if (selectedBuildIdT) {
+        var bt = ALL_BUILDS.find(function(b){ return b.id == selectedBuildIdT; });
+        if (bt) buildInfo.push('T:'+bt.name);
+    }
+    if (selectedBuildIdZ) {
+        var bz = ALL_BUILDS.find(function(b){ return b.id == selectedBuildIdZ; });
+        if (bz) buildInfo.push('Z:'+bz.name);
+    }
+    if (selectedBuildIdP) {
+        var bp = ALL_BUILDS.find(function(b){ return b.id == selectedBuildIdP; });
+        if (bp) buildInfo.push('P:'+bp.name);
+    }
+    
+    var msg = 'SET '+currentSetSlot+' 배정 완료 ✓';
+    if (buildInfo.length > 0) msg += ' ['+buildInfo.join(' / ')+']';
+    showToast(msg, 'success');
 }
-
 function removeOpponent(setNum) {
     if (!currentStageLevel) return;
     fetchPost('<c:url value="/admin/round/opponent/remove"/>', {
@@ -954,7 +989,7 @@ function setBuildListFilter(race, btn) {
 }
 
 function renderBuildManagerList() {
-    var MULTI_LABEL2 = {FAST_MULTI:'⚡빠른멀티', NORMAL_MULTI:'⚖️일반멀티', SLOW_MULTI:'🐢느린멀티'};
+    var MULTI_LABEL2 = {MIN_MULTI:'🏠최소멀티', MID_MULTI:'⚖️중간멀티', MAX_MULTI:'💰최대멀티'};
     var list = ALL_BUILDS.filter(function(b){
         return buildListFilter === 'ALL' || b.race === buildListFilter;
     });
@@ -1155,14 +1190,13 @@ function openBuildForm(buildId) {
         document.getElementById('bfVsRace').value = 'A';
         document.getElementById('bfPlayStyle').value   = 'AGGRESSIVE';
         document.getElementById('bfHarassStyle').value = 'NORMAL_HARASS';
-        document.getElementById('bfAggression').value  = 'NORMAL_MULTI';
-        document.getElementById('bfMaxBases').value    = '3';
-        document.getElementById('bfFocusMinutes').value = '0';
+        document.getElementById('bfAggression').value  = 'MID_MULTI';
         document.getElementById('bfMaxTier').value    = '3';
         document.getElementById('bfMaxTier').value = '3';
         document.getElementById('buildFormPanelTitle').textContent = '새 빌드 생성';
         document.getElementById('buildDeleteBtn').style.display = 'none';
         bfLoadFromStrings('', '');
+        if(typeof bfResetMatchups==='function'){ bfResetMatchups(); bfInitStatBonusRow(); bfInitScriptTabs(); }
         bfRenderUnitGrid();
         bfRenderBuildingGrid();
         editingBuildId = 0;
@@ -1182,9 +1216,7 @@ function openBuildForm(buildId) {
             document.getElementById('bfVsRace').value = b.vsRace || 'A';
             document.getElementById('bfPlayStyle').value   = b.playStyle   || 'AGGRESSIVE';
             document.getElementById('bfHarassStyle').value = b.harassStyle || 'NORMAL_HARASS';
-            document.getElementById('bfAggression').value  = b.aggression  || 'NORMAL_MULTI';
-            document.getElementById('bfMaxBases').value    = b.maxBases > 0 ? (b.maxBases - 1) : 3;
-            document.getElementById('bfFocusMinutes').value = b.focusAttackTime > 0 ? Math.round(b.focusAttackTime / 60) : 0;
+            document.getElementById('bfAggression').value  = b.aggression  || 'MID_MULTI';
             document.getElementById('bfMaxTier').value = b.maxTier || 3;
             document.getElementById('buildFormPanelTitle').textContent = '빌드 수정';
             document.getElementById('buildDeleteBtn').style.display = 'inline-block';
@@ -1201,6 +1233,81 @@ function openBuildForm(buildId) {
 
 
 
+// ── 상성 / 가산점 / 대본 함수 ──────────────────────────────────
+function bfResetMatchups() {
+    ['T','Z','P'].forEach(function(r){
+        var el=document.getElementById('bfMatchup'+r); if(el) el.value='NORMAL';
+    });
+}
+function bfLoadMatchups(list) {
+    bfResetMatchups();
+    list.forEach(function(m){ var el=document.getElementById('bfMatchup'+m.vsRace); if(el) el.value=m.matchup||'NORMAL'; });
+}
+function bfInitStatBonusRow() {
+    var row=document.getElementById('bfStatBonusRow'); if(!row) return;
+    var stats=[['attack','공격력'],['defense','수비력'],['macro','매크로'],['micro','마이크로'],['luck','운']];
+    row.innerHTML=stats.map(function(s){
+        return '<div style="display:flex;align-items:center;gap:4px;">'
+            +'<span style="font-size:0.78rem;min-width:48px;">'+s[1]+'</span>'
+            +'<select class="bf-select bf-stat-bonus" data-stat="'+s[0]+'" style="width:90px;">'
+            +'<option value="1.0">없음</option><option value="1.1">+10%</option>'
+            +'<option value="1.2">+20%</option><option value="1.3">+30%</option><option value="1.5">+50%</option>'
+            +'</select></div>';
+    }).join('');
+}
+function bfLoadStatBonuses(list) {
+    bfInitStatBonusRow();
+    list.forEach(function(b){
+        var el=document.querySelector('.bf-stat-bonus[data-stat="'+b.statName+'"]');
+        if(el) el.value=parseFloat(b.bonusMult).toFixed(1);
+    });
+}
+var BF_STABS=[{v:'T',l:'vs 테란'},{v:'Z',l:'vs 저그'},{v:'P',l:'vs 프로토스'},{v:'A',l:'공통'}];
+var BF_RES=['WIN','LOSE'];
+function bfInitScriptTabs() {
+    var bar=document.getElementById('bfScriptTabBar'), content=document.getElementById('bfScriptTabContent');
+    if(!bar||!content) return;
+    bar.innerHTML=''; content.innerHTML='';
+    var tabs=[];
+    BF_STABS.forEach(function(v){ BF_RES.forEach(function(r){ tabs.push({vsRace:v.v,label:v.l,result:r}); }); });
+    tabs.forEach(function(t,i){
+        var btn=document.createElement('button');
+        btn.type='button'; btn.style.fontSize='11px';
+        btn.className='btn '+(i===0?'btn-primary':'btn-secondary');
+        btn.textContent=t.label+' '+(t.result==='WIN'?'🏆승':'💀패');
+        btn.onclick=(function(idx){ return function(){ bfShowSTab(idx,tabs.length); }; })(i);
+        bar.appendChild(btn);
+        var area=document.createElement('div');
+        area.id='bfSA-'+i; area.style.display=i===0?'block':'none';
+        var ta=document.createElement('textarea');
+        ta.className='bf-select bf-script-ta'; ta.dataset.vsRace=t.vsRace; ta.dataset.result=t.result;
+        ta.style.cssText='width:100%;height:140px;resize:vertical;font-size:0.8rem;margin-top:4px;';
+        ta.placeholder='경기 시작합니다...';
+        area.appendChild(ta); content.appendChild(area);
+    });
+}
+function bfShowSTab(idx, total) {
+    for(var i=0;i<total;i++){
+        var a=document.getElementById('bfSA-'+i); if(a) a.style.display=i===idx?'block':'none';
+        var b=document.getElementById('bfScriptTabBar').children[i];
+        if(b) b.className='btn '+(i===idx?'btn-primary':'btn-secondary');
+    }
+}
+function bfLoadScripts(list) {
+    bfInitScriptTabs();
+    var tabs=[];
+    BF_STABS.forEach(function(v){ BF_RES.forEach(function(r){ tabs.push({vsRace:v.v,result:r}); }); });
+    list.forEach(function(s){
+        tabs.forEach(function(t,i){
+            if(t.vsRace===s.vsRace && t.result===s.result){
+                var ta=document.querySelector('#bfSA-'+i+' .bf-script-ta');
+                if(ta) ta.value=s.content||'';
+            }
+        });
+    });
+}
+document.addEventListener('DOMContentLoaded', function(){ bfInitStatBonusRow(); bfInitScriptTabs(); });
+
 function saveBuildFromManager() {
     var name  = document.getElementById('bfName').value.trim();
     var race  = document.getElementById('bfRace').value;
@@ -1214,8 +1321,6 @@ function saveBuildFromManager() {
         playStyle:    document.getElementById('bfPlayStyle').value,
         harassStyle:  document.getElementById('bfHarassStyle').value,
         aggression:   document.getElementById('bfAggression').value,
-        maxBases:     (parseInt(document.getElementById('bfMaxBases').value) || 0) + 1,
-        focusAttackTime: (parseInt(document.getElementById('bfFocusMinutes').value) || 0) * 60,
         maxTier:             parseInt(document.getElementById('bfMaxTier').value) || 3,
         preferredUnits:      document.getElementById('bfPreferredUnits').value,
         preferredBuildings:  document.getElementById('bfPreferredBuildings').value,

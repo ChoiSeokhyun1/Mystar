@@ -1,7 +1,6 @@
 package dao.pve;
 
 import dto.pve.BuildDTO;
-import dto.pve.BuildUnitDTO;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
@@ -53,18 +52,18 @@ public class BuildDAOImpl implements BuildDAO {
     }
 
     @Override
-    public int insertBuildUnit(BuildUnitDTO unit) {
-        return sql.insert(NS + "insertBuildUnit", unit);
+    public List<BuildDTO> selectAllBuilds() {
+        return sql.selectList(NS + "selectAllBuilds");
+    }
+
+    @Override
+    public List<BuildDTO> selectBuildsByRace(String race) {
+        return sql.selectList(NS + "selectBuildsByRace", race);
     }
 
     @Override
     public int deleteBuildUnitsByBuildId(int buildId) {
         return sql.delete(NS + "deleteBuildUnitsByBuildId", buildId);
-    }
-
-    @Override
-    public List<BuildUnitDTO> selectUnitsByBuildId(int buildId) {
-        return sql.selectList(NS + "selectUnitsByBuildId", buildId);
     }
 
     @Override

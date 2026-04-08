@@ -8,7 +8,7 @@
     <%@ include file="/WEB-INF/views/layout/adminHeader.jspf" %>
 
     현재 페이지 강조(current 클래스)를 원하면 include 전에 pageTitle 변수를 설정:
-    <c:set var="adminCurrentPage" value="stage" />   ← stage / player / pack / entity
+    <c:set var="adminCurrentPage" value="stage" />   ← stage / player / pack / entity / build / script
 --%>
 <header class="msl-topbar">
     <div class="msl-topbar-logo">MY STAR <span>LEAGUE</span>
@@ -31,6 +31,16 @@
             <c:choose>
                 <c:when test="${adminCurrentPage == 'pack'}"><span class="current">팩 관리</span></c:when>
                 <c:otherwise><a href="<c:url value='/admin/pack' />">팩 관리</a></c:otherwise>
+            </c:choose>
+            <span class="sep">/</span>
+            <c:choose>
+                <c:when test="${adminCurrentPage == 'build'}"><span class="current">빌드 관리</span></c:when>
+                <c:otherwise><a href="<c:url value='/admin/build/manage' />">빌드 관리</a></c:otherwise>
+            </c:choose>
+            <span class="sep">/</span>
+            <c:choose>
+                <c:when test="${adminCurrentPage == 'script'}"><span class="current">대본 관리</span></c:when>
+                <c:otherwise><a href="<c:url value='/admin/script/manage' />">대본 관리</a></c:otherwise>
             </c:choose>
             <span class="sep">/</span>
             <c:choose>

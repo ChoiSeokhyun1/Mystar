@@ -19,5 +19,8 @@ public class PveOpponentInfoDTO {
     
     // TBL_PVE_OPPONENTS 정보
     private int setNumber; // (★) 배정된 세트 번호 (1~5, 벤치면 0 또는 null)
-    private Integer buildId; // 배정된 빌드 ID (nullable)
+    private Integer opponentId; // opponent ID
+    private Integer buildIdVsT; // vs 테란 빌드 ID (nullable)
+    private Integer buildIdVsZ; // vs 저그 빌드 ID (nullable)
+    private Integer buildIdVsP; // vs 프로토스 빌드 ID (nullable)
 }

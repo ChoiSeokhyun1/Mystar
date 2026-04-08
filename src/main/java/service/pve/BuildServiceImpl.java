@@ -1,8 +1,8 @@
 package service.pve;
 
 import dao.pve.BuildDAO;
-import dto.pve.BuildDTO;
-import dto.pve.BuildUnitDTO;
+import dao.pve.ScriptDAO;
+import dto.pve.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -13,48 +13,62 @@ import java.util.Map;
 @Service
 public class BuildServiceImpl implements BuildService {
 
-    @Autowired
-    private BuildDAO buildDAO;
+    @Autowired private BuildDAO  buildDAO;
+    @Autowired private ScriptDAO scriptDAO;
 
-    // ── 빌드 생성 (빌드 마스터 + 유닛 한번에)
-    @Override
-    public int createBuild(BuildDTO build) {
-        // 1. 빌드 마스터 저장
-        int result = buildDAO.insertBuild(build);
-
-        // 2. 유닛 설정 저장
-        if (build.getUnits() != null) {
-            for (BuildUnitDTO unit : build.getUnits()) {
-                unit.setBuildId(build.getBuildId());
-                buildDAO.insertBuildUnit(unit);
+    /** 상성/가산점/대본 일괄 저장 */
+    private void saveScriptData(int buildId, BuildDTO build) {
+        // 상성
+        scriptDAO.deleteMatchupsByBuildId(buildId);
+        if (build.getMatchups() != null) {
+            for (BuildMatchupDTO m : build.getMatchups()) {
+                m.setBuildId(buildId);
+                scriptDAO.insertOrUpdateMatchup(m);
             }
         }
+        // 능력치 가산점
+        scriptDAO.deleteStatBonusesByBuildId(buildId);
+        if (build.getStatBonuses() != null) {
+            for (BuildStatBonusDTO b : build.getStatBonuses()) {
+                b.setBuildId(buildId);
+                scriptDAO.insertOrUpdateStatBonus(b);
+            }
+        }
+        // 대본
+        scriptDAO.deleteScriptsByMyBuildId(buildId);
+        if (build.getScripts() != null) {
+            for (ScriptDTO s : build.getScripts()) {
+                if (s.getMyBuildId() == 0) {
+                    s.setMyBuildId(buildId);
+                }
+                scriptDAO.insertScript(s);
+            }
+        }
+    }
+
+    @Override
+    public int createBuild(BuildDTO build) {
+        int result = buildDAO.insertBuild(build);
+        saveScriptData(build.getBuildId(), build);
         return result;
     }
 
-    // ── 빌드 수정 (유닛은 전체 삭제 후 재삽입)
     @Override
     public int modifyBuild(BuildDTO build) {
         int result = buildDAO.updateBuild(build);
-
-        // 기존 유닛 전체 삭제 후 재삽입
-        buildDAO.deleteBuildUnitsByBuildId(build.getBuildId());
-        if (build.getUnits() != null) {
-            for (BuildUnitDTO unit : build.getUnits()) {
-                unit.setBuildId(build.getBuildId());
-                buildDAO.insertBuildUnit(unit);
-            }
-        }
+        saveScriptData(build.getBuildId(), build);
         return result;
     }
 
-    // ── 빌드 삭제 (FK 순서: opponents NULL화 → owned 삭제 → units 삭제 → 본체 삭제)
     @Override
     public int removeBuild(int buildId) {
-        buildDAO.nullifyOpponentBuildId(buildId);   // 1. PVE 상대 BUILD_ID → NULL
-        buildDAO.deleteOwnedBuildsByBuildId(buildId); // 2. 선수-빌드 연결 삭제
-        buildDAO.deleteBuildUnitsByBuildId(buildId);  // 3. 유닛 설정 삭제
-        return buildDAO.deleteBuild(buildId);          // 4. 빌드 본체 삭제
+        scriptDAO.deleteMatchupsByBuildId(buildId);
+        scriptDAO.deleteStatBonusesByBuildId(buildId);
+        scriptDAO.deleteScriptsByMyBuildId(buildId);
+        buildDAO.nullifyOpponentBuildId(buildId);
+        buildDAO.deleteOwnedBuildsByBuildId(buildId);
+        buildDAO.deleteBuildUnitsByBuildId(buildId);
+        return buildDAO.deleteBuild(buildId);
     }
 
     @Override
@@ -67,7 +81,16 @@ public class BuildServiceImpl implements BuildService {
         return buildDAO.selectBuildsByUserId(userId);
     }
 
-    // ── 선수에게 빌드 배정
+    @Override
+    public List<BuildDTO> getAllBuilds() {
+        return buildDAO.selectAllBuilds();
+    }
+
+    @Override
+    public List<BuildDTO> getBuildsByRace(String race) {
+        return buildDAO.selectBuildsByRace(race);
+    }
+
     @Override
     public int assignBuildToPlayer(int ownedPlayerSeq, int buildId) {
         Map<String, Object> params = new HashMap<>();
@@ -76,7 +99,6 @@ public class BuildServiceImpl implements BuildService {
         return buildDAO.insertOwnedBuild(params);
     }
 
-    // ── 선수-빌드 연결 해제
     @Override
     public int unassignBuildFromPlayer(int ownedPlayerSeq, int buildId) {
         Map<String, Object> params = new HashMap<>();
@@ -85,13 +107,11 @@ public class BuildServiceImpl implements BuildService {
         return buildDAO.deleteOwnedBuild(params);
     }
 
-    // ── 선수가 사용 가능한 빌드 목록
     @Override
     public List<BuildDTO> getBuildsByOwnedPlayerSeq(int ownedPlayerSeq) {
         return buildDAO.selectBuildsByOwnedPlayerSeq(ownedPlayerSeq);
     }
 
-    // ── 빌드 전적 기록 (세트 결과 반영)
     @Override
     public void recordBuildResult(int buildId, boolean isWin) {
         if (buildId <= 0) return;

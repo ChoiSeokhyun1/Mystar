@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="script">
+
+    <resultMap id="scriptMap" type="dto.pve.ScriptDTO">
+        <id     property="scriptId"    column="SCRIPT_ID"/>
+        <result property="myBuildId"   column="MY_BUILD_ID"/>
+        <result property="oppBuildId"  column="OPP_BUILD_ID"/>
+        <result property="result"      column="RESULT"/>
+        <result property="content"     column="CONTENT"/>
+        <result property="createdAt"   column="CREATED_AT"/>
+        <result property="myBuildName"  column="MY_BUILD_NAME"/>
+        <result property="oppBuildName" column="OPP_BUILD_NAME"/>
+    </resultMap>
+
+    <!-- ── 대본 ─────────────────────────────────────────── -->
+    <insert id="insertScript" parameterType="dto.pve.ScriptDTO">
+        <selectKey keyProperty="scriptId" resultType="int" order="BEFORE">
+            SELECT SEQ_SCRIPTS.NEXTVAL FROM DUAL
+        </selectKey>
+        INSERT INTO TBL_SCRIPTS (SCRIPT_ID, MY_BUILD_ID, OPP_BUILD_ID, RESULT, CONTENT)
+        VALUES (#{scriptId}, #{myBuildId}, #{oppBuildId}, #{result}, #{content})
+    </insert>
+
+    <!-- myBuildId+oppBuildId+result 기준 upsert -->
+    <insert id="updateScript" parameterType="dto.pve.ScriptDTO">
+        MERGE INTO TBL_SCRIPTS t
+        USING (SELECT #{myBuildId} AS MY_BUILD_ID,
+                      #{oppBuildId} AS OPP_BUILD_ID,
+                      #{result}    AS RESULT FROM DUAL) s
+        ON (t.MY_BUILD_ID = s.MY_BUILD_ID
+            AND t.OPP_BUILD_ID = s.OPP_BUILD_ID
+            AND t.RESULT = s.RESULT)
+        WHEN MATCHED THEN
+            UPDATE SET t.CONTENT = #{content}
+        WHEN NOT MATCHED THEN
+            INSERT (SCRIPT_ID, MY_BUILD_ID, OPP_BUILD_ID, RESULT, CONTENT)
+            VALUES (SEQ_SCRIPTS.NEXTVAL, #{myBuildId}, #{oppBuildId}, #{result}, #{content})
+    </insert>
+
+    <delete id="deleteScript" parameterType="int">
+        DELETE FROM TBL_SCRIPTS WHERE SCRIPT_ID = #{scriptId}
+    </delete>
+
+    <delete id="deleteScriptsByMyBuildId" parameterType="int">
+        DELETE FROM TBL_SCRIPTS WHERE MY_BUILD_ID = #{myBuildId}
+    </delete>
+
+    <!-- myBuildId + oppBuildId 조합으로 삭제 (추가) -->
+    <delete id="deleteScriptsByBuildIds" parameterType="map">
+        DELETE FROM TBL_SCRIPTS
+        WHERE MY_BUILD_ID = #{myBuildId}
+          AND OPP_BUILD_ID = #{oppBuildId}
+    </delete>
+
+    <!-- myBuildId + oppBuildId 기준 WIN/LOSE 모두 -->
+    <select id="selectScriptsByMatchup" parameterType="map" resultMap="scriptMap">
+        SELECT SCRIPT_ID, MY_BUILD_ID, OPP_BUILD_ID, RESULT, CONTENT, CREATED_AT
+        FROM TBL_SCRIPTS
+        WHERE MY_BUILD_ID  = #{myBuildId}
+          AND OPP_BUILD_ID = #{oppBuildId}
+        ORDER BY RESULT
+    </select>
+
+    <!-- 실제 경기 재생용: myBuildId + oppBuildId + result (여러 개 조회) -->
+    <select id="selectScriptForPlay" parameterType="map" resultMap="scriptMap">
+        SELECT SCRIPT_ID, MY_BUILD_ID, OPP_BUILD_ID, RESULT, CONTENT
+        FROM TBL_SCRIPTS
+        WHERE MY_BUILD_ID  = #{myBuildId}
+          AND OPP_BUILD_ID = #{oppBuildId}
+          AND RESULT        = #{result}
+        ORDER BY SCRIPT_ID
+    </select>
+
+    <!-- 관리 화면: 내 빌드 기준 전체 대본 현황 (상대 빌드명 JOIN) -->
+    <select id="selectScriptSummaryByMyBuild" parameterType="int" resultMap="scriptMap">
+        SELECT s.SCRIPT_ID, s.MY_BUILD_ID, s.OPP_BUILD_ID, s.RESULT,
+               s.CONTENT, s.CREATED_AT,
+               mb.BUILD_NAME AS MY_BUILD_NAME,
+               ob.BUILD_NAME AS OPP_BUILD_NAME
+        FROM TBL_SCRIPTS s
+        JOIN TBL_BUILDS mb ON s.MY_BUILD_ID  = mb.BUILD_ID
+        JOIN TBL_BUILDS ob ON s.OPP_BUILD_ID = ob.BUILD_ID
+        WHERE s.MY_BUILD_ID = #{myBuildId}
+        ORDER BY ob.BUILD_ID, s.RESULT
+    </select>
+
+    <!-- ── 빌드 종족 상성 ──────────────────────────────── -->
+    <insert id="insertOrUpdateMatchup" parameterType="dto.pve.BuildMatchupDTO">
+        MERGE INTO TBL_BUILD_MATCHUP t
+        USING (SELECT #{buildId} AS BUILD_ID, #{vsRace} AS VS_RACE FROM DUAL) s
+        ON (t.BUILD_ID = s.BUILD_ID AND t.VS_RACE = s.VS_RACE)
+        WHEN MATCHED THEN UPDATE SET t.MATCHUP = #{matchup}
+        WHEN NOT MATCHED THEN
+            INSERT (MATCHUP_ID, BUILD_ID, VS_RACE, MATCHUP)
+            VALUES (SEQ_BUILD_MATCHUP.NEXTVAL, #{buildId}, #{vsRace}, #{matchup})
+    </insert>
+
+    <delete id="deleteMatchupsByBuildId" parameterType="int">
+        DELETE FROM TBL_BUILD_MATCHUP WHERE BUILD_ID = #{buildId}
+    </delete>
+
+    <select id="selectMatchupsByBuildId" parameterType="int" resultType="dto.pve.BuildMatchupDTO">
+        SELECT MATCHUP_ID, BUILD_ID, VS_RACE, MATCHUP
+        FROM TBL_BUILD_MATCHUP WHERE BUILD_ID = #{buildId} ORDER BY VS_RACE
+    </select>
+
+    <!-- ── 빌드 능력치 가산점 ──────────────────────────── -->
+    <insert id="insertOrUpdateStatBonus" parameterType="dto.pve.BuildStatBonusDTO">
+        MERGE INTO TBL_BUILD_STAT_BONUS t
+        USING (SELECT #{buildId} AS BUILD_ID, #{statName} AS STAT_NAME FROM DUAL) s
+        ON (t.BUILD_ID = s.BUILD_ID AND t.STAT_NAME = s.STAT_NAME)
+        WHEN MATCHED THEN UPDATE SET t.BONUS_MULT = #{bonusMult}
+        WHEN NOT MATCHED THEN
+            INSERT (BONUS_ID, BUILD_ID, STAT_NAME, BONUS_MULT)
+            VALUES (SEQ_BUILD_STAT_BONUS.NEXTVAL, #{buildId}, #{statName}, #{bonusMult})
+    </insert>
+
+    <delete id="deleteStatBonusesByBuildId" parameterType="int">
+        DELETE FROM TBL_BUILD_STAT_BONUS WHERE BUILD_ID = #{buildId}
+    </delete>
+
+    <select id="selectStatBonusesByBuildId" parameterType="int" resultType="dto.pve.BuildStatBonusDTO">
+        SELECT BONUS_ID, BUILD_ID, STAT_NAME, BONUS_MULT
+        FROM TBL_BUILD_STAT_BONUS WHERE BUILD_ID = #{buildId}
+    </select>
+
+</mapper>

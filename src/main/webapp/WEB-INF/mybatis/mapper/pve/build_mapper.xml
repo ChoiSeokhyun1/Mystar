@@ -5,71 +5,40 @@
 <mapper namespace="build">
 
     <!-- =====================================================
-         ResultMap
+         ResultMap (대본 방식 - 간소화)
     ====================================================== -->
-
-    <resultMap id="buildUnitMap" type="dto.pve.BuildUnitDTO">
-        <id     property="buildUnitId" column="BUILD_UNIT_ID"/>
-        <result property="buildId"     column="BUILD_ID"/>
-        <result property="phase"       column="PHASE"/>
-        <result property="unitId"      column="UNIT_ID"/>
-        <result property="priority"    column="PRIORITY"/>
-    </resultMap>
 
     <resultMap id="buildMap" type="dto.pve.BuildDTO">
         <id     property="buildId"      column="BUILD_ID"/>
         <result property="userId"       column="USER_ID"/>
         <result property="buildName"    column="BUILD_NAME"/>
         <result property="race"         column="RACE"/>
-        <result property="vsRace"       column="VS_RACE"/>
-        <result property="playStyle"          column="PLAY_STYLE"/>
-        <result property="harassStyle"        column="HARASS_STYLE"/>
-        <result property="aggression"         column="AGGRESSION"/>
-        <result property="maxBases"           column="MAX_BASES"/>
-        <result property="focusAttackTime"    column="FOCUS_ATTACK_TIME"/>
-        <result property="maxTier"            column="MAX_TIER"/>
-        <result property="winCount"           column="WIN_COUNT"/>
-        <result property="loseCount"          column="LOSE_COUNT"/>
-        <result property="preferredUnits"     column="PREFERRED_UNITS"/>
-        <result property="preferredBuildings" column="PREFERRED_BUILDINGS"/>
-        <result property="createdAt"          column="CREATED_AT"/>
-        <collection property="units" ofType="dto.pve.BuildUnitDTO"
-                    resultMap="buildUnitMap" notNullColumn="BUILD_UNIT_ID"/>
+        <result property="winCount"     column="WIN_COUNT"/>
+        <result property="loseCount"    column="LOSE_COUNT"/>
+        <result property="createdAt"    column="CREATED_AT"/>
     </resultMap>
 
     <!-- =====================================================
          TBL_BUILDS
     ====================================================== -->
 
-<insert id="insertBuild" parameterType="dto.pve.BuildDTO">
-    <selectKey keyProperty="buildId" resultType="int" order="BEFORE">
-        SELECT SEQ_BUILDS.NEXTVAL FROM DUAL
-    </selectKey>
-    INSERT INTO TBL_BUILDS (
-        BUILD_ID, USER_ID, BUILD_NAME, RACE, VS_RACE,
-        PLAY_STYLE, HARASS_STYLE, AGGRESSION, MAX_BASES, FOCUS_ATTACK_TIME, MAX_TIER,
-        PREFERRED_UNITS, PREFERRED_BUILDINGS
-    ) VALUES (
-        #{buildId}, #{userId}, #{buildName}, #{race}, #{vsRace},
-        #{playStyle}, #{harassStyle}, #{aggression}, #{maxBases}, #{focusAttackTime}, #{maxTier},
-        #{preferredUnits}, #{preferredBuildings}
-    )
-</insert>
+    <insert id="insertBuild" parameterType="dto.pve.BuildDTO">
+        <selectKey keyProperty="buildId" resultType="int" order="BEFORE">
+            SELECT SEQ_BUILDS.NEXTVAL FROM DUAL
+        </selectKey>
+        INSERT INTO TBL_BUILDS (
+            BUILD_ID, USER_ID, BUILD_NAME, RACE
+        ) VALUES (
+            #{buildId}, #{userId}, #{buildName}, #{race}
+        )
+    </insert>
 
     <update id="updateBuild" parameterType="dto.pve.BuildDTO">
         UPDATE TBL_BUILDS
-        SET BUILD_NAME          = #{buildName},
-            VS_RACE             = #{vsRace},
-            PLAY_STYLE          = #{playStyle},
-            HARASS_STYLE        = #{harassStyle},
-            AGGRESSION          = #{aggression},
-            MAX_BASES           = #{maxBases},
-            FOCUS_ATTACK_TIME   = #{focusAttackTime},
-            MAX_TIER            = #{maxTier},
-            PREFERRED_UNITS     = #{preferredUnits},
-            PREFERRED_BUILDINGS = #{preferredBuildings},
-            WIN_COUNT           = 0,
-            LOSE_COUNT          = 0
+        SET BUILD_NAME = #{buildName},
+            RACE       = #{race},
+            WIN_COUNT  = 0,
+            LOSE_COUNT = 0
         WHERE BUILD_ID = #{buildId}
           AND USER_ID  = #{userId}
     </update>
@@ -97,81 +66,67 @@
         UPDATE TBL_BUILDS SET LOSE_COUNT = LOSE_COUNT + 1 WHERE BUILD_ID = #{buildId}
     </update>
 
-    <!-- 단건 조회 (유닛 포함) -->
+    <!-- 단건 조회 -->
     <select id="selectBuildById" parameterType="int" resultMap="buildMap">
-        SELECT b.BUILD_ID,
-               b.USER_ID,
-               b.BUILD_NAME,
-               b.RACE,
-               b.VS_RACE,
-               NVL(b.PLAY_STYLE,    'NORMAL')    AS PLAY_STYLE,
-               NVL(b.HARASS_STYLE,  'NORMAL_HARASS') AS HARASS_STYLE,
-               NVL(b.AGGRESSION,  'NORMAL_MULTI')  AS AGGRESSION,
-               NVL(b.MAX_BASES,   4)               AS MAX_BASES,
-               NVL(b.FOCUS_ATTACK_TIME, 0)         AS FOCUS_ATTACK_TIME,
-               NVL(b.MAX_TIER,    3)             AS MAX_TIER,
-               NVL(b.WIN_COUNT,   0)             AS WIN_COUNT,
-               NVL(b.LOSE_COUNT,  0)             AS LOSE_COUNT,
-               b.PREFERRED_UNITS,
-               b.PREFERRED_BUILDINGS,
-               b.CREATED_AT,
-               u.BUILD_UNIT_ID,
-               u.PHASE,
-               u.UNIT_ID,
-               u.PRIORITY
-        FROM TBL_BUILDS b
-        LEFT JOIN TBL_BUILD_UNITS u ON b.BUILD_ID = u.BUILD_ID
-        WHERE b.BUILD_ID = #{buildId}
-        ORDER BY u.PHASE, u.PRIORITY
+        SELECT BUILD_ID,
+               USER_ID,
+               BUILD_NAME,
+               RACE,
+               NVL(WIN_COUNT,   0) AS WIN_COUNT,
+               NVL(LOSE_COUNT,  0) AS LOSE_COUNT,
+               CREATED_AT
+        FROM TBL_BUILDS
+        WHERE BUILD_ID = #{buildId}
     </select>
 
-    <!-- 유저의 전체 빌드 목록 (유닛 포함) -->
+    <!-- 유저의 전체 빌드 목록 -->
     <select id="selectBuildsByUserId" parameterType="string" resultMap="buildMap">
-        SELECT b.BUILD_ID,
-               b.USER_ID,
-               b.BUILD_NAME,
-               b.RACE,
-               b.VS_RACE,
-               NVL(b.PLAY_STYLE,    'NORMAL')    AS PLAY_STYLE,
-               NVL(b.HARASS_STYLE,  'NORMAL_HARASS') AS HARASS_STYLE,
-               NVL(b.AGGRESSION,  'NORMAL_MULTI')  AS AGGRESSION,
-               NVL(b.MAX_BASES,   4)               AS MAX_BASES,
-               NVL(b.FOCUS_ATTACK_TIME, 0)         AS FOCUS_ATTACK_TIME,
-               NVL(b.MAX_TIER,    3)             AS MAX_TIER,
-               NVL(b.WIN_COUNT,   0)             AS WIN_COUNT,
-               NVL(b.LOSE_COUNT,  0)             AS LOSE_COUNT,
-               b.PREFERRED_UNITS,
-               b.PREFERRED_BUILDINGS,
-               b.CREATED_AT,
-               u.BUILD_UNIT_ID,
-               u.PHASE,
-               u.UNIT_ID,
-               u.PRIORITY
-        FROM TBL_BUILDS b
-        LEFT JOIN TBL_BUILD_UNITS u ON b.BUILD_ID = u.BUILD_ID
-        WHERE b.USER_ID = #{userId}
-        ORDER BY b.BUILD_ID, u.PHASE, u.PRIORITY
+        SELECT BUILD_ID,
+               USER_ID,
+               BUILD_NAME,
+               RACE,
+               NVL(WIN_COUNT,   0) AS WIN_COUNT,
+               NVL(LOSE_COUNT,  0) AS LOSE_COUNT,
+               CREATED_AT
+        FROM TBL_BUILDS
+        WHERE USER_ID = #{userId}
+        ORDER BY BUILD_ID
+    </select>
+
+    <!-- 모든 빌드 조회 (관리자용) -->
+    <select id="selectAllBuilds" resultMap="buildMap">
+        SELECT BUILD_ID,
+               USER_ID,
+               BUILD_NAME,
+               RACE,
+               NVL(WIN_COUNT,   0) AS WIN_COUNT,
+               NVL(LOSE_COUNT,  0) AS LOSE_COUNT,
+               CREATED_AT
+        FROM TBL_BUILDS
+        ORDER BY CREATED_AT DESC, BUILD_ID
+    </select>
+
+    <!-- 종족별 빌드 조회 -->
+    <select id="selectBuildsByRace" parameterType="string" resultMap="buildMap">
+        SELECT BUILD_ID,
+               USER_ID,
+               BUILD_NAME,
+               RACE,
+               NVL(WIN_COUNT,   0) AS WIN_COUNT,
+               NVL(LOSE_COUNT,  0) AS LOSE_COUNT,
+               CREATED_AT
+        FROM TBL_BUILDS
+        WHERE RACE = #{race}
+        ORDER BY BUILD_NAME
     </select>
 
     <!-- =====================================================
-         TBL_BUILD_UNITS
+         TBL_BUILD_UNITS (호환성)
     ====================================================== -->
-
-    <insert id="insertBuildUnit" parameterType="dto.pve.BuildUnitDTO">
-        INSERT INTO TBL_BUILD_UNITS (BUILD_UNIT_ID, BUILD_ID, PHASE, UNIT_ID, PRIORITY)
-        VALUES (SEQ_BUILD_UNITS.NEXTVAL, #{buildId}, #{phase}, #{unitId}, #{priority})
-    </insert>
 
     <delete id="deleteBuildUnitsByBuildId" parameterType="int">
         DELETE FROM TBL_BUILD_UNITS WHERE BUILD_ID = #{buildId}
     </delete>
-
-    <select id="selectUnitsByBuildId" parameterType="int" resultMap="buildUnitMap">
-        SELECT BUILD_UNIT_ID, BUILD_ID, PHASE, UNIT_ID, PRIORITY
-        FROM TBL_BUILD_UNITS
-        WHERE BUILD_ID = #{buildId}
-        ORDER BY PHASE, PRIORITY
-    </select>
 
     <!-- =====================================================
          TBL_OWNED_BUILDS
@@ -188,24 +143,19 @@
           AND BUILD_ID   = #{buildId}
     </delete>
 
-    <!-- 보유 선수의 빌드 목록 (유닛 포함) -->
+    <!-- 보유 선수의 빌드 목록 -->
     <select id="selectBuildsByOwnedPlayerSeq" parameterType="int" resultMap="buildMap">
-        SELECT b.BUILD_ID, b.USER_ID, b.BUILD_NAME, b.RACE, b.VS_RACE,
-               NVL(b.PLAY_STYLE,    'NORMAL')    AS PLAY_STYLE,
-               NVL(b.HARASS_STYLE,  'NORMAL_HARASS') AS HARASS_STYLE,
-               NVL(b.AGGRESSION,  'NORMAL_MULTI')  AS AGGRESSION,
-               NVL(b.MAX_BASES,   4)               AS MAX_BASES,
-               NVL(b.FOCUS_ATTACK_TIME, 0)         AS FOCUS_ATTACK_TIME,
-               NVL(b.MAX_TIER,    3)             AS MAX_TIER,
-               NVL(b.WIN_COUNT,   0)             AS WIN_COUNT,
-               NVL(b.LOSE_COUNT,  0)             AS LOSE_COUNT,
-               b.PREFERRED_UNITS, b.PREFERRED_BUILDINGS, b.CREATED_AT,
-               u.BUILD_UNIT_ID, u.PHASE, u.UNIT_ID, u.PRIORITY
+        SELECT b.BUILD_ID, 
+               b.USER_ID, 
+               b.BUILD_NAME, 
+               b.RACE,
+               NVL(b.WIN_COUNT,   0) AS WIN_COUNT,
+               NVL(b.LOSE_COUNT,  0) AS LOSE_COUNT,
+               b.CREATED_AT
         FROM TBL_OWNED_BUILDS ob
-        JOIN TBL_BUILDS b      ON ob.BUILD_ID = b.BUILD_ID
-        LEFT JOIN TBL_BUILD_UNITS u ON b.BUILD_ID = u.BUILD_ID
+        JOIN TBL_BUILDS b ON ob.BUILD_ID = b.BUILD_ID
         WHERE ob.PLAYER_SEQ = #{ownedPlayerSeq}
-        ORDER BY b.BUILD_ID, u.PHASE, u.PRIORITY
+        ORDER BY b.BUILD_ID
     </select>
 
 </mapper>

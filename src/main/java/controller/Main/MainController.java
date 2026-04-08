@@ -1,6 +1,7 @@
 package controller.Main;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,6 @@ import dto.pve.BuildDTO;
 import dto.pve.PveOpponentInfoDTO;
 import dto.pve.BattleProgressDTO;
 import dto.pve.BattleSessionDTO;
-import dto.pve.GameState;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import service.gacha.GachaService;
@@ -824,12 +824,34 @@ public class MainController {
             String aiCondition = (String) currentMatchup.getOrDefault("aiPlayerCondition", "NORMAL");
             int aiWinStreak = safeInt(currentMatchup.get("aiPlayerWinStreak"), 0);
 
-            // ★ 파라미터 전달 추가
-            List<GameState> replayData = pveSimulationService.runFullSimulation(
-                myStats, aiStats, myBuildDto, aiBuildDto, myRace, aiRace,
-                myPlayerName, aiPlayerName,
-                myCondition, myWinStreak, aiCondition, aiWinStreak
-            );
+            // ★ 승패 결정 (점수 계산 방식)
+            Map<String, Object> firstMatchup = matchupList.get(0);
+            firstMatchup.put("myAttack",  myStats.get("attack"));
+            firstMatchup.put("myDefense", myStats.get("defense"));
+            firstMatchup.put("myMacro",   myStats.get("macro"));
+            firstMatchup.put("myMicro",   myStats.get("micro"));
+            firstMatchup.put("myLuck",    myStats.get("luck"));
+            firstMatchup.put("aiAttack",  aiStats.get("attack"));
+            firstMatchup.put("aiDefense", aiStats.get("defense"));
+            firstMatchup.put("aiMacro",   aiStats.get("macro"));
+            firstMatchup.put("aiMicro",   aiStats.get("micro"));
+            firstMatchup.put("aiLuck",    aiStats.get("luck"));
+            firstMatchup.put("myRace",    myRace);
+            firstMatchup.put("aiRace",    aiRace);
+            firstMatchup.put("myBuild",   myBuildDto);
+            firstMatchup.put("aiBuild",   aiBuildDto);
+            firstMatchup.put("myCondition", myCondition);
+            firstMatchup.put("myWinStreak", myWinStreak);
+            firstMatchup.put("aiCondition", aiCondition);
+            firstMatchup.put("aiWinStreak", aiWinStreak);
+            boolean myWinFlag = pveBattleService.calculateWinResults(
+                Collections.singletonList(firstMatchup)).get(0);
+
+            // ★ 대본 선택 (내 빌드 + 상대 빌드 + 승패 기준)
+            int scriptBuildId = (myBuildDto != null) ? myBuildDto.getBuildId() : 0;
+            int scriptOppBuildId = (aiBuildDto != null) ? aiBuildDto.getBuildId() : 0;
+            List<String> scriptLines = pveBattleService.selectScriptLines(
+                scriptBuildId, scriptOppBuildId, myWinFlag);
 
             BattleSessionDTO newSession = new BattleSessionDTO();
             newSession.setUserId(userId);
@@ -840,7 +862,13 @@ public class MainController {
             newSession.setCurrentSet(1);
             newSession.setMyWins(0);
             newSession.setAiWins(0);
-            newSession.setGameStateData(gson.toJson(replayData));
+            // gameStateData에 대본 줄 목록 + 승패 저장
+            Map<String, Object> scriptData = new HashMap<>();
+            scriptData.put("lines",  scriptLines);
+            scriptData.put("myWin",  myWinFlag);
+            scriptData.put("myName", myPlayerName);
+            scriptData.put("aiName", aiPlayerName);
+            newSession.setGameStateData(gson.toJson(scriptData));
             List<SetResult> initialSetResults = (List<SetResult>) creationResult.get("setResults");
             newSession.setSetResultsData(gson.toJson(initialSetResults));
             battleSessionDAO.insertNewBattle(newSession);
@@ -1119,12 +1147,6 @@ public class MainController {
                 String aiCondition = (String) nextMatchup.getOrDefault("aiPlayerCondition", "NORMAL");
                 int aiWinStreak = safeInt(nextMatchup.get("aiPlayerWinStreak"), 0);
 
-                // ★ 파라미터 전달 추가
-                List<GameState> nextReplay = pveSimulationService.runFullSimulation(
-                    myStats, aiStats, myBuildDto, aiBuildDto, myRace, aiRace,
-                    myPName, aiPName,
-                    myCondition, myWinStreak, aiCondition, aiWinStreak
-                );
 
                 BattleProgressDTO progress = new BattleProgressDTO();
                 progress.setUserId(userId);
@@ -1133,7 +1155,6 @@ public class MainController {
                 progress.setMyWins(myWins);
                 progress.setAiWins(aiWins);
                 progress.setCurrentSet(nextSet);
-                progress.setGameStateData(gson.toJson(nextReplay));
                 pveBattleService.saveProgress(progress);
             } catch (Exception e) { e.printStackTrace(); }
             response.put("victory", null);
@@ -1409,7 +1430,19 @@ public class MainController {
             matchup.put("aiPlayerLuck",    aiPlayer.getStatLuck());
             matchup.put("aiPlayerTrait",   "안정적인 운영 선호");
 
-            Integer aiBuildId = aiPlayer.getBuildId();
+            // 유저 종족에 맞는 AI 빌드 선택
+            Integer aiBuildId = null;
+            if (myPlayer != null) {
+                String userRace = myPlayer.getRace();
+                if ("T".equals(userRace)) {
+                    aiBuildId = aiPlayer.getBuildIdVsT();
+                } else if ("Z".equals(userRace)) {
+                    aiBuildId = aiPlayer.getBuildIdVsZ();
+                } else if ("P".equals(userRace)) {
+                    aiBuildId = aiPlayer.getBuildIdVsP();
+                }
+            }
+            
             if (aiBuildId != null && aiBuildId > 0) {
                 BuildDTO aiBuild = buildService.getBuildById(aiBuildId);
                 if (aiBuild != null) {
@@ -1529,25 +1562,6 @@ public class MainController {
         // ── 빌드 기반 가중치 [attack, defense, macro, micro, luck] ──
         double[] w = {1.0, 1.0, 1.0, 1.0, 1.0};
 
-        if (build != null) {
-            // PLAY_STYLE
-            String playStyle = build.getPlayStyle() != null ? build.getPlayStyle() : "AGGRESSIVE";
-            switch (playStyle) {
-                case "AGGRESSIVE":   w[0] += 2.0; w[3] += 1.0; break; // 공격  → attack 대폭, micro
-                case "NORMAL":       w[0] += 1.0; w[1] += 1.0; w[3] += 0.5; break; // 일반  → 균형
-                case "DEFENSIVE":    w[1] += 2.5; w[2] += 0.5; break; // 수비  → defense 대폭, macro
-                // 구버전 호환
-                case "HARASS_FOCUS": w[3] += 2.0; w[0] += 1.0; break;
-            }
-
-            // AGGRESSION
-            String aggression = build.getAggression() != null ? build.getAggression() : "MID_MULTI";
-            switch (aggression) {
-                case "MIN_MULTI": w[0] += 2.0; w[3] += 1.5; break; // 최소멀티 → 올인형, attack/micro
-                case "MID_MULTI": w[2] += 1.0; w[4] += 0.5; break; // 중간멀티 → 균형, macro/luck
-                case "MAX_MULTI": w[2] += 2.0; w[4] += 1.0; break; // 최대멀티 → 확장형, macro/luck
-            }
-        }
 
         // ── 가중치 기반 포인트 확률 분배 ──
         double wSum = w[0] + w[1] + w[2] + w[3] + w[4];

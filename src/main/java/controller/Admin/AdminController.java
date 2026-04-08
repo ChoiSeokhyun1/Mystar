@@ -2,17 +2,19 @@ package controller.Admin;
 
 import dao.admin.AdminDAO;
 import dao.pve.BuildDAO;
+import dao.pve.ScriptDAO;
 import dto.pack.PackDTO;
 import dto.player.PlayerDTO;
 import dto.pve.BuildDTO;
-import dto.pve.BuildUnitDTO;
 import dto.pve.PveOpponentInfoDTO;
 import dto.pve.PveSubstageDTO;
+import dto.pve.ScriptDTO;
 import dto.user.UserDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import service.pve.BuildService;
 
 import org.springframework.web.multipart.MultipartFile;
 import javax.servlet.http.HttpServletRequest;
@@ -22,6 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/admin")
@@ -32,6 +35,12 @@ public class AdminController {
 
     @Autowired
     private BuildDAO buildDAO;
+
+    @Autowired
+    private BuildService buildService;
+
+    @Autowired
+    private ScriptDAO scriptDAO;
 
     private boolean isAdmin(HttpSession session) {
         UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
@@ -818,105 +827,7 @@ public class AdminController {
         return res;
     }
 
-    /** 빌드 생성 */
-    @PostMapping("/builds/create")
-    @ResponseBody
-    public Map<String, Object> createBuild(@RequestBody Map<String, Object> body, HttpSession session) {
-        Map<String, Object> res = new HashMap<>();
-        if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
-        try {
-            BuildDTO build = new BuildDTO();
-            build.setBuildName((String) body.get("buildName"));
-            build.setRace((String) body.get("race"));
-            build.setVsRace((String) body.getOrDefault("vsRace", "A"));
-            build.setPlayStyle((String) body.getOrDefault("playStyle", "AGGRESSIVE"));
-            build.setHarassStyle((String) body.getOrDefault("harassStyle", "NORMAL_HARASS"));
-            build.setAggression((String) body.getOrDefault("aggression", "MID_MULTI"));
 
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> units = (List<Map<String, Object>>) body.get("units");
-            if (units != null) {
-                for (Map<String, Object> u : units) {
-                    BuildUnitDTO unit = new BuildUnitDTO();
-                    unit.setBuildId(build.getBuildId());
-                    unit.setPhase((String) u.get("phase"));
-                    unit.setUnitId((String) u.get("unitId"));
-                    unit.setPriority(toInt(u.get("priority")));
-                    buildDAO.insertBuildUnit(unit);
-                }
-            }
-            res.put("success", true);
-            res.put("buildId", build.getBuildId());
-        } catch (Exception e) {
-            e.printStackTrace();
-            res.put("success", false);
-            res.put("message", "생성 실패: " + e.getMessage());
-        }
-        return res;
-    }
-
-    /** 빌드 수정 */
-    @PostMapping("/builds/update")
-    @ResponseBody
-    public Map<String, Object> updateBuild(@RequestBody Map<String, Object> body, HttpSession session) {
-        Map<String, Object> res = new HashMap<>();
-        if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
-        try {
-            int buildId = toInt(body.get("buildId"));
-            BuildDTO build = new BuildDTO();
-            build.setBuildId(buildId);
-            build.setBuildName((String) body.get("buildName"));
-            build.setRace((String) body.get("race"));
-            build.setVsRace((String) body.getOrDefault("vsRace", "A"));
-            build.setPlayStyle((String) body.getOrDefault("playStyle", "AGGRESSIVE"));
-            build.setHarassStyle((String) body.getOrDefault("harassStyle", "NORMAL_HARASS"));
-            build.setAggression((String) body.getOrDefault("aggression", "MID_MULTI"));
-            build.setPreferredUnits((String) body.getOrDefault("preferredUnits", ""));
-            build.setPreferredBuildings((String) body.getOrDefault("preferredBuildings", ""));
-            buildDAO.updateBuild(build);
-
-            buildDAO.deleteBuildUnitsByBuildId(buildId);
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> units = (List<Map<String, Object>>) body.get("units");
-            if (units != null) {
-                for (Map<String, Object> u : units) {
-                    BuildUnitDTO unit = new BuildUnitDTO();
-                    unit.setBuildId(buildId);
-                    unit.setPhase((String) u.get("phase"));
-                    unit.setUnitId((String) u.get("unitId"));
-                    unit.setPriority(toInt(u.get("priority")));
-                    buildDAO.insertBuildUnit(unit);
-                }
-            }
-            res.put("success", true);
-        } catch (Exception e) {
-            e.printStackTrace();
-            res.put("success", false);
-            res.put("message", "수정 실패: " + e.getMessage());
-        }
-        return res;
-    }
-
-    /** 빌드 삭제 */
-    @PostMapping("/builds/delete")
-    @ResponseBody
-    public Map<String, Object> deleteBuild(@RequestBody Map<String, Object> body, HttpSession session) {
-        Map<String, Object> res = new HashMap<>();
-        if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
-        try {
-            int buildId = toInt(body.get("buildId"));
-            buildDAO.nullifyOpponentBuildId(buildId);   // 1. PVE 상대 BUILD_ID → NULL
-            buildDAO.deleteOwnedBuildsByBuildId(buildId); // 2. 선수-빌드 연결 삭제
-            buildDAO.deleteBuildUnitsByBuildId(buildId);  // 3. 유닛 설정 삭제
-            buildDAO.deleteBuild(buildId);                // 4. 빌드 본체 삭제
-            res.put("success", true);
-        } catch (Exception e) {
-            e.printStackTrace();
-            res.put("success", false);
-            res.put("message", "삭제 실패: " + e.getMessage());
-        }
-        return res;
-    }
 
     /** PackDTO 빌더 헬퍼 */
     private PackDTO buildPackDTO(Map<String, Object> body) {
@@ -1059,6 +970,173 @@ public class AdminController {
         }
         res.put("success", true);
         return res;
+    }
+
+    // ========================================
+    // 빌드 & 대본 관리 (관리자 전용)
+    // ========================================
+
+    /**
+     * 관리자 빌드 관리 메인 페이지
+     */
+    @GetMapping("/build/manage")
+    public String adminBuildManage(HttpSession session, Model model) {
+        if (!isAdmin(session)) return "redirect:/login";
+        
+        try {
+            List<BuildDTO> allBuilds = buildService.getAllBuilds();
+            model.addAttribute("builds", allBuilds != null ? allBuilds : new ArrayList<>());
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("builds", new ArrayList<>());
+        }
+        
+        return "admin/buildManage";
+    }
+
+    /**
+     * 관리자 빌드 생성 페이지
+     */
+    @GetMapping("/build/create")
+    public String adminBuildCreate(HttpSession session, Model model) {
+        if (!isAdmin(session)) return "redirect:/login";
+        return "admin/buildCreate";
+    }
+
+    /**
+     * 관리자 빌드 수정 페이지
+     */
+    @GetMapping("/build/edit")
+    public String adminBuildEdit(@RequestParam("id") int buildId, 
+                                  HttpSession session, Model model) {
+        if (!isAdmin(session)) return "redirect:/login";
+        
+        try {
+            BuildDTO build = buildService.getBuildById(buildId);
+            if (build == null) {
+                return "redirect:/admin/build/manage";
+            }
+            
+            // 기존 대본들도 함께 조회
+            List<ScriptDTO> scripts = scriptDAO.selectScriptSummaryByMyBuild(buildId);
+            
+            model.addAttribute("build", build);
+            model.addAttribute("existingScripts", scripts != null ? scripts : new ArrayList<>());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "redirect:/admin/build/manage";
+        }
+        
+        return "admin/buildEdit";
+    }
+
+    /**
+     * 관리자 빌드 생성 처리 (AJAX)
+     */
+    @PostMapping("/build/create")
+    @ResponseBody
+    public Map<String, Object> createAdminBuild(@RequestBody BuildDTO buildDto, 
+                                                 HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
+        
+        if (!isAdmin(session)) {
+            response.put("success", false);
+            response.put("message", "관리자 권한이 필요합니다.");
+            return response;
+        }
+        
+        try {
+            // 관리자 빌드는 userId를 "SYSTEM"으로 설정
+            buildDto.setUserId("SYSTEM");
+            buildService.createBuild(buildDto);
+            response.put("success", true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.put("success", false);
+            response.put("message", "빌드 생성 실패: " + e.getMessage());
+        }
+        
+        return response;
+    }
+
+    /**
+     * 관리자 빌드 수정 처리 (AJAX)
+     */
+    @PostMapping("/build/update")
+    @ResponseBody
+    public Map<String, Object> updateAdminBuild(@RequestBody BuildDTO buildDto, 
+                                                 HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
+        
+        if (!isAdmin(session)) {
+            response.put("success", false);
+            response.put("message", "관리자 권한이 필요합니다.");
+            return response;
+        }
+        
+        try {
+            buildService.modifyBuild(buildDto);
+            response.put("success", true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.put("success", false);
+            response.put("message", "빌드 수정 실패: " + e.getMessage());
+        }
+        
+        return response;
+    }
+
+    /**
+     * 관리자 빌드 삭제 (AJAX)
+     */
+    @PostMapping("/build/delete")
+    @ResponseBody
+    public Map<String, Object> deleteAdminBuild(@RequestParam("buildId") int buildId, 
+                                                 HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
+        
+        if (!isAdmin(session)) {
+            response.put("success", false);
+            response.put("message", "관리자 권한이 필요합니다.");
+            return response;
+        }
+        
+        try {
+            buildService.removeBuild(buildId);
+            response.put("success", true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.put("success", false);
+            response.put("message", "빌드 삭제 실패: " + e.getMessage());
+        }
+        
+        return response;
+    }
+
+    /**
+     * 관리자용 종족별 빌드 조회 (AJAX)
+     */
+    @GetMapping("/build/list-by-race")
+    @ResponseBody
+    public List<BuildDTO> getAdminBuildsByRace(
+            @RequestParam("race") String race,
+            HttpSession session) {
+        
+        if (!isAdmin(session)) {
+            return new ArrayList<>();
+        }
+        
+        try {
+            // 모든 빌드 조회 후 필터링 (vsRace 제거 - 빌드는 자기 종족만 구분)
+            List<BuildDTO> allBuilds = buildService.getAllBuilds();
+            
+            return allBuilds.stream()
+                .filter(b -> race.equals(b.getRace()))
+                .collect(Collectors.toList());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
     }
 
 }
