@@ -863,6 +863,24 @@ public class AdminController {
     }
 
     @Transactional
+    @PostMapping("/build/update")   // buildManage.jsp에서 수정 시 호출
+    @ResponseBody
+    public Map<String, Object> updateAdminBuild(@RequestBody BuildDTO buildDto, HttpSession session) {
+        Map<String, Object> res = new HashMap<>();
+        if (!isAdmin(session)) { res.put("success", false); res.put("message", "관리자 권한이 필요합니다."); return res; }
+        try {
+            buildDto.setUserId("SYSTEM");
+            buildService.modifyBuild(buildDto);
+            res.put("success", true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            res.put("success", false);
+            res.put("message", "빌드 수정 실패: " + e.getMessage());
+        }
+        return res;
+    }
+
+    @Transactional
     @PostMapping("/build/delete")
     @ResponseBody
     public Map<String, Object> deleteAdminBuild(@RequestParam("buildId") int buildId, HttpSession session) {
@@ -917,6 +935,54 @@ public class AdminController {
         buildJson.append("]");
         model.addAttribute("buildJsonData", buildJson.toString());
         return "admin/scriptManage";
+    }
+
+    @GetMapping("/script/has-scripts")
+    @ResponseBody
+    public Map<String, Object> hasScripts(@RequestParam("buildAId") int buildAId, HttpSession session) {
+        Map<String, Object> res = new HashMap<>();
+        if (!isAdmin(session)) { res.put("success", false); return res; }
+        try {
+            // buildA와 짝을 이루는 모든 스크립트 조합 조회
+            List<ScriptDTO> scripts = scriptDAO.selectScriptSummaryByMyBuild(buildAId);
+            // oppBuildId별로 WIN/LOSE 존재 여부 집계
+            Map<Integer, Map<String, Boolean>> existsMap = new HashMap<>();
+            if (scripts != null) {
+                for (ScriptDTO s : scripts) {
+                    int oppId = s.getOppBuildId();
+                    existsMap.computeIfAbsent(oppId, k -> new HashMap<>());
+                    if (s.getContent() != null && !s.getContent().trim().isEmpty()) {
+                        existsMap.get(oppId).put(s.getResult(), true);
+                    }
+                }
+            }
+            // 반대 방향(내가 oppBuildId인 경우)도 조회
+            List<ScriptDTO> reverseScripts = scriptDAO.selectScriptSummaryByOppBuild(buildAId);
+            if (reverseScripts != null) {
+                for (ScriptDTO s : reverseScripts) {
+                    int myId = s.getMyBuildId();
+                    existsMap.computeIfAbsent(myId, k -> new HashMap<>());
+                    if (s.getContent() != null && !s.getContent().trim().isEmpty()) {
+                        existsMap.get(myId).put(s.getResult(), true);
+                    }
+                }
+            }
+            // { buildId: { hasWin: bool, hasLose: bool } } 형태로 반환
+            Map<String, Object> result = new HashMap<>();
+            for (Map.Entry<Integer, Map<String, Boolean>> entry : existsMap.entrySet()) {
+                Map<String, Boolean> status = new HashMap<>();
+                status.put("hasWin",  entry.getValue().getOrDefault("WIN",  false));
+                status.put("hasLose", entry.getValue().getOrDefault("LOSE", false));
+                result.put(String.valueOf(entry.getKey()), status);
+            }
+            res.put("success", true);
+            res.put("scriptStatus", result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            res.put("success", false);
+            res.put("scriptStatus", new HashMap<>());
+        }
+        return res;
     }
 
     @PostMapping("/script/load")

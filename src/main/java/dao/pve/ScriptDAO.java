@@ -26,6 +26,9 @@ public interface ScriptDAO {
     /** myBuildId 기준 전체 대본 목록 (관리 화면용 — oppBuildName 포함) */
     List<ScriptDTO> selectScriptSummaryByMyBuild(int myBuildId);
 
+    /** oppBuildId 기준 전체 대본 목록 (반대 방향 조회 — 동족전 대비) */
+    List<ScriptDTO> selectScriptSummaryByOppBuild(int oppBuildId);
+
     // ── 빌드 종족 상성 ────────────────────────────────────
     int insertOrUpdateMatchup(BuildMatchupDTO matchup);
     int deleteMatchupsByBuildId(int buildId);

@@ -224,7 +224,7 @@
 
             <div class="selector-group">
                 <label>빌드 B 선택</label>
-                <select id="buildBSelect" onchange="updateMatchupInfo()">
+                <select id="buildBSelect" onchange="updateMatchupInfo()" style="font-size:13px;">
                     <option value="">먼저 빌드 A를 선택하세요</option>
                 </select>
             </div>
@@ -341,10 +341,9 @@ let loseScripts = [
 function loadBuildB() {
     const buildASelect = document.getElementById('buildASelect');
     const buildBSelect = document.getElementById('buildBSelect');
-    const raceA = buildASelect.options[buildASelect.selectedIndex].dataset.race;
-    
+
     buildAId = buildASelect.value;
-    
+
     if (!buildAId) {
         buildBSelect.innerHTML = '<option value="">먼저 빌드 A를 선택하세요</option>';
         document.getElementById('scriptEditor').style.display = 'none';
@@ -353,15 +352,39 @@ function loadBuildB() {
     }
 
     buildBSelect.innerHTML = '<option value="">빌드 B를 선택하세요</option>';
-    
+
+    // 모든 빌드를 빌드B 후보로 추가 (동족전, 자기 자신 빌드 포함)
     document.querySelectorAll('#buildASelect option').forEach(opt => {
-        if (opt.value && opt.dataset.race !== raceA) {
+        if (opt.value) {
             const newOpt = document.createElement('option');
             newOpt.value = opt.value;
             newOpt.text = opt.text;
+            newOpt.dataset.scriptStatus = 'loading';
             buildBSelect.appendChild(newOpt);
         }
     });
+
+    // 대본 작성 여부 조회 후 미작성 표시
+    fetch('<c:url value="/admin/script/has-scripts" />?buildAId=' + buildAId)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) return;
+            const status = data.scriptStatus || {};
+            buildBSelect.querySelectorAll('option[value]').forEach(opt => {
+                if (!opt.value) return;
+                const s = status[opt.value];
+                const hasWin  = s && s.hasWin;
+                const hasLose = s && s.hasLose;
+                if (!hasWin || !hasLose) {
+                    const missing = [];
+                    if (!hasWin)  missing.push('승리');
+                    if (!hasLose) missing.push('패배');
+                    opt.text = opt.text.replace(' ⚠️ 미작성', '') + ' ⚠️ 미작성(' + missing.join('/') + ')';
+                    opt.style.color = '#e67e22';
+                }
+            });
+        })
+        .catch(() => {});
 }
 
 function updateMatchupInfo() {

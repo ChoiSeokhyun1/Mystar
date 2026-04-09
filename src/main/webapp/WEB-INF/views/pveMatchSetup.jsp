@@ -346,19 +346,19 @@
         const myRace  = selectedMyPlayerEl.dataset.race;
         const oppRace = (slot.dataset.oppRace || '').trim();  // AI 상대 종족 (예: 'TERRAN')
 
-        // DB의 VS_RACE는 단일 코드('T','Z','P'), aiPlayer.race는 풀네임('TERRAN','ZERG','PROTOSS')
-        // → 풀네임을 코드로 변환해서 비교
+        // RACE, VS_RACE 모두 약자('T','Z','P')로 통일 → 직접 비교
         const raceToCode = { 'TERRAN': 'T', 'ZERG': 'Z', 'PROTOSS': 'P' };
-        const oppRaceCode = raceToCode[oppRace] || oppRace;  // 'TERRAN' → 'T'
+        const myRaceCode  = raceToCode[myRace]  || myRace;   // 혹시 풀네임이 남아있을 경우 대비
+        const oppRaceCode = raceToCode[oppRace] || oppRace;
 
         const filtered = myBuilds.filter(b => {
-            const raceOk   = (b.race   || '').trim() === myRace;       // 'ZERG' === 'ZERG'
-            const vsRaceOk = !oppRaceCode                              // 상대 미정이면 전부 표시
-                          || (b.vsRace || '').trim() === oppRaceCode   // 'T' === 'T' ✓
-                          || (b.vsRace || '').trim() === 'A';          // 전체 적용 빌드
+            const raceOk   = (b.race   || '').trim() === myRaceCode;
+            const vsRaceOk = !oppRaceCode
+                          || (b.vsRace || '').trim() === oppRaceCode
+                          || (b.vsRace || '').trim() === 'A';
             return raceOk && vsRaceOk;
         });
-        console.log('[DEBUG] 내 선수 종족:', myRace, '/ AI 종족:', oppRace, '→ 코드:', oppRaceCode, '/ 매칭 빌드:', filtered.length, '개');
+        console.log('[DEBUG] 내 종족:', myRaceCode, '/ AI 종족:', oppRaceCode, '/ 매칭 빌드:', filtered.length, '개');
 
         const list = document.getElementById('modalBuildList');
         document.getElementById('modalRaceInfo').textContent = '선택된 선수: ' + selectedMyPlayerEl.dataset.name + ' (' + myRace + ')';

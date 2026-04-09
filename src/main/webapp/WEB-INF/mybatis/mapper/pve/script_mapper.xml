@@ -87,6 +87,19 @@
         ORDER BY ob.BUILD_ID, s.RESULT
     </select>
 
+    <!-- oppBuildId 기준 전체 대본 목록 (반대 방향 - 동족전 대비) -->
+    <select id="selectScriptSummaryByOppBuild" parameterType="int" resultMap="scriptMap">
+        SELECT s.SCRIPT_ID, s.MY_BUILD_ID, s.OPP_BUILD_ID, s.RESULT,
+               s.CONTENT, s.CREATED_AT,
+               mb.BUILD_NAME AS MY_BUILD_NAME,
+               ob.BUILD_NAME AS OPP_BUILD_NAME
+        FROM TBL_SCRIPTS s
+        JOIN TBL_BUILDS mb ON s.MY_BUILD_ID  = mb.BUILD_ID
+        JOIN TBL_BUILDS ob ON s.OPP_BUILD_ID = ob.BUILD_ID
+        WHERE s.OPP_BUILD_ID = #{oppBuildId}
+        ORDER BY mb.BUILD_ID, s.RESULT
+    </select>
+
     <!-- ── 빌드 종족 상성 ──────────────────────────────── -->
     <insert id="insertOrUpdateMatchup" parameterType="dto.pve.BuildMatchupDTO">
         MERGE INTO TBL_BUILD_MATCHUP t

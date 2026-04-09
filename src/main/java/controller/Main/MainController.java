@@ -527,19 +527,19 @@ public class MainController {
         }
 
         try {
-            // 관리자(SYSTEM) 빌드만 제공 - 유저는 관리자가 만든 빌드를 선택해서 사용
-            List<BuildDTO> myBuilds = buildService.getSystemBuilds();
-            if (myBuilds == null || myBuilds.isEmpty()) {
-                // fallback: 전체 빌드에서 SYSTEM만 필터링
-                List<BuildDTO> allBuilds = buildService.getAllBuilds();
-                if (allBuilds != null) {
-                    myBuilds = allBuilds.stream()
-                        .filter(b -> "SYSTEM".equals(b.getUserId()))
-                        .collect(Collectors.toList());
-                } else {
-                    myBuilds = new ArrayList<>();
-                }
+            // 모든 빌드를 가져와서 조건에 맞는 빌드만 필터링
+            List<BuildDTO> allBuilds = buildService.getAllBuilds();
+            List<BuildDTO> myBuilds = new ArrayList<>();
+            
+            if (allBuilds != null) {
+                myBuilds = allBuilds.stream()
+                    // SYSTEM, admin 계정으로 만든 것이거나, 현재 로그인한 유저 본인이 직접 만든 빌드 포함
+                    .filter(b -> "SYSTEM".equalsIgnoreCase(b.getUserId()) 
+                              || "admin".equalsIgnoreCase(b.getUserId())
+                              || userId.equals(b.getUserId()))
+                    .collect(Collectors.toList());
             }
+            
             // JS Syntax Error 방지: EL 대신 Jackson으로 JSON 직렬화해서 넘김
             ObjectMapper om = new ObjectMapper();
             mv.addObject("myBuildsJson", om.writeValueAsString(myBuilds));

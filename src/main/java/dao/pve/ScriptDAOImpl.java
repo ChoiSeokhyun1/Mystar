@@ -90,4 +90,9 @@ public class ScriptDAOImpl implements ScriptDAO {
     public List<BuildStatBonusDTO> selectStatBonusesByBuildId(int bid) { 
         return sqlSession.selectList(NS+"selectStatBonusesByBuildId", bid); 
     }
+
+    @Override
+    public List<ScriptDTO> selectScriptSummaryByOppBuild(int oppBuildId) {
+        return sqlSession.selectList("script.selectScriptSummaryByOppBuild", oppBuildId);
+    }
 }

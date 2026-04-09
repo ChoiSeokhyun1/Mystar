@@ -230,9 +230,9 @@
                     <label>내 종족</label>
                     <select id="race" required>
                         <option value="">선택하세요</option>
-                        <option value="ZERG">저그</option>
-                        <option value="TERRAN">테란</option>
-                        <option value="PROTOSS">프로토스</option>
+                        <option value="Z">저그</option>
+                        <option value="T">테란</option>
+                        <option value="P">프로토스</option>
                     </select>
                 </div>
                 
