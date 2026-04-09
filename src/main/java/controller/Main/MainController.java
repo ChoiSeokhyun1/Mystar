@@ -52,13 +52,13 @@ import dto.pve.PveOpponentInfoDTO;
 import dto.pve.BattleProgressDTO;
 import dto.pve.BattleSessionDTO;
 
-import org.springframework.dao.DataIntegrityViolationException;
 import service.gacha.GachaService;
 import service.mission.DailyMissionService;
 import service.user.LoginService;
 import service.entry.PveEntryService;
 import service.pve.PveScenarioService;
 import service.pve.PveSubstageService;
+import org.springframework.dao.DataIntegrityViolationException;
 import service.pve.BuildService;
 import service.pve.PveBattleService;
 
@@ -577,30 +577,20 @@ public class MainController {
         return "buildManagement";
     }
 
-    @GetMapping("/build/create")
-    public String showBuildCreatePage(HttpSession session, Model model) {
-        if (session.getAttribute("loginUser") == null) return "redirect:/login";
-        model.addAttribute("pageTitle", "전략 생성");
-        return "buildCreate";
-    }
 
     @PostMapping("/build/create")
     @ResponseBody
     public Map<String, Object> createBuild(@RequestBody BuildDTO buildDto, HttpSession session) {
         Map<String, Object> response = new HashMap<>();
         UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
-        if (loginUser == null) {
-            response.put("success", false);
-            response.put("message", "로그인이 필요합니다.");
-            return response;
-        }
+        if (loginUser == null) { response.put("success", false); response.put("message", "로그인이 필요합니다."); return response; }
         try {
             buildDto.setUserId(loginUser.getUserId());
             buildService.createBuild(buildDto);
             response.put("success", true);
         } catch (DataIntegrityViolationException e) {
             response.put("success", false);
-            response.put("message", "같은 종족에 동일한 이름의 전략이 이미 존재합니다. 다른 이름을 사용해주세요.");
+            response.put("message", "같은 종족에 동일한 이름의 전략이 이미 존재합니다.");
         } catch (Exception e) {
             e.printStackTrace();
             response.put("success", false);
@@ -609,6 +599,25 @@ public class MainController {
         return response;
     }
 
+    @PostMapping("/build/update")
+    @ResponseBody
+    public Map<String, Object> updateBuild(@RequestBody BuildDTO buildDto, HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
+        UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
+        if (loginUser == null) { response.put("success", false); return response; }
+        try {
+            buildDto.setUserId(loginUser.getUserId());
+            buildService.modifyBuild(buildDto);
+            response.put("success", true);
+        } catch (DataIntegrityViolationException e) {
+            response.put("success", false);
+            response.put("message", "같은 종족에 동일한 이름의 전략이 이미 존재합니다.");
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "빌드 수정 실패: " + e.getMessage());
+        }
+        return response;
+    }
 
     // =====================================================
     // 훈련 시스템
@@ -713,41 +722,6 @@ public class MainController {
         return response;
     }
 
-    @GetMapping("/build/edit")
-    public String showBuildEditPage(@RequestParam("id") int buildId, HttpSession session, Model model) {
-        UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
-        if (loginUser == null) return "redirect:/login";
-        try {
-            BuildDTO build = buildService.getBuildById(buildId);
-            if (build == null || !loginUser.getUserId().equals(build.getUserId()))
-                return "redirect:/build/manage";
-            model.addAttribute("build", build);
-            model.addAttribute("pageTitle", "전략 수정");
-            return "buildEdit";
-        } catch (Exception e) {
-            return "redirect:/build/manage";
-        }
-    }
-
-    @PostMapping("/build/edit")
-    @ResponseBody
-    public Map<String, Object> editBuild(@RequestBody BuildDTO buildDto, HttpSession session) {
-        Map<String, Object> response = new HashMap<>();
-        UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
-        if (loginUser == null) { response.put("success", false); return response; }
-        try {
-            buildDto.setUserId(loginUser.getUserId());
-            buildService.modifyBuild(buildDto);
-            response.put("success", true);
-        } catch (DataIntegrityViolationException e) {
-            response.put("success", false);
-            response.put("message", "같은 종족에 동일한 이름의 전략이 이미 존재합니다. 다른 이름을 사용해주세요.");
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "빌드 수정 실패: " + e.getMessage());
-        }
-        return response;
-    }
 
     @PostMapping("/build/delete")
     @ResponseBody

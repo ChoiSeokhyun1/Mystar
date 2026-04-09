@@ -43,8 +43,6 @@ public class PveBattleServiceImpl implements PveBattleService {
     private boolean decideWinner(Map<String, Object> matchup, Random rand) {
         BuildDTO myBuild = (BuildDTO) matchup.get("myBuild");
         BuildDTO aiBuild = (BuildDTO) matchup.get("aiBuild");
-        String myRace    = (String) matchup.get("myRace");
-        String aiRace    = (String) matchup.get("aiRace");
 
         // ── 기본 능력치 합산
         double myScore = calcBaseScore(matchup, "my");
@@ -58,9 +56,14 @@ public class PveBattleServiceImpl implements PveBattleService {
         myScore *= streakMult(getInt(matchup, "myWinStreak", 0));
         aiScore *= streakMult(getInt(matchup, "aiWinStreak", 0));
 
-        // ── 빌드 상성 배율 (내 빌드가 상대 종족에 대해 GOOD/NORMAL/BAD)
-        if (myBuild != null) myScore *= matchupMult(myBuild.getBuildId(), aiRace);
-        if (aiBuild != null) aiScore *= matchupMult(aiBuild.getBuildId(), myRace);
+        // ── (핵심 수정) 빌드 vs 빌드 상성 배율 적용
+        if (myBuild != null && aiBuild != null) {
+            // 내 빌드 입장에서 상대 빌드를 상대할 때의 상성
+            myScore *= matchupMult(myBuild.getBuildId(), aiBuild.getBuildId());
+            
+            // AI 빌드 입장에서 내 빌드를 상대할 때의 상성
+            aiScore *= matchupMult(aiBuild.getBuildId(), myBuild.getBuildId());
+        }
 
         // ── 빌드별 능력치 가산점
         if (myBuild != null) myScore *= statBonusMult(myBuild.getBuildId(), matchup, "my");
@@ -102,20 +105,17 @@ public class PveBattleServiceImpl implements PveBattleService {
         return 1.00;
     }
 
-    /** 빌드 상성 배율: DB에서 조회 (없으면 NORMAL=1.0) */
-    private double matchupMult(int buildId, String vsRace) {
+    /** (변경됨) 빌드 vs 빌드 상성 배율: DB에서 직접 상성값(GOOD/BAD/NORMAL) 단건 조회 */
+    private double matchupMult(int myBuildId, int oppBuildId) {
         try {
-            List<BuildMatchupDTO> list = scriptDAO.selectMatchupsByBuildId(buildId);
-            for (BuildMatchupDTO m : list) {
-                if (vsRace.equals(m.getVsRace())) {
-                    switch (m.getMatchup()) {
-                        case "GOOD":   return 1.30;
-                        case "BAD":    return 0.70;
-                        default:       return 1.00;
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
+            String matchupStatus = scriptDAO.getBuildMatchup(myBuildId, oppBuildId);
+            
+            if ("GOOD".equals(matchupStatus)) return 1.30;
+            if ("BAD".equals(matchupStatus)) return 0.70;
+            
+        } catch (Exception e) {
+            // DB에 세팅된 값이 없거나 에러가 나면 무조건 보통(1.0) 처리
+        }
         return 1.00;
     }
 

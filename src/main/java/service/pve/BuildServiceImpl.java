@@ -18,14 +18,21 @@ public class BuildServiceImpl implements BuildService {
 
     /** 상성/가산점/대본 일괄 저장 */
     private void saveScriptData(int buildId, BuildDTO build) {
-        // 상성
+        
+        // ---------------------------------------------------------
+        // [수정됨] 기존 종족 기반 상성 저장 로직 주석(삭제) 처리
+        // '빌드 vs 빌드' 상성 시스템 도입으로 인해 상성은 대본 관리 페이지에서 개별 저장됩니다.
+        /*
         scriptDAO.deleteMatchupsByBuildId(buildId);
         if (build.getMatchups() != null) {
             for (BuildMatchupDTO m : build.getMatchups()) {
-                m.setBuildId(buildId);
+                m.setBuildId(buildId); // 에러 발생 지점 해결
                 scriptDAO.insertOrUpdateMatchup(m);
             }
         }
+        */
+        // ---------------------------------------------------------
+
         // 능력치 가산점
         scriptDAO.deleteStatBonusesByBuildId(buildId);
         if (build.getStatBonuses() != null) {
@@ -34,6 +41,7 @@ public class BuildServiceImpl implements BuildService {
                 scriptDAO.insertOrUpdateStatBonus(b);
             }
         }
+        
         // 대본
         scriptDAO.deleteScriptsByMyBuildId(buildId);
         if (build.getScripts() != null) {
@@ -62,7 +70,9 @@ public class BuildServiceImpl implements BuildService {
 
     @Override
     public int removeBuild(int buildId) {
-        scriptDAO.deleteMatchupsByBuildId(buildId);
+        // 빌드 삭제 시 구버전 상성 삭제 쿼리도 에러 방지를 위해 주석 처리합니다.
+        // scriptDAO.deleteMatchupsByBuildId(buildId);
+        
         scriptDAO.deleteStatBonusesByBuildId(buildId);
         scriptDAO.deleteScriptsByMyBuildId(buildId);
         buildDAO.nullifyOpponentBuildId(buildId);
@@ -73,7 +83,11 @@ public class BuildServiceImpl implements BuildService {
 
     @Override
     public BuildDTO getBuildById(int buildId) {
-        return buildDAO.selectBuildById(buildId);
+        BuildDTO build = buildDAO.selectBuildById(buildId);
+        if (build != null) {
+            build.setStatBonuses(scriptDAO.selectStatBonusesByBuildId(buildId));
+        }
+        return build;
     }
 
     @Override

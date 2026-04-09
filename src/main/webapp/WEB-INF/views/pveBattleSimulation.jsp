@@ -1,424 +1,465 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
-<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PVE ${stageLevel}-${subLevel} 경기 · My Star League</title>
-    <link rel="stylesheet" href="<c:url value='/css/msl-layout.css'/>">
-    <link rel="stylesheet" href="<c:url value='/css/pveBattleSimulation.css'/>">
+    <title>MYSTAR - LIVE TACTICAL SIMULATION</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* ==========================================================================
+           1. CORE VARIABLES & RESET
+           ========================================================================== */
+        :root {
+            --bg-base: #0a0e17; 
+            --panel-bg: rgba(16, 22, 36, 0.9);
+            --panel-border: rgba(56, 189, 248, 0.15); 
+            --blue-glow: rgba(56, 189, 248, 0.8); 
+            --red-glow: rgba(244, 63, 94, 0.8); 
+            --text-main: #e2e8f0; 
+            --text-muted: #94a3b8; 
+            --text-accent: #f1f5f9; 
+            --log-text: #f8fafc; 
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: 'Noto Sans KR', sans-serif;
+            height: 100vh; width: 100vw;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        /* 옅은 전술 그리드 배경 효과 */
+        body::before {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.03), transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.01) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.01) 1px, transparent 1px),
+                repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.03) 1px, transparent 1px, transparent 2px);
+            background-size: 100% 100%, 50px 50px, 50px 50px, 100% 4px;
+            pointer-events: none; z-index: -1;
+        }
+
+        .hud-wrapper {
+            width: 100%; max-width: 1920px; height: 100%;
+            margin: 0 auto; padding: 25px;
+            display: flex; flex-direction: column; gap: 30px;
+            position: relative; z-index: 10;
+        }
+
+        /* ==========================================================================
+           2. 💡수정됨: 깨지지 않는 견고한 스코어보드
+           ========================================================================== */
+        .top-scoreboard {
+            position: relative;
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px; padding: 20px 40px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.6);
+            backdrop-filter: blur(15px);
+        }
+
+        /* 상단 데코레이션 라인 */
+        .top-scoreboard::before, .top-scoreboard::after {
+            content: ''; position: absolute; top: -1px; width: 25%; height: 2px;
+        }
+        .top-scoreboard::before { left: 10%; background: linear-gradient(90deg, transparent, var(--blue-glow), transparent); }
+        .top-scoreboard::after { right: 10%; background: linear-gradient(90deg, transparent, var(--red-glow), transparent); }
+
+        /* 좌우 팀 블록 (Flex: 1로 동일한 비율 차지) */
+        .team-block { display: flex; flex-direction: column; flex: 1; }
+        .team-block.blue { align-items: flex-end; text-align: right; }
+        .team-block.red { align-items: flex-start; text-align: left; }
+
+        .team-name { font-size: 15px; color: var(--text-muted); font-weight: 500; letter-spacing: 2px; margin-bottom: 5px;}
+        .player-name { font-size: 32px; font-weight: 900; color: var(--text-accent); letter-spacing: 1px; text-transform: uppercase;}
+        .team-block.blue .player-name { text-shadow: 0 0 15px rgba(56, 189, 248, 0.4); }
+        .team-block.red .player-name { text-shadow: 0 0 15px rgba(244, 63, 94, 0.4); }
+
+        /* 💡수정됨: 겹침 방지를 위해 Gap을 줄이고 넓이 고정 */
+        .score-center { 
+            display: flex; align-items: center; justify-content: center; gap: 30px; 
+            min-width: 300px; /* 좁아져도 깨지지 않게 최소 너비 보장 */
+        }
+        
+        .score-num { font-size: 70px; font-weight: 700; font-family: 'Roboto Mono', monospace; line-height: 1; }
+        .score-num.blue { color: var(--text-accent); text-shadow: 0 0 20px rgba(56, 189, 248, 0.8); }
+        .score-num.red { color: var(--text-accent); text-shadow: 0 0 20px rgba(244, 63, 94, 0.8); }
+        
+        /* 💡수정됨: Absolute 제거하고 Flex로 정렬하여 겹침 완전 해결 */
+        .match-info { display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 2;}
+        .vs-badge {
+            background: rgba(15, 23, 42, 0.9); border: 1px solid #475569; border-radius: 8px;
+            padding: 8px 20px; font-size: 22px; color: var(--text-accent); font-weight: 900; letter-spacing: 1px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        .set-status { 
+            background: #eab308; color: #0f172a; padding: 4px 15px; border-radius: 4px; 
+            font-size: 13px; font-weight: 700; letter-spacing: 1.5px; box-shadow: 0 3px 10px rgba(234, 179, 8, 0.3);
+        }
+
+        /* ==========================================================================
+           3. MAIN STAGE (MAP & LOGS)
+           ========================================================================== */
+        .main-stage {
+            display: flex; gap: 30px;
+            flex-grow: 1; height: 0; min-height: 0;
+        }
+
+        /* --- LEFT: 완벽한 정사각형 미니맵 --- */
+        .map-section {
+            height: 100%; aspect-ratio: 1 / 1; flex-shrink: 0;
+            background-color: rgba(10, 14, 23, 0.95);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px; position: relative; overflow: hidden;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6), inset 0 0 50px rgba(0,0,0,0.8);
+            padding: 15px;
+        }
+
+        .minimap-container {
+            width: 100%; height: 100%;
+            background-color: #050810;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 5% 5%;
+            border-radius: 8px; position: relative; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        #entityLayer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
+        
+        .entity {
+            position: absolute; transform: translate(-50%, -50%);
+            transition: top 1s cubic-bezier(0.4, 0, 0.2, 1), left 1s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; justify-content: center; align-items: center;
+        }
+        
+        .building { width: 40px; height: 40px; border: 2px solid rgba(255,255,255,0.8); border-radius: 6px; position: relative; }
+        .building.blue { background: rgba(56, 189, 248, 0.2); border-color: var(--blue-glow); box-shadow: 0 0 15px rgba(56, 189, 248, 0.5); }
+        .building.red { background: rgba(244, 63, 94, 0.2); border-color: var(--red-glow); box-shadow: 0 0 15px rgba(244, 63, 94, 0.5); }
+        
+        .unit { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.9); }
+        .unit.blue { background: var(--blue-glow); box-shadow: 0 0 10px rgba(56, 189, 248, 0.6); }
+        .unit.red { background: var(--red-glow); box-shadow: 0 0 10px rgba(244, 63, 94, 0.6); }
+
+        .attack-fx {
+            position: absolute; color: #f59e0b; font-size: 40px;
+            transform: translate(-50%, -50%); z-index: 20; text-shadow: 0 0 20px #f59e0b;
+            animation: blast 0.5s ease-out forwards;
+        }
+        @keyframes blast {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.3) rotate(15deg); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+        }
+
+        /* --- RIGHT: 모멘텀 & 로그 --- */
+        .right-section {
+            flex-grow: 1; display: flex; flex-direction: column; gap: 20px; height: 100%;
+        }
+
+        /* 직관적인 주도권(모멘텀) 바 */
+        .momentum-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px; padding: 20px 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+        }
+        .momentum-title { text-align: center; font-size: 13px; color: var(--text-muted); font-weight: 500; letter-spacing: 2px; margin-bottom: 12px;}
+        
+        .momentum-labels { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; }
+        .m-name { font-size: 20px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;}
+        .m-name.blue { color: var(--blue-glow); }
+        .m-name.red { color: var(--red-glow); }
+        .m-center { font-size: 11px; color: var(--text-muted); font-weight: 500; letter-spacing: 2px;}
+
+        .momentum-bar-bg {
+            width: 100%; height: 16px; background: rgba(244, 63, 94, 0.6);
+            border-radius: 8px; overflow: hidden; position: relative;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.05);
+        }
+        #momentumFill {
+            height: 100%; width: 50%; background: rgba(56, 189, 248, 0.7);
+            transition: width 0.3s ease-out; border-right: 2px solid #fff;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+        }
+
+        /* 배경 없는 깔끔한 대본 영역 */
+        .log-panel {
+            flex-grow: 1;
+            background: rgba(16, 22, 36, 0.4); 
+            border: 1px solid rgba(255,255,255,0.05); border-radius: 12px;
+            padding: 20px; display: flex; flex-direction: column; gap: 12px;
+            overflow: hidden; 
+        }
+
+        .log-container {
+            flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+            padding-right: 15px;
+            -webkit-mask-image: linear-gradient(to bottom, transparent, black 5%, black 95%, transparent);
+            mask-image: linear-gradient(to bottom, transparent, black 5%, black 95%, transparent);
+        }
+        .log-container::-webkit-scrollbar { width: 5px; }
+        .log-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+        .log-line {
+            padding: 10px 12px; font-size: 18px; line-height: 1.6; font-weight: 600;
+            color: var(--log-text);
+            opacity: 0; transform: translateY(12px);
+            animation: slideIn 0.3s ease-out forwards;
+            word-break: keep-all;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.9); /* 가독성을 위한 강한 섀도우 */
+        }
+        @keyframes slideIn { to { opacity: 1; transform: translateY(0); } }
+
+        .log-line.blue strong { color: var(--blue-glow); font-size: 20px; font-weight: 800; margin-right: 6px;}
+        .log-line.red strong { color: var(--red-glow); font-size: 20px; font-weight: 800; margin-right: 6px;}
+        .log-line.neutral { color: var(--text-muted); font-weight: 400; font-size: 16px; }
+
+        /* 하단 진행 상태 및 액션 버튼 */
+        .control-panel {
+            background: var(--panel-bg); border-radius: 12px; padding: 20px;
+            border: 1px solid var(--panel-border); backdrop-filter: blur(10px);
+        }
+        .progress-track { width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; margin-bottom: 15px;}
+        #simProgressBar { height: 100%; width: 0%; background: #eab308; transition: width 0.2s; box-shadow: 0 0 10px rgba(234, 179, 8, 0.4);}
+
+        .btn-action-wrapper { display: none; }
+        .btn-action {
+            width: 100%; background: rgba(10, 14, 23, 0.8); color: var(--blue-glow);
+            border: 2px solid var(--blue-glow); padding: 15px; font-size: 20px; font-weight: 800;
+            border-radius: 8px; cursor: pointer; transition: all 0.2s ease; letter-spacing: 2px; text-transform: uppercase;
+        }
+        .btn-action:hover { background: var(--blue-glow); color: #0a0e17; box-shadow: 0 0 25px rgba(56, 189, 248, 0.5); }
+        .btn-final { border-color: #eab308; color: #eab308; }
+        .btn-final:hover { background: #eab308; color: #0a0e17; box-shadow: 0 0 25px rgba(234, 179, 8, 0.5); }
+
+    </style>
 </head>
 <body>
-<c:set var="cm" value="${matchupList[currentSet - 1]}"/>
 
-<%-- ═══ TOPBAR ══════════════════════════════════════════════════════════ --%>
-<header class="msl-topbar sim-topbar">
-    <div class="sim-topbar-logo">MY STAR <span>LEAGUE</span></div>
-    <nav class="msl-breadcrumb sim-breadcrumb">
-        <a href="<c:url value='/mode-select'/>">홈</a><span class="sep">/</span>
-        <a href="<c:url value='/pve/lobby'/>">PVE</a><span class="sep">/</span>
-        <span class="current">STAGE ${stageLevel}-${subLevel} · SET ${currentSet}</span>
-    </nav>
-    <div class="msl-topbar-right">
-        <div class="sim-live-badge">● LIVE</div>
-        <div class="msl-crystal">💎 ${sessionScope.loginUser.crystal}</div>
-        <div class="msl-user-label"><strong>${sessionScope.loginUser.userNick}</strong></div>
-    </div>
-</header>
+<script type="application/json" id="replayJsonData">${replayJson}</script>
+<c:set var="idx" value="${currentSet - 1}" />
+<c:set var="curMatchup" value="${matchupList[idx]}" />
 
-<%-- ═══ HIDDEN DATA (변경 없음) ══════════════════════════════════════════ --%>
-<div id="data-storage" style="display:none">
-    <textarea id="hiddenScriptJson"><c:out value="${replayJson}" default="{}" escapeXml="true"/></textarea>
-    <input type="hidden" id="meta-stageLevel" value="${stageLevel}"/>
-    <input type="hidden" id="meta-subLevel"   value="${subLevel}"/>
-    <input type="hidden" id="meta-currentSet" value="${currentSet}"/>
-    <input type="hidden" id="meta-myRace"     value="${cm.myPlayerRace}"/>
-    <input type="hidden" id="meta-aiRace"     value="${cm.aiPlayerRace}"/>
-    <textarea id="hiddenMatchupData">{"myPlayerName":"${cm.myPlayerName}","aiPlayerName":"${cm.aiPlayerName}","myPlayerImgUrl":"${cm.myPlayerImgUrl}","aiPlayerImgUrl":"${cm.aiPlayerImgUrl}","myPlayerRarity":"${cm.myPlayerRarity}","aiPlayerRarity":"${cm.aiPlayerRarity}","myPlayerRace":"${cm.myPlayerRace}","aiPlayerRace":"${cm.aiPlayerRace}","myPlayerAttack":${cm.myPlayerAttack!=null?cm.myPlayerAttack:0},"myPlayerDefense":${cm.myPlayerDefense!=null?cm.myPlayerDefense:0},"myPlayerMacro":${cm.myPlayerMacro!=null?cm.myPlayerMacro:0},"myPlayerMicro":${cm.myPlayerMicro!=null?cm.myPlayerMicro:0},"myPlayerLuck":${cm.myPlayerLuck!=null?cm.myPlayerLuck:0},"aiPlayerAttack":${cm.aiPlayerAttack!=null?cm.aiPlayerAttack:0},"aiPlayerDefense":${cm.aiPlayerDefense!=null?cm.aiPlayerDefense:0},"aiPlayerMacro":${cm.aiPlayerMacro!=null?cm.aiPlayerMacro:0},"aiPlayerMicro":${cm.aiPlayerMicro!=null?cm.aiPlayerMicro:0},"aiPlayerLuck":${cm.aiPlayerLuck!=null?cm.aiPlayerLuck:0}}</textarea>
-    <textarea id="hiddenGameEntities">[<c:forEach var="b" items="${buildings}" varStatus="st">{"id":"${b.id}","name":"${b.name}","type":"building","mineral":${b.cost},"req":"${b.requiredBuilding}"}<c:if test="${!st.last}">,</c:if></c:forEach><c:if test="${not empty buildings and not empty units}">,</c:if><c:forEach var="u" items="${units}" varStatus="st">{"id":"${u.id}","name":"${u.name}","type":"unit","mineral":${u.cost},"req":"${u.requiredBuilding}"}<c:if test="${!st.last}">,</c:if></c:forEach>]</textarea>
-    <%-- JS에서 읽는 표시용 요소 (화면 밖) --%>
-    <span id="game-minerals">50</span><span id="game-gas">0</span>
-    <span id="game-minerals-per-second">0</span><span id="game-gas-per-second">0</span>
-    <span id="game-my-defense">1000</span><span id="game-ai-defense">1000</span>
-    <span id="game-my-power">0</span><span id="game-ai-power">0</span>
-    <span id="game-ai-minerals">50</span><span id="game-ai-gas">0</span>
-    <span id="game-ai-minerals-per-second">0</span>
-    <span id="disp-ai-workers">0</span>
-    <span id="log-game-time">00:00</span>
-</div>
-
-<%-- ═══ MAIN ════════════════════════════════════════════════════════════ --%>
-<main class="sim-layout">
-
-    <%-- ══════════════════════════════════════════════════════════════════
-         FIGHT HUD  —  내 선수 ←[HP/PWR 바]→ 스코어 ←[HP/PWR 바]→ 상대 선수
-    ══════════════════════════════════════════════════════════════════ --%>
-    <div class="fight-hud">
-
-        <%-- 내 선수 --%>
-        <div class="fh-side fh-side-my">
-
-            <%-- 사진 (클릭 → 스탯 모달) --%>
-            <div class="fhp-photo fhp-photo-my" id="myPlayerStatsHeader" title="스탯 보기">
-                <img id="my-player-img"
-                     src="<c:choose><c:when test='${not empty cm.myPlayerImgUrl}'><c:url value='${cm.myPlayerImgUrl}'/></c:when><c:otherwise></c:otherwise></c:choose>"
-                     alt="${cm.myPlayerName}"
-                     onerror="this.style.display='none';document.getElementById('my-init').style.display='flex'"/>
-                <div class="fhp-initial" id="my-init" style="display:none">${fn:substring(cm.myPlayerName,0,1)}</div>
-                <div class="fhp-photo-hint">STATS</div>
-            </div>
-
-            <%-- 이름 + 뱃지 + 바 + 자원 --%>
-            <div class="fhp-info">
-                <div class="fhp-namerow">
-                    <span class="fhp-name">${cm.myPlayerName}</span>
-                    <span class="msl-rarity ${fn:toLowerCase(cm.myPlayerRarity)}">${cm.myPlayerRarity}</span>
-                    <span class="msl-race ${cm.myPlayerRace}">${cm.myPlayerRace}</span>
-                </div>
-
-                <div class="fhp-bars">
-                    <%-- BASE HP --%>
-                    <div class="fhb-row">
-                        <span class="fhb-lbl">HP</span>
-                        <div class="fhb-track">
-                            <div id="bar-my-defense" class="fhb-fill" style="width:100%"></div>
-                            <span id="bar-my-def-num" class="fhb-num-hidden">1000</span>
-                        </div>
-                        <span id="disp-my-defense" class="fhb-val fhb-val-my">1000</span>
-                    </div>
-                    <%-- 전투력 --%>
-                    <div class="fhb-row">
-                        <span class="fhb-lbl">PWR</span>
-                        <div class="fhb-track">
-                            <div id="bar-my-power" class="fhb-fill" style="width:0%"></div>
-                            <span id="bar-my-pow-num" class="fhb-num-hidden">0</span>
-                        </div>
-                        <span id="disp-my-power" class="fhb-val fhb-val-my">0</span>
-                    </div>
-                </div>
-
-                <div class="fhp-res">
-                    <span class="fhp-res-item">💎 <span id="bn-my-min">50</span></span>
-                    <span class="fhp-res-item">⛽ <span id="bn-my-gas">0</span></span>
-                    <span class="fhp-res-item">👷 <span id="bn-my-workers">0</span></span>
-                </div>
-            </div>
+<div class="hud-wrapper">
+    <header class="top-scoreboard">
+        <div class="team-block blue">
+            <div class="team-name">${not empty myTeamName ? myTeamName : 'BLUE SQUADRON'}</div>
+            <div class="player-name">${curMatchup.myPlayerName}</div>
         </div>
-
-        <%-- 중앙 스코어 --%>
-        <div class="fh-center">
-            <div class="fhc-stage">STAGE ${stageLevel}-${subLevel} · ${cm.mapName}</div>
-
-            <div class="fhc-score">
-                <span id="hud-my-wins" class="fhc-n fhc-n-my">${myWins}</span>
-                <span class="fhc-colon">:</span>
-                <span id="hud-ai-wins" class="fhc-n fhc-n-ai">${aiWins}</span>
+        
+        <div class="score-center">
+            <div class="score-num blue" id="userWins">${myWins}</div>
+            <div class="match-info">
+                <div class="vs-badge">VS</div>
+                <div class="set-status">SET <span id="currentSetText">${currentSet}</span></div>
             </div>
-
-            <div class="fhc-sets">
-                <c:forEach begin="1" end="5" var="i">
-                    <span class="fhc-dot ${i<=currentSet?(i<currentSet?'dot-done':'dot-active'):''}"></span>
-                </c:forEach>
-            </div>
-
-            <div class="fhc-time" id="relay-time-hud">00:00</div>
-
-            <div class="fhc-ctrl">
-                <button id="skipButton" onclick="skipToResult()" class="btn-skip">⏩ 결과 보기</button>
-                <button id="nextMatchButton" class="btn-next" style="display:none">다음 경기 →</button>
-            </div>
+            <div class="score-num red" id="aiWins">${aiWins}</div>
         </div>
+        
+        <div class="team-block red">
+            <div class="team-name">${not empty opponentTeamName ? opponentTeamName : 'RED SQUADRON'}</div>
+            <div class="player-name">${curMatchup.aiPlayerName}</div>
+        </div>
+    </header>
 
-        <%-- 상대 선수 (좌우 반전) --%>
-        <div class="fh-side fh-side-ai">
+    <main class="main-stage">
+        
+        <section class="map-section">
+            <div class="minimap-container" id="mapContainer">
+                <div id="entityLayer"></div>
+            </div>
+        </section>
 
-            <div class="fhp-info fhp-info-ai">
-                <div class="fhp-namerow fhp-namerow-ai">
-                    <span class="msl-race ${cm.aiPlayerRace}">${cm.aiPlayerRace}</span>
-                    <span class="msl-rarity ${fn:toLowerCase(cm.aiPlayerRarity)}">${cm.aiPlayerRarity}</span>
-                    <span class="fhp-name">${cm.aiPlayerName}</span>
+        <section class="right-section">
+            
+            <div class="momentum-panel">
+                <div class="momentum-title">LIVE TACTICAL DOMINANCE</div>
+                <div class="momentum-labels">
+                    <span class="m-name blue">${curMatchup.myPlayerName}</span>
+                    <span class="m-center">주도권</span>
+                    <span class="m-name red">${curMatchup.aiPlayerName}</span>
                 </div>
-
-                <div class="fhp-bars fhp-bars-ai">
-                    <%-- BASE HP (오른쪽→왼쪽으로 감소) --%>
-                    <div class="fhb-row fhb-row-ai">
-                        <span id="disp-ai-defense" class="fhb-val fhb-val-ai">1000</span>
-                        <div class="fhb-track">
-                            <div id="bar-ai-defense" class="fhb-fill" style="width:100%"></div>
-                            <span id="bar-ai-def-num" class="fhb-num-hidden">1000</span>
-                        </div>
-                        <span class="fhb-lbl">HP</span>
-                    </div>
-                    <%-- 전투력 --%>
-                    <div class="fhb-row fhb-row-ai">
-                        <span id="disp-ai-power" class="fhb-val fhb-val-ai">0</span>
-                        <div class="fhb-track">
-                            <div id="bar-ai-power" class="fhb-fill" style="width:0%"></div>
-                            <span id="bar-ai-pow-num" class="fhb-num-hidden">0</span>
-                        </div>
-                        <span class="fhb-lbl">PWR</span>
-                    </div>
-                </div>
-
-                <div class="fhp-res fhp-res-ai">
-                    <span class="fhp-res-item">👷 <span id="bn-ai-workers">0</span></span>
-                    <span class="fhp-res-item">⛽ <span id="bn-ai-gas">0</span></span>
-                    <span class="fhp-res-item">💎 <span id="bn-ai-min">50</span></span>
+                <div class="momentum-bar-bg">
+                    <div id="momentumFill"></div>
                 </div>
             </div>
 
-            <div class="fhp-photo fhp-photo-ai" id="aiPlayerStatsHeader" title="스탯 보기">
-                <img id="ai-player-img"
-                     src="<c:choose><c:when test='${not empty cm.aiPlayerImgUrl}'><c:url value='${cm.aiPlayerImgUrl}'/></c:when><c:otherwise></c:otherwise></c:choose>"
-                     alt="${cm.aiPlayerName}"
-                     onerror="this.style.display='none';document.getElementById('ai-init').style.display='flex'"/>
-                <div class="fhp-initial" id="ai-init" style="display:none">${fn:substring(cm.aiPlayerName,0,1)}</div>
-                <div class="fhp-photo-hint">STATS</div>
-            </div>
-        </div>
-
-    </div><%-- /fight-hud --%>
-
-
-    <%-- ══════════════════════════════════════════════════════════════════
-         ARENA  —  3열 : [내 진영] [문자 중계] [상대 진영]
-    ══════════════════════════════════════════════════════════════════ --%>
-    <div class="arena">
-
-        <%-- ▌내 진영 ─────────────────────────────────────────────────── --%>
-        <div class="field-panel my-panel">
-
-            <div class="fp-team-bar">
-                <span class="fp-team-name fp-team-name-my">${myTeamName}</span>
+            <div class="log-panel">
+                <div class="log-container" id="logContainer"></div>
             </div>
 
-            <%-- 스탯 --%>
-            <div class="fp-section fp-stat-panel" id="my-stat-panel"></div>
-
-            <%-- 건물 --%>
-            <div class="fp-section">
-                <div class="fp-sec-label">🏗 건물</div>
-                <div id="my-building-grid" class="entity-grid"></div>
-            </div>
-
-            <%-- 유닛 --%>
-            <div class="fp-section">
-                <div class="fp-sec-label">⚔ 유닛</div>
-                <div id="my-unit-grid" class="entity-grid"></div>
-            </div>
-        </div>
-
-        <%-- ▌문자 중계 ──────────────────────────────────────────────── --%>
-        <div class="relay-panel">
-            <div class="relay-head">
-                <span class="relay-dot"></span>
-                <span class="relay-title">실시간 문자 중계</span>
-            </div>
-            <div class="relay-feed" id="live-log">
-                <div class="relay-row rr-system">
-                    <span class="rr-time">00:00</span>
-                    <span class="rr-badge rr-system-badge">시스템</span>
-                    <span class="rr-msg">데이터 로딩 중…</span>
+            <div class="control-panel">
+                <div class="progress-track"><div id="simProgressBar"></div></div>
+                <div class="btn-action-wrapper" id="actionArea">
+                    <button id="btnNextSet" class="btn-action" onclick="nextSet()">ENGAGE NEXT SET ▶</button>
+                    <button id="btnFinalResult" class="btn-action btn-final" onclick="showFinalResult()">VIEW FINAL REPORT 🏆</button>
                 </div>
             </div>
-        </div>
 
-        <%-- ▌상대 진영 ─────────────────────────────────────────────── --%>
-        <div class="field-panel ai-panel">
-
-            <div class="fp-team-bar fp-team-bar-ai">
-                <span class="fp-team-name fp-team-name-ai">${opponentTeamName}</span>
-            </div>
-
-            <%-- 스탯 --%>
-            <div class="fp-section fp-stat-panel" id="ai-stat-panel"></div>
-
-            <%-- 건물 --%>
-            <div class="fp-section">
-                <div class="fp-sec-label fp-sec-label-ai">건물 🏗</div>
-                <div id="ai-building-grid" class="entity-grid"></div>
-            </div>
-
-            <%-- 유닛 --%>
-            <div class="fp-section">
-                <div class="fp-sec-label fp-sec-label-ai">유닛 ⚔</div>
-                <div id="ai-unit-grid" class="entity-grid"></div>
-            </div>
-        </div>
-
-    </div><%-- /arena --%>
-
-</main>
-
-<%-- ═══ 경기 결과 모달 ════════════════════════════════════════════════ --%>
-<div id="statChangeModal" class="msl-modal-back" style="display:none">
-    <div class="msl-modal result-modal">
-        <div class="msl-modal-head"><h2>📊 경기 결과</h2></div>
-        <div class="msl-modal-body" id="statChangeContent"></div>
-        <div class="msl-modal-foot">
-            <button class="msl-btn msl-btn-primary" onclick="closeStatModal()">확인 후 나가기</button>
-        </div>
-    </div>
-</div>
-
-<%-- ═══ 스탯 상세 모달 ══════════════════════════════════════════════════ --%>
-<div id="playerStatDetailModal" class="msl-modal-back" style="display:none">
-    <div class="msl-modal" style="max-width:460px">
-        <div class="msl-modal-head"><h2 id="playerStatDetailTitle">스탯 상세</h2></div>
-        <div class="msl-modal-body" id="playerStatDetailContent"></div>
-        <div class="msl-modal-foot">
-            <button class="msl-btn msl-btn-secondary" onclick="document.getElementById('playerStatDetailModal').style.display='none'">닫기</button>
-        </div>
-    </div>
+        </section>
+    </main>
 </div>
 
 <script>
-const META_DATA = {};
-const SCRIPT_RAW = document.getElementById('hiddenScriptJson');
-const SCRIPT_DATA = SCRIPT_RAW ? JSON.parse(SCRIPT_RAW.value || '{}') : {};
-const SCRIPT_LINES = SCRIPT_DATA.lines || [];
-const MY_WIN  = SCRIPT_DATA.myWin  || false;
-const contextPath = '${pageContext.request.contextPath}';
+    // --- 1. 데이터 로드 ---
+    const replayJsonRaw = document.getElementById('replayJsonData').textContent;
+    let replayData = {};
+    try { replayData = JSON.parse(replayJsonRaw); } catch(e) {}
 
-// 메타 데이터 세팅
-(function(){
-    try{
-        META_DATA.stageLevel = document.getElementById('meta-stageLevel').value;
-        META_DATA.subLevel = document.getElementById('meta-subLevel').value;
-        META_DATA.currentSet = parseInt(document.getElementById('meta-currentSet').value) || 1;
-    } catch(e) {
-        console.error("메타 데이터 파싱 오류:", e);
+    const scriptLines = replayData.lines || [];
+    const myWinFlag = replayData.myWin;
+    const myName = replayData.myName || "${curMatchup.myPlayerName}";
+    const aiName = replayData.aiName || "${curMatchup.aiPlayerName}";
+
+    // --- 2. 💡수정됨: 2인용 맵 랜덤 스타팅 시스템 ---
+    // 2개의 스폰 구역 (11시 방향 vs 5시 방향)
+    const SPOT_A = { main: { x: 20, y: 20 }, exp: { x: 35, y: 20 }, rally: { x: 35, y: 35 } }; // 11시
+    const SPOT_B = { main: { x: 80, y: 80 }, exp: { x: 65, y: 80 }, rally: { x: 65, y: 65 } }; // 5시
+    
+    const COORDS = { center: { x: 50, y: 50 } };
+
+    // 50% 확률로 블루와 레드의 위치를 랜덤 배정
+    if (Math.random() < 0.5) {
+        COORDS.blue = SPOT_A;
+        COORDS.red = SPOT_B;
+    } else {
+        COORDS.blue = SPOT_B;
+        COORDS.red = SPOT_A;
     }
-})();
 
-let scriptIdx = 0;
-let scriptTicker = null;
-let scriptFinished = false;
+    const entityLayer = document.getElementById('entityLayer');
 
-document.addEventListener('DOMContentLoaded', () => {
-    // 삭제된 과거 함수들은 호출하지 않음 (JS 에러 방지)
-    startScript();
-});
-
-/* ── 1. 대본 출력 시작 ── */
-function startScript() {
-    const logBox = document.getElementById('live-log');
-    
-    if (SCRIPT_LINES.length === 0) { 
-        if(logBox) logBox.innerHTML = '';
-        appendLog('대본 데이터가 없습니다. (기본 경기 처리)');
-        endScript(); 
-        return; 
+    function spawnEntity(id, type, team, startPos) {
+        if(document.getElementById(id)) document.getElementById(id).remove();
+        const el = document.createElement('div');
+        el.id = id; el.className = 'entity ' + type + ' ' + team;
+        el.style.left = startPos.x + '%'; el.style.top = startPos.y + '%';
+        entityLayer.appendChild(el);
+        return el;
     }
-    
-    scriptIdx = 0;
-    if(logBox) logBox.innerHTML = ''; // 초기 "데이터 로딩 중..." 텍스트 삭제
-    
-    scriptTicker = setInterval(stepScript, 3000); // 3초마다 한 줄씩
-    stepScript(); // 첫 줄은 즉시 출력
-}
 
-function stepScript() {
-    if (scriptIdx >= SCRIPT_LINES.length) {
-        endScript();
-        return;
+    function moveEntity(id, targetPos) {
+        const el = document.getElementById(id);
+        if(el) { el.style.left = targetPos.x + '%'; el.style.top = targetPos.y + '%'; }
     }
-    appendLog(SCRIPT_LINES[scriptIdx]);
-    scriptIdx++;
-}
 
-/* ── 2. 화면에 문자 중계 추가 ── */
-function appendLog(line) {
-    const logBox = document.getElementById('live-log'); // 정확한 ID로 매칭
-    if (!logBox) return;
-    
-    const el = document.createElement('div');
-    el.className = 'relay-row rr-commentary';
-    
-    // 시간 표시 (3초씩 증가)
-    const totalSec = scriptIdx * 3;
-    const m = String(Math.floor(totalSec / 60)).padStart(2, '0');
-    const s = String(totalSec % 60).padStart(2, '0');
-
-    el.innerHTML = '<span class="rr-time">' + m + ':' + s + '</span>' +
-                   '<span class="rr-badge rr-commentary-badge" style="background:#555; color:#fff; padding:2px 6px; border-radius:4px; font-size:0.8rem; margin-right:8px;">💬 해설</span>' +
-                   '<span class="rr-msg">' + line + '</span>';
-                   
-    logBox.appendChild(el);
-    logBox.scrollTop = logBox.scrollHeight;
-}
-
-/* ── 3. ⏩ 결과 보기 (스킵) ── */
-function skipToResult() {
-    if (scriptFinished) return;
-    clearInterval(scriptTicker);
-    
-    // 아직 안 나온 대본들 한 번에 전부 쏟아내기
-    while(scriptIdx < SCRIPT_LINES.length) {
-        appendLog(SCRIPT_LINES[scriptIdx]);
-        scriptIdx++;
+    function playAttackEffect(pos) {
+        const fx = document.createElement('div');
+        fx.className = 'attack-fx';
+        fx.innerHTML = '<i class="fa-solid fa-crosshairs"></i>'; 
+        fx.style.left = pos.x + '%'; fx.style.top = pos.y + '%';
+        entityLayer.appendChild(fx);
+        setTimeout(() => { fx.remove(); }, 600);
     }
-    endScript();
-}
 
-/* ── 4. 경기 종료 및 다음 버튼 활성화 ── */
-function endScript() {
-    if (scriptFinished) return;
-    scriptFinished = true;
-    clearInterval(scriptTicker);
-    
-    // 스킵 버튼 숨기기
-    const skipBtn = document.getElementById('skipButton');
-    if (skipBtn) skipBtn.style.display = 'none';
+    // 본진 배치
+    spawnEntity('blue_main', 'building', 'blue', COORDS.blue.main);
+    spawnEntity('red_main', 'building', 'red', COORDS.red.main);
 
-    // 다음 경기 버튼 띄우기
-    const nextBtn = document.getElementById('nextMatchButton');
-    if (nextBtn) {
-        nextBtn.style.display = 'inline-block';
-        nextBtn.textContent = MY_WIN ? '🏆 승리! 다음으로 →' : '💀 패배... 다음으로 →';
-        nextBtn.style.backgroundColor = MY_WIN ? '#00cc66' : '#cc3333';
-        nextBtn.style.color = '#ffffff';
-        nextBtn.style.border = 'none';
+    // --- 3. Simulation Logic ---
+    let currentLineIdx = 0;
+    let currentMomentum = 50; 
+    const logContainer = document.getElementById('logContainer');
+    const momentumFill = document.getElementById('momentumFill');
+    const progressBar = document.getElementById('simProgressBar');
+
+    function parseMapAction(line, isBlue) {
+        const myCoords = isBlue ? COORDS.blue : COORDS.red;
+        const enemyCoords = isBlue ? COORDS.red : COORDS.blue;
+        const teamStr = isBlue ? 'blue' : 'red';
         
-        nextBtn.onclick = function() {
-            finishMatch();
-        };
-    }
-}
-
-/* ── 5. 서버로 승패 전송 후 다음 세트 진행 ── */
-function finishMatch() {
-    const level = META_DATA.stageLevel;
-    const subLevel = META_DATA.subLevel;
-    const winner = MY_WIN ? 'player' : 'ai';
-    
-    fetch(contextPath + '/pve/battle/finish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'level=' + level + '&subLevel=' + subLevel + '&winner=' + winner
-    })
-    .then(res => res.json())
-    .then(result => {
-        if (result.success) {
-            if (result.victory !== null) { 
-                // 최종 매치가 끝났을 경우 (승리 또는 패배)
-                alert(result.message);
-                location.href = contextPath + '/pve/lobby';
-            } else {
-                // 아직 남은 세트가 있을 경우 화면 새로고침하여 다음 세트 진행
-                location.reload(); 
-            }
-        } else {
-            alert('오류: ' + result.message);
+        if(line.includes("멀티") || line.includes("해처리") || line.includes("넥서스") || line.includes("커맨드")) {
+            spawnEntity(teamStr + '_exp', 'building', teamStr, myCoords.exp);
         }
-    })
-    .catch(err => {
-        console.error(err);
-        alert('서버와의 통신 오류가 발생했습니다.');
-    });
-}
+        if(line.includes("마린") || line.includes("질럿") || line.includes("저글링") || line.includes("병력")) {
+            spawnEntity(teamStr + '_army', 'unit', teamStr, myCoords.main);
+            setTimeout(() => { moveEntity(teamStr + '_army', myCoords.rally); }, 400);
+        }
+        if(line.includes("공격") || line.includes("압박") || line.includes("러시") || line.includes("돌파")) {
+            moveEntity(teamStr + '_army', COORDS.center);
+            setTimeout(() => { moveEntity(teamStr + '_army', enemyCoords.rally); }, 1000);
+            setTimeout(() => { playAttackEffect(enemyCoords.rally); }, 1600);
+        }
+    }
+
+    function startSimulation() {
+        if(scriptLines.length === 0) { finishSet(); return; }
+        
+        const interval = setInterval(() => {
+            if (currentLineIdx < scriptLines.length) {
+                const line = scriptLines[currentLineIdx];
+                const entry = document.createElement('div');
+                entry.className = 'log-line';
+                
+                let shift = 0;
+                let isBlueAction = null;
+
+                if (line.startsWith('[빌드A]')) {
+                    isBlueAction = true;
+                    entry.classList.add('blue'); 
+                    entry.innerHTML = "<strong>[" + myName + "]</strong> : " + line.replace('[빌드A]', '').trim();
+                    shift = 15;
+                } else if (line.startsWith('[빌드B]')) {
+                    isBlueAction = false;
+                    entry.classList.add('red'); 
+                    entry.innerHTML = "<strong>[" + aiName + "]</strong> : " + line.replace('[빌드B]', '').trim();
+                    shift = -15;
+                } else {
+                    entry.classList.add('neutral'); 
+                    entry.innerText = line;
+                    shift = myWinFlag ? 5 : -5; 
+                }
+
+                if(isBlueAction !== null) parseMapAction(line, isBlueAction);
+
+                // 모멘텀 바 조절
+                currentMomentum += shift;
+                if(currentMomentum > 90) currentMomentum = 90;
+                if(currentMomentum < 10) currentMomentum = 10;
+                if(currentLineIdx === scriptLines.length - 1) currentMomentum = myWinFlag ? 100 : 0;
+                momentumFill.style.width = currentMomentum + '%';
+
+                // 로그 스크롤
+                logContainer.appendChild(entry);
+                logContainer.scrollTop = logContainer.scrollHeight;
+                
+                currentLineIdx++;
+                progressBar.style.width = (currentLineIdx / scriptLines.length * 100) + '%';
+            } else {
+                clearInterval(interval); finishSet();
+            }
+        }, 2100); 
+    }
+
+    function finishSet() {
+        document.getElementById('actionArea').style.display = 'block';
+        
+        const finalMyWins = myWinFlag ? parseInt("${myWins}") + 1 : parseInt("${myWins}");
+        const finalAiWins = !myWinFlag ? parseInt("${aiWins}") + 1 : parseInt("${aiWins}");
+        
+        if(finalMyWins >= 3 || finalAiWins >= 3) {
+            document.getElementById('btnNextSet').style.display = 'none';
+            document.getElementById('btnFinalResult').style.display = 'block';
+        }
+    }
+
+    function nextSet() { location.href = "<c:url value='/pve/finish' />?winner=" + (myWinFlag ? "player" : "ai"); }
+    function showFinalResult() { location.href = "<c:url value='/pve/finish' />?winner=" + (myWinFlag ? "player" : "ai"); }
+
+    window.onload = function() { setTimeout(startSimulation, 800); };
 </script>
+
 </body>
 </html>

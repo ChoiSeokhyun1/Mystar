@@ -210,7 +210,7 @@ public class AdminController {
         try {
             int level = body.get("stageLevel");
             adminDAO.deleteOpponentsByStage(level);
-            adminDAO.deleteSubstageMapsByStage(level);      // 맵 배정 삭제 추가
+            adminDAO.deleteSubstageMapsByStage(level);
             adminDAO.deleteStage(level);
             adminDAO.deleteProgressByStage(level);
             adminDAO.deleteSubstageProgressByStage(level);
@@ -285,7 +285,7 @@ public class AdminController {
             params.put("stageLevel", body.get("stageLevel"));
             params.put("subLevel", body.get("subLevel"));
             adminDAO.deleteOpponentsBySubstage(params);
-            adminDAO.deleteSubstageMapsBySubstage(params);  // 맵 배정 삭제 추가
+            adminDAO.deleteSubstageMapsBySubstage(params);
             adminDAO.deleteSubstage(params);
             adminDAO.deleteSubstageProgressBySubstage(params);
             res.put("success", true);
@@ -525,7 +525,7 @@ public class AdminController {
             dto.setPlayerImgUrl((String) body.getOrDefault("playerImgUrl", ""));
             dto.setPlayerCost(toInt(body.get("playerCost")));
             adminDAO.insertPlayer(dto);
-            int newSeq = adminDAO.findMaxPlayerSeq();   // INSERT 후 MAX(SEQ) 직접 조회
+            int newSeq = adminDAO.findMaxPlayerSeq();
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> packInfos = (List<Map<String, Object>>) body.get("packInfos");
             if (packInfos != null && newSeq > 0) {
@@ -676,7 +676,7 @@ public class AdminController {
         try {
             PackDTO dto = buildPackDTO(body);
             adminDAO.insertPack(dto);
-            int newSeq = adminDAO.findMaxPackSeq();     // INSERT 후 MAX(SEQ) 직접 조회
+            int newSeq = adminDAO.findMaxPackSeq();
             res.put("success", true);
             res.put("newSeq", newSeq);
         } catch (Exception e) {
@@ -805,7 +805,7 @@ public class AdminController {
     public Map<String, Object> getBuild(@PathVariable int buildId, HttpSession session) {
         Map<String, Object> res = new HashMap<>();
         if (!isAdmin(session)) { res.put("success", false); return res; }
-        BuildDTO build = buildDAO.selectBuildById(buildId);
+        BuildDTO build = buildService.getBuildById(buildId);  // statBonuses 포함 조회
         if (build == null) { res.put("success", false); res.put("message", "빌드 없음"); return res; }
         res.put("success", true);
         res.put("build", build);
@@ -817,6 +817,12 @@ public class AdminController {
         if (!isAdmin(session)) return "redirect:/login";
         try {
             List<BuildDTO> allBuilds = buildService.getAllBuilds();
+            if (allBuilds != null) {
+                // 테이블 표시용으로 각 빌드의 statBonuses 로드
+                for (BuildDTO b : allBuilds) {
+                    b.setStatBonuses(scriptDAO.selectStatBonusesByBuildId(b.getBuildId()));
+                }
+            }
             model.addAttribute("builds", allBuilds != null ? allBuilds : new ArrayList<>());
         } catch (Exception e) {
             e.printStackTrace();
@@ -825,7 +831,6 @@ public class AdminController {
         return "admin/buildManage";
     }
 
-
     @Transactional
     @PostMapping("/build/create")
     @ResponseBody
@@ -833,7 +838,7 @@ public class AdminController {
         Map<String, Object> res = new HashMap<>();
         if (!isAdmin(session)) { res.put("success", false); res.put("message", "관리자 권한이 필요합니다."); return res; }
         try {
-            buildDto.setUserId("SYSTEM");   // 관리자 빌드는 항상 SYSTEM 소유
+            buildDto.setUserId("SYSTEM");   
             buildService.createBuild(buildDto);
             res.put("success", true);
         } catch (Exception e) {
@@ -851,7 +856,7 @@ public class AdminController {
         Map<String, Object> res = new HashMap<>();
         if (!isAdmin(session)) { res.put("success", false); res.put("message", "관리자 권한이 필요합니다."); return res; }
         try {
-            buildDto.setUserId("SYSTEM");   // 관리자 빌드는 항상 SYSTEM 소유
+            buildDto.setUserId("SYSTEM");   
             buildService.modifyBuild(buildDto);
             res.put("success", true);
         } catch (Exception e) {
@@ -863,7 +868,7 @@ public class AdminController {
     }
 
     @Transactional
-    @PostMapping("/build/update")   // buildManage.jsp에서 수정 시 호출
+    @PostMapping("/build/update")
     @ResponseBody
     public Map<String, Object> updateAdminBuild(@RequestBody BuildDTO buildDto, HttpSession session) {
         Map<String, Object> res = new HashMap<>();
@@ -943,9 +948,7 @@ public class AdminController {
         Map<String, Object> res = new HashMap<>();
         if (!isAdmin(session)) { res.put("success", false); return res; }
         try {
-            // buildA와 짝을 이루는 모든 스크립트 조합 조회
             List<ScriptDTO> scripts = scriptDAO.selectScriptSummaryByMyBuild(buildAId);
-            // oppBuildId별로 WIN/LOSE 존재 여부 집계
             Map<Integer, Map<String, Boolean>> existsMap = new HashMap<>();
             if (scripts != null) {
                 for (ScriptDTO s : scripts) {
@@ -956,7 +959,6 @@ public class AdminController {
                     }
                 }
             }
-            // 반대 방향(내가 oppBuildId인 경우)도 조회
             List<ScriptDTO> reverseScripts = scriptDAO.selectScriptSummaryByOppBuild(buildAId);
             if (reverseScripts != null) {
                 for (ScriptDTO s : reverseScripts) {
@@ -967,7 +969,6 @@ public class AdminController {
                     }
                 }
             }
-            // { buildId: { hasWin: bool, hasLose: bool } } 형태로 반환
             Map<String, Object> result = new HashMap<>();
             for (Map.Entry<Integer, Map<String, Boolean>> entry : existsMap.entrySet()) {
                 Map<String, Boolean> status = new HashMap<>();
@@ -1038,6 +1039,66 @@ public class AdminController {
             e.printStackTrace();
             result.put("success", false);
             result.put("message", "저장 실패: " + e.getMessage());
+        }
+        return result;
+    }
+
+    // ⭐ 추가: 상성 불러오기 API
+    @GetMapping("/script/matchup/load")
+    @ResponseBody
+    public Map<String, Object> loadBuildMatchup(@RequestParam("buildA") int buildA, @RequestParam("buildB") int buildB, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        if (!isAdmin(session)) { result.put("success", false); return result; }
+        try {
+            Map<String, Object> params = new HashMap<>();
+            params.put("buildA", buildA);
+            params.put("buildB", buildB);
+            String status = adminDAO.getBuildMatchup(params);
+            result.put("success", true);
+            result.put("status", status != null ? status : "NORMAL");
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("success", false);
+        }
+        return result;
+    }
+
+    // ⭐ 추가: 상성 양방향 저장 API
+    @Transactional
+    @PostMapping("/script/matchup/save")
+    @ResponseBody
+    public Map<String, Object> saveBuildMatchup(@RequestBody Map<String, Object> params, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        if (!isAdmin(session)) { result.put("success", false); return result; }
+        try {
+            int buildA = Integer.parseInt(params.get("buildA").toString());
+            int buildB = Integer.parseInt(params.get("buildB").toString());
+            String status = (String) params.get("status");
+
+            if (buildA == buildB) {
+                result.put("success", false); result.put("message", "동일 빌드는 상성을 설정할 수 없습니다."); return result;
+            }
+
+            // 역상성 자동 계산 (A가 GOOD이면 B는 BAD)
+            String reverseStatus = "NORMAL";
+            if ("GOOD".equals(status)) reverseStatus = "BAD";
+            else if ("BAD".equals(status)) reverseStatus = "GOOD";
+
+            // A 기준 저장
+            Map<String, Object> p1 = new HashMap<>();
+            p1.put("buildA", buildA); p1.put("buildB", buildB); p1.put("status", status);
+            adminDAO.saveBuildMatchup(p1);
+
+            // B 기준 반전 저장
+            Map<String, Object> p2 = new HashMap<>();
+            p2.put("buildA", buildB); p2.put("buildB", buildA); p2.put("status", reverseStatus);
+            adminDAO.saveBuildMatchup(p2);
+
+            result.put("success", true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("success", false);
+            result.put("message", e.getMessage());
         }
         return result;
     }
@@ -1160,6 +1221,199 @@ public class AdminController {
             }
         }
         res.put("success", true);
+        return res;
+    }
+    
+ // ============================================================
+    //  AdminController.java 에 아래 메서드들을 붙여넣으세요.
+    //  import 추가 필요: dto.pve.MapPointDTO
+    // ============================================================
+
+    // ===================== MAP =====================
+
+    /** 맵 관리 페이지 */
+    @GetMapping("/map/manage")
+    public String mapManagePage(HttpSession session, Model model) {
+        if (!isAdmin(session)) return "redirect:/pve/lobby";
+
+        List<Map<String, Object>> maps = adminDAO.findAllMapsDetail();
+
+        StringBuilder mapJson = new StringBuilder("[");
+        for (int i = 0; i < maps.size(); i++) {
+            Map<String, Object> m = maps.get(i);
+            if (i > 0) mapJson.append(",");
+            mapJson.append("{")
+                .append("\"mapId\":\"").append(je((String) m.get("MAPID")  != null ? (String) m.get("MAPID")  : (String) m.get("mapId"))).append("\",")
+                .append("\"mapName\":\"").append(je((String) m.getOrDefault("MAPNAME", m.get("mapName")))).append("\",")
+                .append("\"description\":\"").append(je((String) m.getOrDefault("DESCRIPTION", m.getOrDefault("description", "")))).append("\",")
+                .append("\"mapImgUrl\":").append(m.getOrDefault("MAPIMGURL", m.get("mapImgUrl")) != null
+                    ? "\"" + je((String) m.getOrDefault("MAPIMGURL", m.get("mapImgUrl"))) + "\""
+                    : "null").append(",")
+                .append("\"winRateT\":").append(m.getOrDefault("WINRATET", m.getOrDefault("winRateT", 50))).append(",")
+                .append("\"winRateP\":").append(m.getOrDefault("WINRATEP", m.getOrDefault("winRateP", 50))).append(",")
+                .append("\"winRateZ\":").append(m.getOrDefault("WINRATEZ", m.getOrDefault("winRateZ", 50)))
+                .append("}");
+        }
+        mapJson.append("]");
+
+        model.addAttribute("mapJson", mapJson.toString());
+        return "admin/mapManage";
+    }
+
+    /** 맵 이미지 업로드 */
+    @PostMapping("/map/upload-image")
+    @ResponseBody
+    public Map<String, Object> uploadMapImage(
+            @RequestParam("file") MultipartFile file,
+            HttpServletRequest request,
+            HttpSession session) {
+        Map<String, Object> res = new HashMap<>();
+        if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
+        try {
+            String originalName = file.getOriginalFilename();
+            String ext = "";
+            if (originalName != null && originalName.contains(".")) {
+                ext = originalName.substring(originalName.lastIndexOf("."));
+            }
+            String saveName = UUID.randomUUID().toString() + ext;
+            String uploadDir = request.getServletContext().getRealPath("/resources/image/maps");
+            File dir = new File(uploadDir);
+            if (!dir.exists()) dir.mkdirs();
+            file.transferTo(new File(dir, saveName));
+            String url = request.getContextPath() + "/image/maps/" + saveName;
+            res.put("success", true);
+            res.put("url", url);
+        } catch (IOException e) {
+            e.printStackTrace();
+            res.put("success", false);
+            res.put("message", "업로드 실패: " + e.getMessage());
+        }
+        return res;
+    }
+
+    /** 맵 등록 */
+    @PostMapping("/map/create")
+    @ResponseBody
+    public Map<String, Object> createMap(
+            @RequestBody Map<String, Object> body,
+            HttpSession session) {
+        Map<String, Object> res = new HashMap<>();
+        if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
+        try {
+            String mapId = "MAP_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
+            Map<String, Object> params = new HashMap<>();
+            params.put("mapId",       mapId);
+            params.put("mapName",     body.get("mapName"));
+            params.put("description", body.getOrDefault("description", ""));
+            params.put("mapImgUrl",   body.get("mapImgUrl"));
+            params.put("winRateT",    body.getOrDefault("winRateT", 50.0));
+            params.put("winRateP",    body.getOrDefault("winRateP", 50.0));
+            params.put("winRateZ",    body.getOrDefault("winRateZ", 50.0));
+            adminDAO.insertMap(params);
+            res.put("success", true);
+            res.put("mapId",  mapId);
+        } catch (Exception e) {
+            e.printStackTrace();
+            res.put("success", false);
+            res.put("message", e.getMessage());
+        }
+        return res;
+    }
+
+    /** 맵 수정 */
+    @PostMapping("/map/update")
+    @ResponseBody
+    public Map<String, Object> updateMap(
+            @RequestBody Map<String, Object> body,
+            HttpSession session) {
+        Map<String, Object> res = new HashMap<>();
+        if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
+        try {
+            adminDAO.updateMap(body);
+            res.put("success", true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            res.put("success", false);
+            res.put("message", e.getMessage());
+        }
+        return res;
+    }
+
+    /** 맵 삭제 */
+    @PostMapping("/map/delete")
+    @ResponseBody
+    public Map<String, Object> deleteMap(
+            @RequestBody Map<String, Object> body,
+            HttpSession session) {
+        Map<String, Object> res = new HashMap<>();
+        if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
+        try {
+            String mapId = (String) body.get("mapId");
+            adminDAO.deleteMapPointsByMapId(mapId);
+            adminDAO.deleteMap(mapId);
+            res.put("success", true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            res.put("success", false);
+            res.put("message", e.getMessage());
+        }
+        return res;
+    }
+
+    /** 특정 맵의 지점 목록 조회 */
+    @GetMapping("/map/points")
+    @ResponseBody
+    public Map<String, Object> getMapPoints(
+            @RequestParam("mapId") String mapId,
+            HttpSession session) {
+        Map<String, Object> res = new HashMap<>();
+        if (!isAdmin(session)) { res.put("success", false); return res; }
+        List<dto.pve.MapPointDTO> points = adminDAO.findPointsByMapId(mapId);
+        res.put("success", true);
+        res.put("points", points);
+        return res;
+    }
+
+    /** 지점 저장 (등록 또는 수정) */
+    @PostMapping("/map/point/save")
+    @ResponseBody
+    public Map<String, Object> saveMapPoint(
+            @RequestBody dto.pve.MapPointDTO dto,
+            HttpSession session) {
+        Map<String, Object> res = new HashMap<>();
+        if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
+        try {
+            if (dto.getPointId() > 0) {
+                adminDAO.updateMapPoint(dto);
+            } else {
+                adminDAO.insertMapPoint(dto);
+            }
+            res.put("success", true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            res.put("success", false);
+            res.put("message", e.getMessage());
+        }
+        return res;
+    }
+
+    /** 지점 삭제 */
+    @PostMapping("/map/point/delete")
+    @ResponseBody
+    public Map<String, Object> deleteMapPoint(
+            @RequestBody Map<String, Object> body,
+            HttpSession session) {
+        Map<String, Object> res = new HashMap<>();
+        if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
+        try {
+            int pointId = toInt(body.get("pointId"));
+            adminDAO.deleteMapPoint(pointId);
+            res.put("success", true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            res.put("success", false);
+            res.put("message", e.getMessage());
+        }
         return res;
     }
 

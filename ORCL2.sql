@@ -1174,3 +1174,96 @@ COMMIT;
 -- 확인
 SELECT BUILD_ID, USER_ID, BUILD_NAME, RACE, VS_RACE FROM TBL_BUILDS ORDER BY RACE, VS_RACE;
 commit;
+
+
+-- 진행 중인 배틀 세션 전체 삭제
+DELETE FROM TBL_PVE_BATTLE_SESSION;
+
+-- 모든 유저의 스테이지 진행도 전체 삭제
+DELETE FROM USER_PVE_PROGRESS;
+
+-- 변경사항 반영
+COMMIT;
+
+-- 1. 진행 중인 배틀 세션 삭제
+DELETE FROM TBL_PVE_BATTLE_SESSION WHERE USER_ID = 'testuser3';
+
+-- 2. 서브스테이지 진행도(클리어 기록) 삭제
+DELETE FROM USER_PVE_SUBSTAGE_PROGRESS WHERE USER_ID = 'testuser3';
+
+-- 3. 메인 스테이지 진행도 삭제
+DELETE FROM USER_PVE_PROGRESS WHERE USER_ID = 'testuser3';
+
+-- (중요) 변경사항 DB 반영
+COMMIT;
+
+
+
+SELECT 
+    USER_ID, 
+    STAGE_LEVEL, 
+    SUB_LEVEL, 
+    CURRENT_SET,  -- 현재 진행해야 할 세트 (1경기가 끝났다면 2가 되어야 정상)
+    MY_WINS,      -- 내 승리 횟수 (이겼다면 1)
+    AI_WINS,      -- AI 승리 횟수
+    STATUS,
+    GAME_STATE_DATA,   -- (중요) 이 안에 들어있는 대본(lines)이 2세트 대본으로 갱신되었는지 확인
+    SET_RESULTS_DATA   -- 1세트 결과(스탯 변화 등)가 잘 저장되었는지 확인
+FROM TBL_PVE_BATTLE_SESSION
+WHERE USER_ID = 'testuser3'
+  AND STATUS = 'IN_PROGRESS';
+  
+  
+  -- 1. 기존 '빌드 vs 종족' 테이블 및 시퀀스 삭제
+DROP TABLE TBL_BUILD_MATCHUP CASCADE CONSTRAINTS;
+DROP SEQUENCE SEQ_BUILD_MATCHUP;
+
+-- 2. 새로운 '빌드 vs 빌드' 상성 테이블 생성
+CREATE TABLE TBL_BUILD_MATCHUP (
+    MATCHUP_ID NUMBER       CONSTRAINT PK_BUILD_MATCHUP PRIMARY KEY,
+    BUILD_ID_A NUMBER       NOT NULL CONSTRAINT FK_BM_BUILD_A REFERENCES TBL_BUILDS(BUILD_ID) ON DELETE CASCADE,
+    BUILD_ID_B NUMBER       NOT NULL CONSTRAINT FK_BM_BUILD_B REFERENCES TBL_BUILDS(BUILD_ID) ON DELETE CASCADE,
+    MATCHUP    VARCHAR2(10) NOT NULL CHECK (MATCHUP IN ('GOOD','NORMAL','BAD')),
+    CONSTRAINT UK_BUILD_VS_BUILD UNIQUE (BUILD_ID_A, BUILD_ID_B)
+);
+
+-- 3. 시퀀스 재생성
+CREATE SEQUENCE SEQ_BUILD_MATCHUP START WITH 1 INCREMENT BY 1;
+
+COMMIT;
+
+
+
+
+
+-- ============================================================
+--  맵 관리 기능 추가 DDL
+--  1) TBL_MAPS 에 이미지 URL 컬럼 추가
+--  2) TBL_MAP_POINTS 신규 (맵 위의 픽셀 지점)
+-- ============================================================
+
+-- 1. 이미지 URL 컬럼 추가 (기존 테이블)
+ALTER TABLE TBL_MAPS ADD (
+    MAP_IMG_URL VARCHAR2(500)
+);
+
+-- 2. 맵 지점 테이블 신규
+BEGIN
+    EXECUTE IMMEDIATE 'DROP TABLE TBL_MAP_POINTS';
+EXCEPTION WHEN OTHERS THEN NULL;
+END;
+/
+
+CREATE TABLE TBL_MAP_POINTS (
+    POINT_ID    NUMBER          CONSTRAINT PK_MAP_POINTS PRIMARY KEY,
+    MAP_ID      VARCHAR2(50)    NOT NULL,
+    POINT_NAME  VARCHAR2(100)   NOT NULL,       -- 예) 스타팅1, 스타팅2, 멀티1 …
+    POINT_TYPE  VARCHAR2(50)    DEFAULT 'STARTING', -- STARTING / RESOURCE / RAMP / CUSTOM
+    PIXEL_X     NUMBER          NOT NULL,
+    PIXEL_Y     NUMBER          NOT NULL,
+    CONSTRAINT FK_MAP_POINTS_MAP FOREIGN KEY (MAP_ID)
+        REFERENCES TBL_MAPS(MAP_ID) ON DELETE CASCADE
+);
+
+CREATE SEQUENCE SEQ_MAP_POINTS START WITH 1 INCREMENT BY 1 NOCACHE;
+commit;

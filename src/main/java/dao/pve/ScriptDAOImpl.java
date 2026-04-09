@@ -7,6 +7,7 @@ import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -59,7 +60,21 @@ public class ScriptDAOImpl implements ScriptDAO {
         return sqlSession.selectList(NS+"selectScriptSummaryByMyBuild", myBuildId); 
     }
 
-    // ── 빌드 종족 상성 ────────────────────────────────────
+    @Override
+    public List<ScriptDTO> selectScriptSummaryByOppBuild(int oppBuildId) {
+        return sqlSession.selectList(NS+"selectScriptSummaryByOppBuild", oppBuildId);
+    }
+
+    // ── 빌드 상성 (추가됨) ────────────────────────────────────
+    @Override
+    public String getBuildMatchup(int myBuildId, int oppBuildId) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("myBuildId", myBuildId);
+        params.put("oppBuildId", oppBuildId);
+        return sqlSession.selectOne(NS + "selectBuildMatchup", params);
+    }
+
+    // ── 기존 종족 상성 (구버전) ──────────────────────────────
     @Override 
     public int insertOrUpdateMatchup(BuildMatchupDTO m) { 
         return sqlSession.insert(NS+"insertOrUpdateMatchup", m); 
@@ -89,10 +104,5 @@ public class ScriptDAOImpl implements ScriptDAO {
     @Override 
     public List<BuildStatBonusDTO> selectStatBonusesByBuildId(int bid) { 
         return sqlSession.selectList(NS+"selectStatBonusesByBuildId", bid); 
-    }
-
-    @Override
-    public List<ScriptDTO> selectScriptSummaryByOppBuild(int oppBuildId) {
-        return sqlSession.selectList("script.selectScriptSummaryByOppBuild", oppBuildId);
     }
 }

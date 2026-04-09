@@ -273,4 +273,64 @@ public class AdminDAOImpl implements AdminDAO {
     public int deletePlayer(int playerSeq) {
         return sqlSession.delete(NS + "deletePlayer", playerSeq);
     }
+
+    // ⭐ 추가: 빌드 vs 빌드 상성 관리
+    @Override
+    public String getBuildMatchup(Map<String, Object> params) {
+        return sqlSession.selectOne(NS + "selectBuildMatchup", params);
+    }
+
+    @Override
+    public void saveBuildMatchup(Map<String, Object> params) {
+        sqlSession.update(NS + "saveBuildMatchup", params);
+    }
+    
+    // ===================== 맵 CRUD =====================
+    // AdminDAOImpl.java 의 클래스 내부에 아래 메서드를 추가하세요.
+ 
+    @Override
+    public List<Map<String, Object>> findAllMapsDetail() {
+        return sqlSession.selectList(NS + "selectAllMapsDetail");
+    }
+ 
+    @Override
+    public int insertMap(Map<String, Object> params) {
+        return sqlSession.insert(NS + "insertMap", params);
+    }
+ 
+    @Override
+    public int updateMap(Map<String, Object> params) {
+        return sqlSession.update(NS + "updateMap", params);
+    }
+ 
+    @Override
+    public int deleteMap(String mapId) {
+        return sqlSession.delete(NS + "deleteMap", mapId);
+    }
+ 
+    // ===================== 맵 지점 CRUD =====================
+    @Override
+    public List<dto.pve.MapPointDTO> findPointsByMapId(String mapId) {
+        return sqlSession.selectList(NS + "selectPointsByMapId", mapId);
+    }
+ 
+    @Override
+    public int insertMapPoint(dto.pve.MapPointDTO dto) {
+        return sqlSession.insert(NS + "insertMapPoint", dto);
+    }
+ 
+    @Override
+    public int updateMapPoint(dto.pve.MapPointDTO dto) {
+        return sqlSession.update(NS + "updateMapPoint", dto);
+    }
+ 
+    @Override
+    public int deleteMapPoint(int pointId) {
+        return sqlSession.delete(NS + "deleteMapPoint", pointId);
+    }
+ 
+    @Override
+    public int deleteMapPointsByMapId(String mapId) {
+        return sqlSession.delete(NS + "deleteMapPointsByMapId", mapId);
+    }
 }

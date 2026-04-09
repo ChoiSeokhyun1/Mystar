@@ -78,4 +78,24 @@ public interface AdminDAO {
     int deleteOwnedPlayersByPlayer(int playerSeq);
     int deletePveOpponentsByPlayer(int playerSeq);
     int deletePlayer(int playerSeq);
+
+    // ⭐ 추가: 빌드 vs 빌드 상성 관리
+    String getBuildMatchup(Map<String, Object> params);
+    void saveBuildMatchup(Map<String, Object> params);
+    
+    // ===================== 맵 CRUD =====================
+    // AdminDAO.java 에 아래 메서드를 추가하세요.
+ 
+    List<Map<String, Object>> findAllMapsDetail();          // 이미지 URL 포함 전체 목록
+    int insertMap(Map<String, Object> params);
+    int updateMap(Map<String, Object> params);
+    int deleteMap(String mapId);
+ 
+    // ===================== 맵 지점 CRUD =====================
+    List<dto.pve.MapPointDTO> findPointsByMapId(String mapId);
+    int insertMapPoint(dto.pve.MapPointDTO dto);
+    int updateMapPoint(dto.pve.MapPointDTO dto);
+    int deleteMapPoint(int pointId);
+    int deleteMapPointsByMapId(String mapId);
+ 
 }

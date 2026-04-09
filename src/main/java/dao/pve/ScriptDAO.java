@@ -29,7 +29,11 @@ public interface ScriptDAO {
     /** oppBuildId 기준 전체 대본 목록 (반대 방향 조회 — 동족전 대비) */
     List<ScriptDTO> selectScriptSummaryByOppBuild(int oppBuildId);
 
-    // ── 빌드 종족 상성 ────────────────────────────────────
+    // ── 빌드 상성 (추가됨) ────────────────────────────────────
+    /** DB에서 빌드 vs 빌드 상성 단건 조회 */
+    String getBuildMatchup(int myBuildId, int oppBuildId);
+
+    // (참고: TBL_BUILD_MATCHUP 테이블 변경으로 인해 아래 기존 VS_RACE 메서드들은 오류가 날 수 있으니 나중에 정리해주세요)
     int insertOrUpdateMatchup(BuildMatchupDTO matchup);
     int deleteMatchupsByBuildId(int buildId);
     List<BuildMatchupDTO> selectMatchupsByBuildId(int buildId);

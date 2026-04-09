@@ -2,29 +2,16 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="admin_mapper">
-    <!-- reloaded -->
-
-    <!-- =====================================================
-         스테이지 관련
-         ===================================================== -->
-
-    <!-- 존재하는 모든 스테이지 레벨 목록 조회 -->
     <select id="selectAllStageLevels" resultType="int">
         SELECT DISTINCT STAGE_LEVEL
         FROM TBL_PVE_SUBSTAGES
         ORDER BY STAGE_LEVEL ASC
     </select>
 
-    <!-- 최대 스테이지 레벨 조회 -->
     <select id="selectMaxStageLevel" resultType="int">
         SELECT NVL(MAX(STAGE_LEVEL), 0) FROM TBL_PVE_SUBSTAGES
     </select>
 
-    <!-- =====================================================
-         라운드(서브스테이지) 관련
-         ===================================================== -->
-
-    <!-- 특정 스테이지의 모든 라운드 조회 -->
     <select id="selectSubstagesByStageLevel" parameterType="int" resultType="PveSubstageDTO">
         SELECT
             STAGE_LEVEL     as stageLevel,
@@ -36,7 +23,6 @@
         ORDER BY SUB_LEVEL ASC
     </select>
 
-    <!-- 특정 라운드 상세 조회 -->
     <select id="selectSubstageDetail" parameterType="map" resultType="PveSubstageDTO">
         SELECT
             STAGE_LEVEL     as stageLevel,
@@ -47,18 +33,15 @@
         WHERE STAGE_LEVEL = #{stageLevel} AND SUB_LEVEL = #{subLevel}
     </select>
 
-    <!-- 해당 스테이지의 최대 서브레벨 조회 -->
     <select id="selectMaxSubLevel" parameterType="int" resultType="int">
         SELECT NVL(MAX(SUB_LEVEL), 0) FROM TBL_PVE_SUBSTAGES WHERE STAGE_LEVEL = #{stageLevel}
     </select>
 
-    <!-- 라운드 추가 -->
     <insert id="insertSubstage" parameterType="PveSubstageDTO">
         INSERT INTO TBL_PVE_SUBSTAGES (STAGE_LEVEL, SUB_LEVEL, SUB_TITLE, OPPONENT_TEAM_NAME)
         VALUES (#{stageLevel}, #{subLevel}, #{subTitle}, #{opponentTeamName})
     </insert>
 
-    <!-- 라운드 수정 -->
     <update id="updateSubstage" parameterType="PveSubstageDTO">
         UPDATE TBL_PVE_SUBSTAGES
         SET SUB_TITLE = #{subTitle},
@@ -66,29 +49,24 @@
         WHERE STAGE_LEVEL = #{stageLevel} AND SUB_LEVEL = #{subLevel}
     </update>
 
-    <!-- 라운드의 opponents 먼저 삭제 (FK 선처리) -->
     <delete id="deleteOpponentsBySubstage" parameterType="map">
         DELETE FROM TBL_PVE_OPPONENTS
         WHERE STAGE_LEVEL = #{stageLevel} AND SUB_LEVEL = #{subLevel}
     </delete>
 
-    <!-- 라운드 삭제 -->
     <delete id="deleteSubstage" parameterType="map">
         DELETE FROM TBL_PVE_SUBSTAGES
         WHERE STAGE_LEVEL = #{stageLevel} AND SUB_LEVEL = #{subLevel}
     </delete>
 
-    <!-- 스테이지의 모든 AI opponents 삭제 (FK 선처리) -->
     <delete id="deleteOpponentsByStage" parameterType="int">
         DELETE FROM TBL_PVE_OPPONENTS WHERE STAGE_LEVEL = #{value}
     </delete>
 
-    <!-- 스테이지 전체 삭제 -->
     <delete id="deleteStage" parameterType="int">
         DELETE FROM TBL_PVE_SUBSTAGES WHERE STAGE_LEVEL = #{value}
     </delete>
 
-    <!-- 스테이지 삭제 시 유저 진행 기록도 함께 삭제 -->
     <delete id="deleteProgressByStage" parameterType="int">
         DELETE FROM USER_PVE_PROGRESS WHERE STAGE_LEVEL = #{value}
     </delete>
@@ -96,17 +74,11 @@
         DELETE FROM USER_PVE_SUBSTAGE_PROGRESS WHERE STAGE_LEVEL = #{value}
     </delete>
 
-    <!-- 서브스테이지 삭제 시 유저 진행 기록도 함께 삭제 -->
     <delete id="deleteSubstageProgressBySubstage" parameterType="map">
         DELETE FROM USER_PVE_SUBSTAGE_PROGRESS
         WHERE STAGE_LEVEL = #{stageLevel} AND SUB_LEVEL = #{subLevel}
     </delete>
 
-    <!-- =====================================================
-         AI 상대 선수 (매치업) 관련
-         ===================================================== -->
-
-    <!-- 특정 라운드의 AI 엔트리 전체 조회 -->
     <select id="selectOpponentsBySubstage" parameterType="map" resultType="PveOpponentInfoDTO">
         SELECT
             p.PLAYER_SEQ    as playerSeq,
@@ -130,23 +102,16 @@
         ORDER BY opp.SET_NUMBER ASC
     </select>
 
-    <!-- 특정 세트 배정 제거 (해당 라운드+세트번호 삭제) -->
     <delete id="deleteOpponentBySet" parameterType="map">
         DELETE FROM TBL_PVE_OPPONENTS
         WHERE STAGE_LEVEL = #{stageLevel} AND SUB_LEVEL = #{subLevel} AND SET_NUMBER = #{setNumber}
     </delete>
 
-    <!-- 특정 라운드 AI 엔트리 전체 삭제 -->
     <delete id="deleteAllOpponentsBySubstage" parameterType="map">
         DELETE FROM TBL_PVE_OPPONENTS
         WHERE STAGE_LEVEL = #{stageLevel} AND SUB_LEVEL = #{subLevel}
     </delete>
 
-    <!-- =====================================================
-         맵 관련
-         ===================================================== -->
-
-    <!-- 전체 맵 목록 조회 -->
     <select id="selectAllMaps" resultType="map">
         SELECT MAP_ID as mapId, MAP_NAME as mapName, DESCRIPTION as description,
                WIN_RATE_T as winRateT, WIN_RATE_P as winRateP, WIN_RATE_Z as winRateZ
@@ -154,7 +119,6 @@
         ORDER BY MAP_NAME ASC
     </select>
 
-    <!-- 특정 라운드의 세트별 맵 구성 조회 -->
     <select id="selectSubstageMaps" parameterType="map" resultType="PveStageMapDTO">
         SELECT
             sm.SET_NUMBER   as setNumber,
@@ -169,18 +133,15 @@
         ORDER BY sm.SET_NUMBER ASC
     </select>
 
-    <!-- 특정 세트 맵 배정 (UPSERT: 기존 삭제 후 INSERT) -->
     <delete id="deleteSubstageMapBySet" parameterType="map">
         DELETE FROM TBL_PVE_SUBSTAGE_MAPS
         WHERE STAGE_LEVEL = #{stageLevel} AND SUB_LEVEL = #{subLevel} AND SET_NUMBER = #{setNumber}
     </delete>
 
-    <!-- 스테이지 전체 맵 배정 삭제 (스테이지 삭제 시 선처리) -->
     <delete id="deleteSubstageMapsByStage" parameterType="int">
         DELETE FROM TBL_PVE_SUBSTAGE_MAPS WHERE STAGE_LEVEL = #{value}
     </delete>
 
-    <!-- 라운드 전체 맵 배정 삭제 (라운드 삭제 시 선처리) -->
     <delete id="deleteSubstageMapsBySubstage" parameterType="map">
         DELETE FROM TBL_PVE_SUBSTAGE_MAPS
         WHERE STAGE_LEVEL = #{stageLevel} AND SUB_LEVEL = #{subLevel}
@@ -191,7 +152,6 @@
         VALUES (#{stageLevel}, #{subLevel}, #{setNumber}, #{mapId})
     </insert>
 
-    <!-- AI 선수 세트 배정 추가 -->
     <insert id="insertOpponent" parameterType="map">
         INSERT INTO TBL_PVE_OPPONENTS (
             OPPONENT_ID, STAGE_LEVEL, SUB_LEVEL, PLAYER_SEQ, SET_NUMBER,
@@ -209,15 +169,6 @@
         )
     </insert>
 
-    <!-- =====================================================
-         선수 마스터 목록 (선택용)
-         ===================================================== -->
-
-    <!-- =====================================================
-         팩 마스터 CRUD
-         ===================================================== -->
-
-    <!-- 팩 전체 조회 (관리자용 - 모든 필드) -->
     <select id="selectAllPacksForAdmin" resultType="PackDTO">
         SELECT
             PACK_SEQ        as packSeq,
@@ -230,7 +181,6 @@
         ORDER BY PACK_SEQ ASC
     </select>
 
-    <!-- 팩 단건 조회 -->
     <select id="selectPackBySeq" parameterType="int" resultType="PackDTO">
         SELECT
             PACK_SEQ        as packSeq,
@@ -243,7 +193,6 @@
         WHERE PACK_SEQ = #{value}
     </select>
 
-    <!-- 팩 추가 -->
     <insert id="insertPack" parameterType="PackDTO">
         INSERT INTO TBL_PACKS (
             PACK_SEQ, PACK_NAME, DESCRIPTION, COST_CRYSTAL, BANNER_IMG_URL, IS_AVAILABLE
@@ -254,7 +203,6 @@
         )
     </insert>
 
-    <!-- 팩 수정 -->
     <update id="updatePack" parameterType="PackDTO">
         UPDATE TBL_PACKS SET
             PACK_NAME       = #{packName},
@@ -265,34 +213,28 @@
         WHERE PACK_SEQ = #{packSeq}
     </update>
 
-    <!-- 팩 판매 여부 토글 -->
     <update id="togglePackAvailable" parameterType="map">
         UPDATE TBL_PACKS SET IS_AVAILABLE = #{isAvailable} WHERE PACK_SEQ = #{packSeq}
     </update>
 
-    <!-- 팩 삭제 전처리: 팩-선수 연결 전체 삭제 -->
     <delete id="deleteAllPackContentsByPack" parameterType="int">
         DELETE FROM TBL_PACK_CONTENTS WHERE PACK_SEQ = #{value}
     </delete>
 
-    <!-- 팩 삭제 -->
     <delete id="deletePack" parameterType="int">
         DELETE FROM TBL_PACKS WHERE PACK_SEQ = #{value}
     </delete>
 
-    <!-- 팩 목록 조회 -->
     <select id="selectAllPacks" resultType="PackDTO">
         SELECT PACK_SEQ as packSeq, PACK_NAME as packName
         FROM TBL_PACKS
         ORDER BY PACK_SEQ ASC
     </select>
 
-    <!-- 팩에 포함된 선수 seq 목록 -->
     <select id="selectPlayerSeqsByPack" parameterType="int" resultType="int">
         SELECT PLAYER_SEQ FROM TBL_PACK_CONTENTS WHERE PACK_SEQ = #{packSeq}
     </select>
 
-    <!-- 전체 선수 목록 조회 (관리자 선택용) -->
     <select id="selectAllPlayers" resultType="PlayerDTO">
         SELECT
             PLAYER_SEQ      as playerSeq,
@@ -318,7 +260,6 @@
             PLAYER_NAME ASC
     </select>
 
-    <!-- INSERT 후 신규 SEQ 조회 -->
     <select id="selectMaxPlayerSeq" resultType="int">
         SELECT NVL(MAX(PLAYER_SEQ), 0) FROM TBL_PLAYERS
     </select>
@@ -328,11 +269,6 @@
     </select>
 
 
-    <!-- =====================================================
-         선수 마스터 관리 (CRUD)
-         ===================================================== -->
-
-    <!-- 전체 선수 조회 (관리자용 - imgUrl, cost 포함) -->
     <select id="selectAllPlayersForAdmin" resultType="PlayerDTO">
         SELECT
             PLAYER_SEQ      as playerSeq,
@@ -352,7 +288,6 @@
             PLAYER_NAME ASC
     </select>
 
-    <!-- 선수 추가 -->
     <insert id="insertPlayer" parameterType="PlayerDTO">
         INSERT INTO TBL_PLAYERS (
             PLAYER_SEQ, PLAYER_NAME, RACE, RARITY,
@@ -366,7 +301,6 @@
         )
     </insert>
 
-    <!-- 선수 수정 -->
     <update id="updatePlayer" parameterType="PlayerDTO">
         UPDATE TBL_PLAYERS SET
             PLAYER_NAME     = #{playerName},
@@ -382,7 +316,6 @@
         WHERE PLAYER_SEQ = #{playerSeq}
     </update>
 
-    <!-- 선수 삭제 전처리: 경기 기록 삭제 (owned_player 통해 참조) -->
     <delete id="deleteMatchRecordsByPlayer" parameterType="int">
         DELETE FROM TBL_MATCH_RECORDS
         WHERE OWNED_PLAYER_SEQ IN (
@@ -390,7 +323,6 @@
         )
     </delete>
 
-    <!-- 선수 삭제 전처리: PVE 엔트리 삭제 (owned_player 참조) -->
     <delete id="deletePveEntriesByPlayer" parameterType="int">
         DELETE FROM TBL_PVE_ENTRY
         WHERE OWNED_PLAYER_SEQ IN (
@@ -398,23 +330,19 @@
         )
     </delete>
 
-    <!-- 선수 삭제 전처리: 보유 선수 삭제 -->
     <delete id="deleteOwnedPlayersByPlayer" parameterType="int">
         DELETE FROM TBL_OWNED_PLAYERS WHERE PLAYER_SEQ = #{value}
     </delete>
 
-    <!-- 선수 삭제 전처리: PVE 상대 삭제 -->
     <delete id="deletePveOpponentsByPlayer" parameterType="int">
         DELETE FROM TBL_PVE_OPPONENTS WHERE PLAYER_SEQ = #{value}
     </delete>
 
-    <!-- 선수 삭제 (위 전처리 후 호출) -->
     <delete id="deletePlayer" parameterType="int">
         DELETE FROM TBL_PLAYERS WHERE PLAYER_SEQ = #{value}
     </delete>
 
 
-    <!-- 특정 선수가 속한 팩 목록 조회 -->
     <select id="selectPacksByPlayerSeq" parameterType="int" resultType="PackDTO">
         SELECT p.PACK_SEQ as packSeq, p.PACK_NAME as packName
         FROM TBL_PACK_CONTENTS pc
@@ -423,7 +351,6 @@
         ORDER BY p.PACK_SEQ ASC
     </select>
 
-    <!-- 팩-선수 연결 추가 (확률 포함) -->
     <insert id="insertPackContent" parameterType="map">
         INSERT INTO TBL_PACK_CONTENTS (PACK_CONTENT_SEQ, PACK_SEQ, PLAYER_SEQ, DRAW_PROBABILITY)
         VALUES (
@@ -432,7 +359,6 @@
         )
     </insert>
 
-    <!-- 선수가 속한 팩 + 확률 조회 (관리자 편집용) -->
     <select id="selectPacksWithProbByPlayerSeq" parameterType="int" resultType="map">
         SELECT p.PACK_SEQ as packSeq, p.PACK_NAME as packName, pc.DRAW_PROBABILITY as drawProbability
         FROM TBL_PACK_CONTENTS pc
@@ -441,15 +367,103 @@
         ORDER BY p.PACK_SEQ ASC
     </select>
 
-    <!-- 팩-선수 연결 삭제 (특정 팩에서 선수 제거) -->
     <delete id="deletePackContent" parameterType="map">
         DELETE FROM TBL_PACK_CONTENTS
         WHERE PACK_SEQ = #{packSeq} AND PLAYER_SEQ = #{playerSeq}
     </delete>
 
-    <!-- 선수의 모든 팩 연결 삭제 -->
     <delete id="deleteAllPackContentsByPlayer" parameterType="int">
         DELETE FROM TBL_PACK_CONTENTS WHERE PLAYER_SEQ = #{value}
+    </delete>
+
+    <select id="selectBuildMatchup" parameterType="map" resultType="String">
+        SELECT MATCHUP 
+        FROM TBL_BUILD_MATCHUP
+        WHERE BUILD_ID_A = #{buildA} AND BUILD_ID_B = #{buildB}
+    </select>
+
+    <update id="saveBuildMatchup" parameterType="map">
+        MERGE INTO TBL_BUILD_MATCHUP
+        USING DUAL
+        ON (BUILD_ID_A = #{buildA} AND BUILD_ID_B = #{buildB})
+        WHEN MATCHED THEN
+            UPDATE SET MATCHUP = #{status}
+        WHEN NOT MATCHED THEN
+            INSERT (MATCHUP_ID, BUILD_ID_A, BUILD_ID_B, MATCHUP)
+            VALUES (SEQ_BUILD_MATCHUP.NEXTVAL, #{buildA}, #{buildB}, #{status})
+    </update>
+    
+    <!-- ============================================================
+         admin_mapper.xml 의 </mapper> 태그 바로 위에 붙여넣으세요.
+    ============================================================ -->
+
+    <!-- ===================== 맵 CRUD ===================== -->
+    <select id="selectAllMapsDetail" resultType="map">
+        SELECT MAP_ID      AS mapId,
+               MAP_NAME    AS mapName,
+               DESCRIPTION AS description,
+               MAP_IMG_URL AS mapImgUrl,
+               WIN_RATE_T  AS winRateT,
+               WIN_RATE_P  AS winRateP,
+               WIN_RATE_Z  AS winRateZ
+        FROM TBL_MAPS
+        ORDER BY MAP_NAME ASC
+    </select>
+
+    <insert id="insertMap" parameterType="map">
+        INSERT INTO TBL_MAPS (MAP_ID, MAP_NAME, DESCRIPTION, MAP_IMG_URL, WIN_RATE_T, WIN_RATE_P, WIN_RATE_Z)
+        VALUES (#{mapId}, #{mapName}, #{description}, #{mapImgUrl},
+                #{winRateT}, #{winRateP}, #{winRateZ})
+    </insert>
+
+    <update id="updateMap" parameterType="map">
+        UPDATE TBL_MAPS
+        SET MAP_NAME    = #{mapName},
+            DESCRIPTION = #{description},
+            MAP_IMG_URL = #{mapImgUrl},
+            WIN_RATE_T  = #{winRateT},
+            WIN_RATE_P  = #{winRateP},
+            WIN_RATE_Z  = #{winRateZ}
+        WHERE MAP_ID = #{mapId}
+    </update>
+
+    <delete id="deleteMap" parameterType="String">
+        DELETE FROM TBL_MAPS WHERE MAP_ID = #{value}
+    </delete>
+
+    <!-- ===================== 맵 지점 CRUD ===================== -->
+    <select id="selectPointsByMapId" parameterType="String" resultType="dto.pve.MapPointDTO">
+        SELECT POINT_ID   AS pointId,
+               MAP_ID     AS mapId,
+               POINT_NAME AS pointName,
+               POINT_TYPE AS pointType,
+               PIXEL_X    AS pixelX,
+               PIXEL_Y    AS pixelY
+        FROM TBL_MAP_POINTS
+        WHERE MAP_ID = #{value}
+        ORDER BY POINT_ID ASC
+    </select>
+
+    <insert id="insertMapPoint" parameterType="dto.pve.MapPointDTO">
+        INSERT INTO TBL_MAP_POINTS (POINT_ID, MAP_ID, POINT_NAME, POINT_TYPE, PIXEL_X, PIXEL_Y)
+        VALUES (SEQ_MAP_POINTS.NEXTVAL, #{mapId}, #{pointName}, #{pointType}, #{pixelX}, #{pixelY})
+    </insert>
+
+    <update id="updateMapPoint" parameterType="dto.pve.MapPointDTO">
+        UPDATE TBL_MAP_POINTS
+        SET POINT_NAME = #{pointName},
+            POINT_TYPE = #{pointType},
+            PIXEL_X    = #{pixelX},
+            PIXEL_Y    = #{pixelY}
+        WHERE POINT_ID = #{pointId}
+    </update>
+
+    <delete id="deleteMapPoint" parameterType="int">
+        DELETE FROM TBL_MAP_POINTS WHERE POINT_ID = #{value}
+    </delete>
+
+    <delete id="deleteMapPointsByMapId" parameterType="String">
+        DELETE FROM TBL_MAP_POINTS WHERE MAP_ID = #{value}
     </delete>
 
 </mapper>

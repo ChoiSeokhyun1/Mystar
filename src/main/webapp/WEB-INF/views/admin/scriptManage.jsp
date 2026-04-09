@@ -238,7 +238,15 @@
         </div>
 
         <div id="matchupInfo" class="matchup-info" style="display:none;">
-            <span id="matchupText"></span>
+            <div id="matchupText" style="margin-bottom: 15px;"></div>
+            
+            <div style="background: #1a1a1a; padding: 10px; border-radius: 4px; border: 1px dashed #00ff88; text-align: center;">
+                <span style="color: #fff; font-size: 14px; margin-right: 15px;">⚔️ 현재 빌드 상성:</span>
+                <label style="color: #fff; margin-right: 10px; cursor:pointer;"><input type="radio" name="matchupStatus" value="GOOD"> 유리함 (GOOD)</label>
+                <label style="color: #fff; margin-right: 10px; cursor:pointer;"><input type="radio" name="matchupStatus" value="NORMAL" checked> 보통 (NORMAL)</label>
+                <label style="color: #fff; margin-right: 15px; cursor:pointer;"><input type="radio" name="matchupStatus" value="BAD"> 불리함 (BAD)</label>
+                <button type="button" class="btn-add-line" onclick="saveMatchupData()" style="padding: 5px 15px;">상성 저장</button>
+            </div>
         </div>
     </div>
 
@@ -252,13 +260,11 @@
             • <strong>빌드 B 선수:</strong> 이영호 선수가 8배럭으로 압박합니다
         </div>
         
-        <!-- 메인 탭: 승리/패배 -->
         <div class="main-tabs">
             <button class="main-tab-btn active" onclick="switchMainTab('win')">빌드 A 승리 대본</button>
             <button class="main-tab-btn" onclick="switchMainTab('lose')">빌드 A 패배 대본</button>
         </div>
 
-        <!-- 승리 대본 -->
         <div id="winMainTab" class="main-tab-content active">
             <div class="sub-tabs">
                 <button class="sub-tab-btn active" onclick="switchSubTab('win', 0)">승리 대본 #1</button>
@@ -285,7 +291,6 @@
             </div>
         </div>
 
-        <!-- 패배 대본 -->
         <div id="loseMainTab" class="main-tab-content">
             <div class="sub-tabs">
                 <button class="sub-tab-btn active" onclick="switchSubTab('lose', 0)">패배 대본 #1</button>
@@ -352,7 +357,6 @@ function loadBuildB() {
     }
 
     buildBSelect.innerHTML = '<option value="">빌드 B를 선택하세요</option>';
-
     // 모든 빌드를 빌드B 후보로 추가 (동족전, 자기 자신 빌드 포함)
     document.querySelectorAll('#buildASelect option').forEach(opt => {
         if (opt.value) {
@@ -392,11 +396,9 @@ function updateMatchupInfo() {
     const buildBSelect = document.getElementById('buildBSelect');
     
     buildBId = buildBSelect.value;
-    
     if (buildAId && buildBId) {
         const nameA = buildASelect.options[buildASelect.selectedIndex].text;
         const nameB = buildBSelect.options[buildBSelect.selectedIndex].text;
-        
         document.getElementById('matchupText').textContent = nameA + ' vs ' + nameB;
         document.getElementById('matchupInfo').style.display = 'block';
     } else {
@@ -412,11 +414,21 @@ function loadScripts() {
     }
     document.getElementById('scriptEditor').style.display = 'block';
 
+    // 상성 정보 같이 불러오기 추가
+    fetch('<c:url value="/admin/script/matchup/load" />?buildA=' + buildAId + '&buildB=' + buildBId)
+        .then(res => res.json())
+        .then(data => {
+            if(data.success && data.status) {
+                document.querySelector('input[name="matchupStatus"][value="'+data.status+'"]').checked = true;
+            } else {
+                document.querySelector('input[name="matchupStatus"][value="NORMAL"]').checked = true;
+            }
+        });
+
     const firstId = Math.min(parseInt(buildAId), parseInt(buildBId));
     const secondId = Math.max(parseInt(buildAId), parseInt(buildBId));
-    // ★ isSwapped: 내가 고른 빌드A가 2번(더 큰 번호)으로 밀려났는가? (자리바꿈 여부)
-    const isSwapped = (firstId != buildAId); 
-
+    const isSwapped = (firstId != buildAId);
+    
     fetch('<c:url value="/admin/script/load" />', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -433,16 +445,13 @@ function loadScripts() {
         // 2. /// 로 묶여있던 통짜 데이터를 4개 탭으로 분리해서 쏙쏙 넣기
         if (data.success && data.scripts) {
             data.scripts.forEach(dto => {
-                const tabs = dto.content.split('///'); // 4조각으로 분리
+                const tabs = dto.content.split('///'); 
                 
-                // ★ 핵심 수정: 자리가 바뀌었다면(isSwapped), 
-                // DB에서 가져온 'WIN' 대본은 내 입장에선 'LOSE'가 되어야 합니다!
                 let currentResult = dto.result;
                 if (isSwapped) {
                     currentResult = (dto.result === 'WIN') ? 'LOSE' : 'WIN';
                 }
                 
-                // 뒤집힌 결과에 맞춰서 들어갈 배열(탭)을 결정
                 let targetArray = (currentResult === 'WIN') ? winScripts : loseScripts;
                 
                 for (let i = 0; i < 4; i++) {
@@ -559,7 +568,6 @@ function updateLine(type, setIdx, lineIdx, field, value) {
 function switchMainTab(type) {
     document.querySelectorAll('.main-tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.main-tab-content').forEach(content => content.classList.remove('active'));
-    
     if (type === 'win') {
         document.querySelector('.main-tab-btn:nth-child(1)').classList.add('active');
         document.getElementById('winMainTab').classList.add('active');
@@ -584,7 +592,6 @@ function saveScripts() {
         return;
     }
 
-    // 4개의 탭 데이터를 /// 로 묶어서 하나의 통짜 문자열로 만드는 마법의 함수
     const serializeTabs = (scriptArray) => {
         return scriptArray.map(set => {
             let lines = [];
@@ -603,7 +610,6 @@ function saveScripts() {
     const winContent = serializeTabs(winScripts);
     const loseContent = serializeTabs(loseScripts);
 
-    // 아무것도 안 썼으면 빠꾸
     if (winContent.replace(/\/\/\//g, '').trim() === '' && loseContent.replace(/\/\/\//g, '').trim() === '') {
         alert('최소 하나의 대본을 작성하세요!');
         return;
@@ -611,8 +617,7 @@ function saveScripts() {
 
     const firstId = Math.min(parseInt(buildAId), parseInt(buildBId));
     const secondId = Math.max(parseInt(buildAId), parseInt(buildBId));
-
-    // 컨트롤러에 딱 2덩어리(WIN, LOSE)로 깔끔하게 전송
+    
     const data = {
         myBuildId: firstId,
         oppBuildId: secondId,
@@ -621,7 +626,7 @@ function saveScripts() {
             { resultType: 'LOSE', content: loseContent }
         ]
     };
-
+    
     fetch('<c:url value="/admin/script/save" />', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -638,6 +643,25 @@ function saveScripts() {
     .catch(err => {
         console.error('저장 실패:', err);
         alert('저장 중 오류가 발생했습니다.');
+    });
+}
+
+// 상성 저장 함수 추가
+function saveMatchupData() {
+    if (!buildAId || !buildBId) return alert('빌드를 선택하세요.');
+    if (buildAId === buildBId) return alert('동일 빌드는 상성을 설정할 수 없습니다.');
+
+    let status = document.querySelector('input[name="matchupStatus"]:checked').value;
+
+    fetch('<c:url value="/admin/script/matchup/save" />', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ buildA: buildAId, buildB: buildBId, status: status })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) alert('상성이 양방향으로 완벽하게 저장되었습니다!');
+        else alert('저장 실패: ' + data.message);
     });
 }
 </script>
