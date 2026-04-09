@@ -343,33 +343,39 @@
         }
 
         currentTargetSlot = slot;
-        const myRace  = selectedMyPlayerEl.dataset.race;
-        const oppRace = (slot.dataset.oppRace || '').trim();  // AI 상대 종족 (예: 'TERRAN')
 
-        // RACE, VS_RACE 모두 약자('T','Z','P')로 통일 → 직접 비교
-        const raceToCode = { 'TERRAN': 'T', 'ZERG': 'Z', 'PROTOSS': 'P' };
-        const myRaceCode  = raceToCode[myRace]  || myRace;   // 혹시 풀네임이 남아있을 경우 대비
-        const oppRaceCode = raceToCode[oppRace] || oppRace;
+        // TBL_PLAYERS.RACE, TBL_BUILDS.RACE/VS_RACE 모두 단일코드('Z','T','P')
+        // 혹시 풀네임이 섞여있을 경우도 대비한 정규화
+        function toCode(r) {
+            var map = { 'ZERG':'Z', 'TERRAN':'T', 'PROTOSS':'P' };
+            var s = (r || '').trim().toUpperCase();
+            return map[s] || s;
+        }
 
-        const filtered = myBuilds.filter(b => {
-            const raceOk   = (b.race   || '').trim() === myRaceCode;
-            const vsRaceOk = !oppRaceCode
-                          || (b.vsRace || '').trim() === oppRaceCode
-                          || (b.vsRace || '').trim() === 'A';
+        var myCode  = toCode(selectedMyPlayerEl.dataset.race);  // 내 선수 종족: 'Z'
+        var oppCode = toCode(slot.dataset.oppRace);              // AI 종족: 'T'
+
+        var filtered = myBuilds.filter(function(b) {
+            var bRace   = toCode(b.race);
+            var bVsRace = toCode(b.vsRace);
+            var raceOk   = (bRace === myCode);            // 내 선수 종족과 일치하는 빌드만
+            var vsRaceOk = !oppCode                       // AI 미배정 슬롯이면 전부 표시
+                        || (bVsRace === oppCode)          // vsRace 코드 일치 ex) 'T'==='T'
+                        || (bVsRace === 'A');             // 전체 상대 빌드
             return raceOk && vsRaceOk;
         });
-        console.log('[DEBUG] 내 종족:', myRaceCode, '/ AI 종족:', oppRaceCode, '/ 매칭 빌드:', filtered.length, '개');
+        console.log('[DEBUG] 내 종족:', myCode, '/ AI 종족:', oppCode, '/ 매칭 빌드:', filtered.length, '개');
 
         const list = document.getElementById('modalBuildList');
-        document.getElementById('modalRaceInfo').textContent = '선택된 선수: ' + selectedMyPlayerEl.dataset.name + ' (' + myRace + ')';
+        document.getElementById('modalRaceInfo').textContent = '선택된 선수: ' + selectedMyPlayerEl.dataset.name + ' (' + myCode + ')';
         list.innerHTML = '';
         
         if (filtered.length === 0) {
-            const raceLabel = {'ZERG':'저그','TERRAN':'테란','PROTOSS':'프로토스'};
-            const oppLabel  = {'ZERG':'저그전','TERRAN':'테란전','PROTOSS':'프토전'};
+            const codeLabel = {'Z':'저그','T':'테란','P':'프로토스'};
+            const vsLabel   = {'Z':'저그전','T':'테란전','P':'프토전'};
             list.innerHTML = '<li class="modal-empty">'
-                + (raceLabel[myRace] || myRace) + ' 선수의 '
-                + (oppLabel[oppRace] || (oppRace ? oppRace + '전' : '해당 종족')) + ' 전략이 없습니다.<br>'
+                + (codeLabel[myCode] || myCode) + ' 선수의 '
+                + (vsLabel[oppCode]  || (oppCode ? oppCode + '전' : '해당 종족')) + ' 전략이 없습니다.<br>'
                 + '관리자 페이지에서 해당 빌드를 등록해 주세요.</li>';
         } else {
             filtered.forEach(b => {

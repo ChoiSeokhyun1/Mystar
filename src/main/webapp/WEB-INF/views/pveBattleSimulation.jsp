@@ -274,98 +274,23 @@
     </div>
 </div>
 
-<%-- ═══ SCRIPT (원본 그대로) ════════════════════════════════════════════ --%>
 <script>
-const GAME_DATA={},META_DATA={};let MATCHUP_INFO={};
+const META_DATA = {};
 const SCRIPT_RAW = document.getElementById('hiddenScriptJson');
 const SCRIPT_DATA = SCRIPT_RAW ? JSON.parse(SCRIPT_RAW.value || '{}') : {};
 const SCRIPT_LINES = SCRIPT_DATA.lines || [];
 const MY_WIN  = SCRIPT_DATA.myWin  || false;
-const MY_NAME = SCRIPT_DATA.myName || '아군';
-const AI_NAME = SCRIPT_DATA.aiName || 'AI';
-const contextPath='${pageContext.request.contextPath}';
+const contextPath = '${pageContext.request.contextPath}';
 
-const ENT_TYPE={
-  '커맨드센터':'building','정제소':'building','배럭스':'building','아카데미':'building',
-  '팩토리':'building','머신샵':'building','아머리':'building','스타포트':'building',
-  '사이언스 퍼실리티':'building','뉴클리어 어댑터':'building','배틀 어댑터':'building',
-  '해처리':'building','추출기':'building','스포닝풀':'building','히드라덴':'building','스파이어':'building','러커어스펙트':'building',
-  '넥서스':'building','동화기':'building','게이트웨이':'building','사이버네틱스코어':'building','시타델':'building','로보틱스':'building',
-  'SCV':'unit','마린':'unit','파이어뱃':'unit','메딕':'unit',
-  '벌처':'unit','탱크':'unit','골리앗':'unit','레이스':'unit','드랍쉽':'unit',
-  '고스트':'unit','사이언스베슬':'unit','배틀크루저':'unit',
-  '드론':'unit','저글링':'unit','히드라리스크':'unit','뮤탈리스크':'unit','러커':'unit',
-  '프로브':'unit','질럿':'unit','드라군':'unit','다크템플러':'unit','리버':'unit','하이템플러':'unit','커세어':'unit','캐리어':'unit'
-};
-const ENT_ID={
-  '커맨드센터':'command_center','정제소':'refinery','배럭스':'barracks','아카데미':'academy',
-  '팩토리':'factory','머신샵':'machine_shop','아머리':'armory','스타포트':'starport',
-  '사이언스 퍼실리티':'science_facility','뉴클리어 어댑터':'nuclear_silo','배틀 어댑터':'battle_adaptor',
-  '해처리':'hatchery','추출기':'extractor','스포닝풀':'spawning_pool','히드라덴':'hydralisk_den','스파이어':'spire','러커어스펙트':'lurker_aspect',
-  '넥서스':'nexus','동화기':'assimilator','게이트웨이':'gateway','사이버네틱스코어':'cybernetics_core','시타델':'citadel','로보틱스':'robotics',
-  'SCV':'scv','마린':'marine','파이어뱃':'firebat','메딕':'medic',
-  '벌처':'vulture','탱크':'tank','골리앗':'goliath','레이스':'wraith','드랍쉽':'dropship',
-  '고스트':'ghost','사이언스베슬':'vessel','배틀크루저':'battlecruiser',
-  '드론':'drone','저글링':'zergling','히드라리스크':'hydralisk','뮤탈리스크':'mutalisk','러커':'lurker',
-  '프로브':'probe','질럿':'zealot','드라군':'dragoon','다크템플러':'dark_templar','리버':'reaver','하이템플러':'high_templar','커세어':'corsair','캐리어':'carrier'
-};
-const RACE_ENT={
-  T:{
-    buildings:[
-      {tier:1, items:['커맨드센터','정제소','배럭스','아카데미']},
-      {tier:2, items:['팩토리','머신샵','아머리','스타포트']},
-      {tier:3, items:['사이언스 퍼실리티','뉴클리어 어댑터','배틀 어댑터']}
-    ],
-    units:[
-      {tier:1, items:['SCV','마린','파이어뱃','메딕']},
-      {tier:2, items:['벌처','탱크','골리앗','레이스','드랍쉽']},
-      {tier:3, items:['고스트','사이언스베슬','배틀크루저']}
-    ]
-  },
-  P:{
-    buildings:[
-      {tier:1, items:['넥서스','동화기','게이트웨이']},
-      {tier:2, items:['사이버네틱스코어','시타델','로보틱스']}
-    ],
-    units:[
-      {tier:1, items:['프로브','질럿','드라군']},
-      {tier:2, items:['다크템플러','리버','하이템플러','커세어','캐리어']}
-    ]
-  },
-  Z:{
-    buildings:[
-      {tier:1, items:['해처리','추출기','스포닝풀']},
-      {tier:2, items:['히드라덴','스파이어','러커어스펙트']}
-    ],
-    units:[
-      {tier:1, items:['드론','저글링','히드라리스크']},
-      {tier:2, items:['뮤탈리스크','러커']}
-    ]
-  }
-};
-const LOG_META={
-  battle:    {badge:'⚔ 교전',    cls:'rr-battle'},
-  harass:    {badge:'🐝 견제',    cls:'rr-harass'},
-  user_action:{badge:'▶ 내팀',   cls:'rr-my'},
-  ai_action:  {badge:'◀ 상대',   cls:'rr-ai'},
-  commentary: {badge:'💬 해설',   cls:'rr-commentary'},
-  system:     {badge:'📡 시스템', cls:'rr-system'}
-};
-
+// 메타 데이터 세팅
 (function(){
     try{
-        META_DATA.stageLevel=document.getElementById('meta-stageLevel').value;
-        META_DATA.subLevel=document.getElementById('meta-subLevel').value;
-        META_DATA.currentSet=parseInt(document.getElementById('meta-currentSet').value)||1;
-        META_DATA.myRace=document.getElementById('meta-myRace').value||'T';
-        META_DATA.aiRace=document.getElementById('meta-aiRace').value||'T';
-        const ms=document.getElementById('hiddenMatchupData').value;
-        if(ms)MATCHUP_INFO=JSON.parse(ms);
-        JSON.parse(document.getElementById('hiddenGameEntities').value||'[]').forEach(e=>{GAME_DATA[e.id]=e;});
-        const rs=document.getElementById('hiddenReplayJson').value;
-        if(rs&&rs.trim()!=='[]'&&rs.trim()!=='')REPLAY_DATA=JSON.parse(rs);
-        else{const f=document.getElementById('live-log');if(f)f.innerHTML='<div class="relay-row rr-system"><span class="rr-time">00:00</span><span class="rr-badge rr-system-badge">⚠ 오류</span><span class="rr-msg" style="color:#ff6b6b">데이터 없음</span></div>';}
-    }catch(e){console.error(e);}
+        META_DATA.stageLevel = document.getElementById('meta-stageLevel').value;
+        META_DATA.subLevel = document.getElementById('meta-subLevel').value;
+        META_DATA.currentSet = parseInt(document.getElementById('meta-currentSet').value) || 1;
+    } catch(e) {
+        console.error("메타 데이터 파싱 오류:", e);
+    }
 })();
 
 let scriptIdx = 0;
@@ -373,52 +298,126 @@ let scriptTicker = null;
 let scriptFinished = false;
 
 document.addEventListener('DOMContentLoaded', () => {
-    initImages();
-    initStatPanels();
+    // 삭제된 과거 함수들은 호출하지 않음 (JS 에러 방지)
     startScript();
 });
 
+/* ── 1. 대본 출력 시작 ── */
 function startScript() {
-    if (SCRIPT_LINES.length === 0) { endScript(); return; }
+    const logBox = document.getElementById('live-log');
+    
+    if (SCRIPT_LINES.length === 0) { 
+        if(logBox) logBox.innerHTML = '';
+        appendLog('대본 데이터가 없습니다. (기본 경기 처리)');
+        endScript(); 
+        return; 
+    }
+    
     scriptIdx = 0;
-    scriptTicker = setInterval(stepScript, 3000);
-    stepScript(); // 첫 줄 즉시 출력
+    if(logBox) logBox.innerHTML = ''; // 초기 "데이터 로딩 중..." 텍스트 삭제
+    
+    scriptTicker = setInterval(stepScript, 3000); // 3초마다 한 줄씩
+    stepScript(); // 첫 줄은 즉시 출력
 }
 
 function stepScript() {
     if (scriptIdx >= SCRIPT_LINES.length) {
-        clearInterval(scriptTicker);
         endScript();
         return;
     }
-    const line = SCRIPT_LINES[scriptIdx];
-    appendLog(line);
+    appendLog(SCRIPT_LINES[scriptIdx]);
     scriptIdx++;
 }
 
+/* ── 2. 화면에 문자 중계 추가 ── */
+function appendLog(line) {
+    const logBox = document.getElementById('live-log'); // 정확한 ID로 매칭
+    if (!logBox) return;
+    
+    const el = document.createElement('div');
+    el.className = 'relay-row rr-commentary';
+    
+    // 시간 표시 (3초씩 증가)
+    const totalSec = scriptIdx * 3;
+    const m = String(Math.floor(totalSec / 60)).padStart(2, '0');
+    const s = String(totalSec % 60).padStart(2, '0');
+
+    el.innerHTML = '<span class="rr-time">' + m + ':' + s + '</span>' +
+                   '<span class="rr-badge rr-commentary-badge" style="background:#555; color:#fff; padding:2px 6px; border-radius:4px; font-size:0.8rem; margin-right:8px;">💬 해설</span>' +
+                   '<span class="rr-msg">' + line + '</span>';
+                   
+    logBox.appendChild(el);
+    logBox.scrollTop = logBox.scrollHeight;
+}
+
+/* ── 3. ⏩ 결과 보기 (스킵) ── */
+function skipToResult() {
+    if (scriptFinished) return;
+    clearInterval(scriptTicker);
+    
+    // 아직 안 나온 대본들 한 번에 전부 쏟아내기
+    while(scriptIdx < SCRIPT_LINES.length) {
+        appendLog(SCRIPT_LINES[scriptIdx]);
+        scriptIdx++;
+    }
+    endScript();
+}
+
+/* ── 4. 경기 종료 및 다음 버튼 활성화 ── */
 function endScript() {
     if (scriptFinished) return;
     scriptFinished = true;
     clearInterval(scriptTicker);
+    
+    // 스킵 버튼 숨기기
+    const skipBtn = document.getElementById('skipButton');
+    if (skipBtn) skipBtn.style.display = 'none';
 
-    // 승패 표시
-    const resultBanner = document.getElementById('result-banner');
-    if (resultBanner) {
-        resultBanner.textContent = MY_WIN ? '🏆 승리!' : '💀 패배...';
-        resultBanner.className   = MY_WIN ? 'result-banner win' : 'result-banner lose';
-        resultBanner.style.display = 'block';
+    // 다음 경기 버튼 띄우기
+    const nextBtn = document.getElementById('nextMatchButton');
+    if (nextBtn) {
+        nextBtn.style.display = 'inline-block';
+        nextBtn.textContent = MY_WIN ? '🏆 승리! 다음으로 →' : '💀 패배... 다음으로 →';
+        nextBtn.style.backgroundColor = MY_WIN ? '#00cc66' : '#cc3333';
+        nextBtn.style.color = '#ffffff';
+        nextBtn.style.border = 'none';
+        
+        nextBtn.onclick = function() {
+            finishMatch();
+        };
     }
-    document.getElementById('btn-next-set').style.display = 'inline-block';
 }
 
-function appendLog(line) {
-    const logBox = document.getElementById('log-area');
-    if (!logBox) return;
-    const el = document.createElement('div');
-    el.className = 'log-line';
-    el.textContent = line;
-    logBox.appendChild(el);
-    logBox.scrollTop = logBox.scrollHeight;
+/* ── 5. 서버로 승패 전송 후 다음 세트 진행 ── */
+function finishMatch() {
+    const level = META_DATA.stageLevel;
+    const subLevel = META_DATA.subLevel;
+    const winner = MY_WIN ? 'player' : 'ai';
+    
+    fetch(contextPath + '/pve/battle/finish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'level=' + level + '&subLevel=' + subLevel + '&winner=' + winner
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            if (result.victory !== null) { 
+                // 최종 매치가 끝났을 경우 (승리 또는 패배)
+                alert(result.message);
+                location.href = contextPath + '/pve/lobby';
+            } else {
+                // 아직 남은 세트가 있을 경우 화면 새로고침하여 다음 세트 진행
+                location.reload(); 
+            }
+        } else {
+            alert('오류: ' + result.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('서버와의 통신 오류가 발생했습니다.');
+    });
 }
 </script>
 </body>
