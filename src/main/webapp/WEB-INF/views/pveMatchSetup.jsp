@@ -243,6 +243,7 @@
             return [];
         }
     })();
+    console.log('[DEBUG] myBuilds 로드됨:', myBuilds.length, '개', myBuilds);
 
     // ★ JS 에러(Syntax Error) 원천 차단: 모든 EL 태그를 "" 따옴표로 감싸서 문자열로 처리
     const myPlayerData = {
@@ -342,7 +343,8 @@
 
         currentTargetSlot = slot;
         const myRace = selectedMyPlayerEl.dataset.race;
-        const filtered = myBuilds.filter(b => b.race === myRace);
+        const filtered = myBuilds.filter(b => (b.race || '').trim() === (myRace || '').trim());
+        console.log('[DEBUG] 선수 종족:', myRace, '/ 매칭 빌드:', filtered.length, '개');
 
         const list = document.getElementById('modalBuildList');
         document.getElementById('modalRaceInfo').textContent = '선택된 선수: ' + selectedMyPlayerEl.dataset.name + ' (' + myRace + ')';

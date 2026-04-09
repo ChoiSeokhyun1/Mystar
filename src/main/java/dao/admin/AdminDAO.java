@@ -39,10 +39,14 @@ public interface AdminDAO {
     List<Map<String, Object>> findAllMaps();
     List<PveStageMapDTO> findSubstageMaps(Map<String, Object> params);
     int deleteSubstageMapBySet(Map<String, Object> params);
+    int deleteSubstageMapsByStage(int stageLevel);
+    int deleteSubstageMapsBySubstage(Map<String, Object> params);
     int insertSubstageMap(Map<String, Object> params);
 
     // 전체 선수 목록
     List<PlayerDTO> findAllPlayers();
+    int findMaxPlayerSeq();
+    int findMaxPackSeq();
 
     // 팩 목록 / 조회
     List<PackDTO> findAllPacks();

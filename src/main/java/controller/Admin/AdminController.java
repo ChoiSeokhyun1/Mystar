@@ -12,6 +12,7 @@ import dto.pve.ScriptDTO;
 import dto.user.UserDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import service.pve.BuildService;
@@ -24,7 +25,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/admin")
@@ -47,7 +47,6 @@ public class AdminController {
         return loginUser != null && "testuser3".equals(loginUser.getUserId());
     }
 
-    /** JSON 문자열 이스케이프 */
     private String je(String s) {
         if (s == null) return "";
         return s.replace("\\", "\\\\")
@@ -56,6 +55,24 @@ public class AdminController {
                 .replace("\n", " ")
                 .replace("\t", " ");
     }
+
+    private int toInt(Object val) {
+        if (val == null) return 0;
+        if (val instanceof Integer) return (Integer) val;
+        try { return Integer.parseInt(val.toString()); } catch (Exception e) { return 0; }
+    }
+
+    private PackDTO buildPackDTO(Map<String, Object> body) {
+        PackDTO dto = new PackDTO();
+        dto.setPackName((String) body.get("packName"));
+        dto.setDescription((String) body.getOrDefault("description", ""));
+        dto.setCostCrystal(toInt(body.get("costCrystal")));
+        dto.setBannerImgUrl((String) body.getOrDefault("bannerImgUrl", ""));
+        dto.setIsAvailable((String) body.getOrDefault("isAvailable", "Y"));
+        return dto;
+    }
+
+    // ===================== STAGE =====================
 
     @GetMapping("/stage")
     public String adminStagePage(HttpSession session, Model model) {
@@ -69,7 +86,6 @@ public class AdminController {
             stageSubstageMap.put(level, adminDAO.findSubstagesByStageLevel(level));
         }
 
-        // 선수 JSON
         StringBuilder playerJson = new StringBuilder("[");
         for (int i = 0; i < allPlayers.size(); i++) {
             PlayerDTO p = allPlayers.get(i);
@@ -88,7 +104,6 @@ public class AdminController {
         }
         playerJson.append("]");
 
-        // 라운드 JSON
         StringBuilder roundJson = new StringBuilder("{");
         boolean firstLevel = true;
         for (Map.Entry<Integer, List<PveSubstageDTO>> entry : stageSubstageMap.entrySet()) {
@@ -108,7 +123,6 @@ public class AdminController {
         }
         roundJson.append("}");
 
-        // 팩 JSON - 팩 목록 + 각 팩에 속한 playerSeq Set
         List<PackDTO> allPacks = adminDAO.findAllPacks();
         StringBuilder packJson = new StringBuilder("[");
         for (int i = 0; i < allPacks.size(); i++) {
@@ -127,7 +141,6 @@ public class AdminController {
         }
         packJson.append("]");
 
-        // 빌드 JSON - BuildService 사용 (DTO 방식)
         List<BuildDTO> allBuilds = buildService.getAllBuilds();
         StringBuilder buildJson = new StringBuilder("[");
         for (int i = 0; i < allBuilds.size(); i++) {
@@ -142,7 +155,6 @@ public class AdminController {
         }
         buildJson.append("]");
 
-        // 맵 JSON
         List<Map<String, Object>> allMaps = adminDAO.findAllMaps();
         StringBuilder mapJson = new StringBuilder("[");
         for (int i = 0; i < allMaps.size(); i++) {
@@ -165,6 +177,7 @@ public class AdminController {
         return "adminStage";
     }
 
+    @Transactional
     @PostMapping("/stage/add")
     @ResponseBody
     public Map<String, Object> addStage(HttpSession session) {
@@ -188,6 +201,7 @@ public class AdminController {
         return res;
     }
 
+    @Transactional
     @PostMapping("/stage/delete")
     @ResponseBody
     public Map<String, Object> deleteStage(@RequestBody Map<String, Integer> body, HttpSession session) {
@@ -195,10 +209,11 @@ public class AdminController {
         if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
         try {
             int level = body.get("stageLevel");
-            adminDAO.deleteOpponentsByStage(level);         // FK: opponents 먼저
-            adminDAO.deleteStage(level);                    // 그 다음 substages
-            adminDAO.deleteProgressByStage(level);          // 유저 스테이지 진행기록
-            adminDAO.deleteSubstageProgressByStage(level);  // 유저 서브스테이지 진행기록
+            adminDAO.deleteOpponentsByStage(level);
+            adminDAO.deleteSubstageMapsByStage(level);      // 맵 배정 삭제 추가
+            adminDAO.deleteStage(level);
+            adminDAO.deleteProgressByStage(level);
+            adminDAO.deleteSubstageProgressByStage(level);
             res.put("success", true);
         } catch (Exception e) {
             e.printStackTrace();
@@ -208,6 +223,9 @@ public class AdminController {
         return res;
     }
 
+    // ===================== ROUND =====================
+
+    @Transactional
     @PostMapping("/round/add")
     @ResponseBody
     public Map<String, Object> addRound(@RequestBody Map<String, Object> body, HttpSession session) {
@@ -234,6 +252,7 @@ public class AdminController {
         return res;
     }
 
+    @Transactional
     @PostMapping("/round/edit")
     @ResponseBody
     public Map<String, Object> editRound(@RequestBody Map<String, Object> body, HttpSession session) {
@@ -255,6 +274,7 @@ public class AdminController {
         return res;
     }
 
+    @Transactional
     @PostMapping("/round/delete")
     @ResponseBody
     public Map<String, Object> deleteRound(@RequestBody Map<String, Integer> body, HttpSession session) {
@@ -264,9 +284,10 @@ public class AdminController {
             Map<String, Object> params = new HashMap<>();
             params.put("stageLevel", body.get("stageLevel"));
             params.put("subLevel", body.get("subLevel"));
-            adminDAO.deleteOpponentsBySubstage(params);          // FK: opponents 먼저
-            adminDAO.deleteSubstage(params);                     // 그 다음 substage
-            adminDAO.deleteSubstageProgressBySubstage(params);   // 유저 서브스테이지 진행기록
+            adminDAO.deleteOpponentsBySubstage(params);
+            adminDAO.deleteSubstageMapsBySubstage(params);  // 맵 배정 삭제 추가
+            adminDAO.deleteSubstage(params);
+            adminDAO.deleteSubstageProgressBySubstage(params);
             res.put("success", true);
         } catch (Exception e) {
             e.printStackTrace();
@@ -296,6 +317,7 @@ public class AdminController {
         return res;
     }
 
+    @Transactional
     @PostMapping("/round/opponent/assign")
     @ResponseBody
     public Map<String, Object> assignOpponent(@RequestBody Map<String, Object> body, HttpSession session) {
@@ -312,10 +334,12 @@ public class AdminController {
             Map<String, Object> ins = new HashMap<>();
             ins.put("stageLevel", stageLevel); ins.put("subLevel", subLevel);
             ins.put("setNumber", setNumber);   ins.put("playerSeq", playerSeq);
-            Object buildIdObj = body.get("buildId");
-            if (buildIdObj != null) {
-                ins.put("buildId", (int) buildIdObj);
-            }
+            Object buildIdVsTObj = body.get("buildIdVsT");
+            Object buildIdVsZObj = body.get("buildIdVsZ");
+            Object buildIdVsPObj = body.get("buildIdVsP");
+            ins.put("buildIdVsT", buildIdVsTObj != null && !buildIdVsTObj.toString().isEmpty() ? toInt(buildIdVsTObj) : null);
+            ins.put("buildIdVsZ", buildIdVsZObj != null && !buildIdVsZObj.toString().isEmpty() ? toInt(buildIdVsZObj) : null);
+            ins.put("buildIdVsP", buildIdVsPObj != null && !buildIdVsPObj.toString().isEmpty() ? toInt(buildIdVsPObj) : null);
             adminDAO.insertOpponent(ins);
             res.put("success", true);
         } catch (Exception e) {
@@ -326,6 +350,7 @@ public class AdminController {
         return res;
     }
 
+    @Transactional
     @PostMapping("/round/opponent/remove")
     @ResponseBody
     public Map<String, Object> removeOpponent(@RequestBody Map<String, Integer> body, HttpSession session) {
@@ -345,10 +370,6 @@ public class AdminController {
         }
         return res;
     }
-
-    // ========================================================
-    // 세트별 맵 관리
-    // ========================================================
 
     @GetMapping("/round/maps")
     @ResponseBody
@@ -370,6 +391,7 @@ public class AdminController {
         return res;
     }
 
+    @Transactional
     @PostMapping("/round/map/assign")
     @ResponseBody
     public Map<String, Object> assignMap(@RequestBody Map<String, Object> body, HttpSession session) {
@@ -381,7 +403,7 @@ public class AdminController {
             params.put("subLevel",   (int) body.get("subLevel"));
             params.put("setNumber",  (int) body.get("setNumber"));
             params.put("mapId",      (String) body.get("mapId"));
-            adminDAO.deleteSubstageMapBySet(params); // UPSERT: 기존 삭제 후 재삽입
+            adminDAO.deleteSubstageMapBySet(params);
             adminDAO.insertSubstageMap(params);
             res.put("success", true);
         } catch (Exception e) {
@@ -392,6 +414,7 @@ public class AdminController {
         return res;
     }
 
+    @Transactional
     @PostMapping("/round/map/remove")
     @ResponseBody
     public Map<String, Object> removeMap(@RequestBody Map<String, Object> body, HttpSession session) {
@@ -412,6 +435,8 @@ public class AdminController {
         return res;
     }
 
+    // ===================== PLAYER =====================
+
     @GetMapping("/players")
     @ResponseBody
     public Map<String, Object> getAllPlayers(HttpSession session) {
@@ -427,16 +452,12 @@ public class AdminController {
         return res;
     }
 
-    // ========================================================
-    // 선수 관리 페이지
-    // ========================================================
     @GetMapping("/player")
     public String adminPlayerPage(HttpSession session, Model model) {
         if (!isAdmin(session)) return "redirect:/pve/lobby";
         List<PlayerDTO> players = adminDAO.findAllPlayersForAdmin();
         List<PackDTO> allPacks  = adminDAO.findAllPacks();
 
-        // 선수 JSON (소속 팩 목록 포함)
         StringBuilder playerJson = new StringBuilder("[");
         for (int i = 0; i < players.size(); i++) {
             PlayerDTO p = players.get(i);
@@ -470,7 +491,6 @@ public class AdminController {
         }
         playerJson.append("]");
 
-        // 팩 목록 JSON
         StringBuilder packJson = new StringBuilder("[");
         for (int i = 0; i < allPacks.size(); i++) {
             if (i > 0) packJson.append(",");
@@ -486,6 +506,7 @@ public class AdminController {
         return "adminPlayer";
     }
 
+    @Transactional
     @PostMapping("/player/add")
     @ResponseBody
     public Map<String, Object> addPlayer(@RequestBody Map<String, Object> body, HttpSession session) {
@@ -504,15 +525,7 @@ public class AdminController {
             dto.setPlayerImgUrl((String) body.getOrDefault("playerImgUrl", ""));
             dto.setPlayerCost(toInt(body.get("playerCost")));
             adminDAO.insertPlayer(dto);
-
-            // 새로 생성된 seq 조회
-            List<PlayerDTO> all = adminDAO.findAllPlayersForAdmin();
-            int newSeq = 0;
-            for (PlayerDTO p : all) {
-                if (p.getPlayerName().equals(dto.getPlayerName())) newSeq = Math.max(newSeq, p.getPlayerSeq());
-            }
-
-            // 팩 연결 (확률 포함)
+            int newSeq = adminDAO.findMaxPlayerSeq();   // INSERT 후 MAX(SEQ) 직접 조회
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> packInfos = (List<Map<String, Object>>) body.get("packInfos");
             if (packInfos != null && newSeq > 0) {
@@ -536,6 +549,7 @@ public class AdminController {
         return res;
     }
 
+    @Transactional
     @PostMapping("/player/edit")
     @ResponseBody
     public Map<String, Object> editPlayer(@RequestBody Map<String, Object> body, HttpSession session) {
@@ -556,8 +570,6 @@ public class AdminController {
             dto.setPlayerImgUrl((String) body.getOrDefault("playerImgUrl", ""));
             dto.setPlayerCost(toInt(body.get("playerCost")));
             adminDAO.updatePlayer(dto);
-
-            // 팩 연결 전체 교체 (기존 삭제 후 재삽입)
             adminDAO.deleteAllPackContentsByPlayer(playerSeq);
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> packInfos = (List<Map<String, Object>>) body.get("packInfos");
@@ -581,6 +593,7 @@ public class AdminController {
         return res;
     }
 
+    @Transactional
     @PostMapping("/player/delete")
     @ResponseBody
     public Map<String, Object> deletePlayer(@RequestBody Map<String, Integer> body, HttpSession session) {
@@ -588,13 +601,12 @@ public class AdminController {
         if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
         try {
             int seq = body.get("playerSeq");
-            // FK 순서대로 자식 테이블 먼저 삭제
-            adminDAO.deleteMatchRecordsByPlayer(seq);   // 1. 경기 기록
-            adminDAO.deletePveEntriesByPlayer(seq);     // 2. PVE 엔트리
-            adminDAO.deleteOwnedPlayersByPlayer(seq);   // 3. 보유 선수
-            adminDAO.deleteAllPackContentsByPlayer(seq); // 4. 팩 연결
-            adminDAO.deletePveOpponentsByPlayer(seq);   // 5. PVE 상대
-            adminDAO.deletePlayer(seq);                 // 6. 선수 본체
+            adminDAO.deleteMatchRecordsByPlayer(seq);
+            adminDAO.deletePveEntriesByPlayer(seq);
+            adminDAO.deleteOwnedPlayersByPlayer(seq);
+            adminDAO.deleteAllPackContentsByPlayer(seq);
+            adminDAO.deletePveOpponentsByPlayer(seq);
+            adminDAO.deletePlayer(seq);
             res.put("success", true);
         } catch (Exception e) {
             e.printStackTrace();
@@ -604,19 +616,14 @@ public class AdminController {
         return res;
     }
 
-    // ========================================================
-    // 팩 관리 페이지
-    // ========================================================
+    // ===================== PACK =====================
 
-    /** 팩 관리 페이지 */
     @GetMapping("/pack")
     public String adminPackPage(HttpSession session, Model model) {
         if (!isAdmin(session)) return "redirect:/pve/lobby";
-
         List<PackDTO> packs = adminDAO.findAllPacksForAdmin();
         List<PlayerDTO> players = adminDAO.findAllPlayersForAdmin();
 
-        // 팩 JSON (전체 필드)
         StringBuilder packJson = new StringBuilder("[");
         for (int i = 0; i < packs.size(); i++) {
             PackDTO pk = packs.get(i);
@@ -632,7 +639,6 @@ public class AdminController {
         }
         packJson.append("]");
 
-        // 선수 JSON (소속 팩 포함) — adminPlayer 방식 재활용
         StringBuilder playerJson = new StringBuilder("[");
         for (int i = 0; i < players.size(); i++) {
             PlayerDTO p = players.get(i);
@@ -661,7 +667,7 @@ public class AdminController {
         return "adminPack";
     }
 
-    /** 팩 추가 */
+    @Transactional
     @PostMapping("/pack/add")
     @ResponseBody
     public Map<String, Object> addPack(@RequestBody Map<String, Object> body, HttpSession session) {
@@ -670,12 +676,7 @@ public class AdminController {
         try {
             PackDTO dto = buildPackDTO(body);
             adminDAO.insertPack(dto);
-            // 새 seq 조회
-            List<PackDTO> all = adminDAO.findAllPacksForAdmin();
-            int newSeq = 0;
-            for (PackDTO pk : all) {
-                if (pk.getPackName().equals(dto.getPackName())) newSeq = Math.max(newSeq, pk.getPackSeq());
-            }
+            int newSeq = adminDAO.findMaxPackSeq();     // INSERT 후 MAX(SEQ) 직접 조회
             res.put("success", true);
             res.put("newSeq", newSeq);
         } catch (Exception e) {
@@ -686,7 +687,7 @@ public class AdminController {
         return res;
     }
 
-    /** 팩 수정 */
+    @Transactional
     @PostMapping("/pack/edit")
     @ResponseBody
     public Map<String, Object> editPack(@RequestBody Map<String, Object> body, HttpSession session) {
@@ -705,7 +706,7 @@ public class AdminController {
         return res;
     }
 
-    /** 팩 판매 ON/OFF 토글 */
+    @Transactional
     @PostMapping("/pack/toggle")
     @ResponseBody
     public Map<String, Object> togglePack(@RequestBody Map<String, Object> body, HttpSession session) {
@@ -725,7 +726,7 @@ public class AdminController {
         return res;
     }
 
-    /** 팩 삭제 */
+    @Transactional
     @PostMapping("/pack/delete")
     @ResponseBody
     public Map<String, Object> deletePack(@RequestBody Map<String, Integer> body, HttpSession session) {
@@ -733,7 +734,7 @@ public class AdminController {
         if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
         try {
             int packSeq = body.get("packSeq");
-            adminDAO.deleteAllPackContentsByPack(packSeq);  // FK 먼저
+            adminDAO.deleteAllPackContentsByPack(packSeq);
             adminDAO.deletePack(packSeq);
             res.put("success", true);
         } catch (Exception e) {
@@ -744,7 +745,6 @@ public class AdminController {
         return res;
     }
 
-    /** 팩 배너 이미지 업로드 */
     @PostMapping("/pack/upload")
     @ResponseBody
     public Map<String, Object> uploadPackImage(
@@ -760,18 +760,11 @@ public class AdminController {
                 ext = originalName.substring(originalName.lastIndexOf("."));
             }
             String saveName = UUID.randomUUID().toString() + ext;
-
-            // 저장 경로: /resources/image/packs/
             String uploadDir = request.getServletContext().getRealPath("/resources/image/packs");
             File dir = new File(uploadDir);
             if (!dir.exists()) dir.mkdirs();
-
             file.transferTo(new File(dir, saveName));
-
-            // 접근 URL (컨텍스트 경로 포함)
-            String contextPath = request.getContextPath();
-            String url = contextPath + "/image/packs/" + saveName;
-
+            String url = request.getContextPath() + "/image/packs/" + saveName;
             res.put("success", true);
             res.put("url", url);
         } catch (IOException e) {
@@ -782,11 +775,8 @@ public class AdminController {
         return res;
     }
 
-    /* ============================================================
-       빌드 CRUD (관리자용)
-       ============================================================ */
+    // ===================== BUILD =====================
 
-    /** 전체 빌드 목록 JSON (adminStage 페이지 갱신용) */
     @GetMapping("/builds/json")
     @ResponseBody
     public Map<String, Object> getAllBuildsJson(HttpSession session) {
@@ -810,7 +800,6 @@ public class AdminController {
         return res;
     }
 
-    /** 단건 빌드 + 유닛 조회 */
     @GetMapping("/builds/{buildId}")
     @ResponseBody
     public Map<String, Object> getBuild(@PathVariable int buildId, HttpSession session) {
@@ -823,33 +812,138 @@ public class AdminController {
         return res;
     }
 
-
-
-    /** PackDTO 빌더 헬퍼 */
-    private PackDTO buildPackDTO(Map<String, Object> body) {
-        PackDTO dto = new PackDTO();
-        dto.setPackName((String) body.get("packName"));
-        dto.setDescription((String) body.getOrDefault("description", ""));
-        dto.setCostCrystal(toInt(body.get("costCrystal")));
-        dto.setBannerImgUrl((String) body.getOrDefault("bannerImgUrl", ""));
-        dto.setIsAvailable((String) body.getOrDefault("isAvailable", "Y"));
-        return dto;
+    @GetMapping("/build/manage")
+    public String adminBuildManage(HttpSession session, Model model) {
+        if (!isAdmin(session)) return "redirect:/login";
+        try {
+            List<BuildDTO> allBuilds = buildService.getAllBuilds();
+            model.addAttribute("builds", allBuilds != null ? allBuilds : new ArrayList<>());
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("builds", new ArrayList<>());
+        }
+        return "admin/buildManage";
     }
 
-    private int toInt(Object val) {
-        if (val == null) return 0;
-        if (val instanceof Integer) return (Integer) val;
-        try { return Integer.parseInt(val.toString()); } catch (Exception e) { return 0; }
+    @Transactional
+    @PostMapping("/build/delete")
+    @ResponseBody
+    public Map<String, Object> deleteAdminBuild(@RequestParam("buildId") int buildId, HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
+        if (!isAdmin(session)) { response.put("success", false); response.put("message", "관리자 권한이 필요합니다."); return response; }
+        try {
+            buildService.removeBuild(buildId);
+            response.put("success", true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.put("success", false);
+            response.put("message", "빌드 삭제 실패: " + e.getMessage());
+        }
+        return response;
     }
 
-    /* ============================================================
-       유닛/건물 이미지 관리
-       ============================================================ */
+    @GetMapping("/build/list-by-race")
+    @ResponseBody
+    public List<BuildDTO> getAdminBuildsByRace(
+            @RequestParam("race") String race,
+            @RequestParam(value = "vsRace", required = false) String vsRace,
+            HttpSession session) {
+        if (!isAdmin(session)) return new ArrayList<>();
+        try {
+            if (vsRace != null && !vsRace.isEmpty()) {
+                return buildService.getBuildsByRaceAndVsRace(race, vsRace);
+            }
+            return buildService.getBuildsByRace(race);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
+    }
+
+    // ===================== SCRIPT =====================
+
+    @GetMapping("/script/manage")
+    public String scriptManagePage(HttpSession session, Model model) {
+        if (!isAdmin(session)) return "redirect:/login";
+        List<BuildDTO> allBuilds = buildService.getAllBuilds();
+        model.addAttribute("builds", allBuilds);
+        StringBuilder buildJson = new StringBuilder("[");
+        for (int i = 0; i < allBuilds.size(); i++) {
+            BuildDTO b = allBuilds.get(i);
+            if (i > 0) buildJson.append(",");
+            buildJson.append("{")
+                .append("\"buildId\":").append(b.getBuildId()).append(",")
+                .append("\"buildName\":\"").append(je(b.getBuildName())).append("\",")
+                .append("\"race\":\"").append(je(b.getRace())).append("\"")
+                .append("}");
+        }
+        buildJson.append("]");
+        model.addAttribute("buildJsonData", buildJson.toString());
+        return "admin/scriptManage";
+    }
+
+    @PostMapping("/script/load")
+    @ResponseBody
+    public Map<String, Object> loadScripts(@RequestBody Map<String, Object> params, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        if (!isAdmin(session)) { result.put("success", false); result.put("message", "권한 없음"); return result; }
+        try {
+            int myBuildId  = Integer.parseInt(params.get("myBuildId").toString());
+            int oppBuildId = Integer.parseInt(params.get("oppBuildId").toString());
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("myBuildId", myBuildId);
+            queryParams.put("oppBuildId", oppBuildId);
+            List<ScriptDTO> scripts = scriptDAO.selectScriptsByMatchup(queryParams);
+            result.put("success", true);
+            result.put("scripts", scripts != null ? scripts : new ArrayList<>());
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("success", false);
+            result.put("message", "로드 실패: " + e.getMessage());
+        }
+        return result;
+    }
+
+    @Transactional
+    @PostMapping("/script/save")
+    @ResponseBody
+    public Map<String, Object> saveScripts(@RequestBody Map<String, Object> params, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        if (!isAdmin(session)) { result.put("success", false); result.put("message", "권한 없음"); return result; }
+        try {
+            int myBuildId  = Integer.parseInt(params.get("myBuildId").toString());
+            int oppBuildId = Integer.parseInt(params.get("oppBuildId").toString());
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> scriptList = (List<Map<String, Object>>) params.get("scripts");
+            Map<String, Object> deleteParams = new HashMap<>();
+            deleteParams.put("myBuildId", myBuildId);
+            deleteParams.put("oppBuildId", oppBuildId);
+            scriptDAO.deleteScriptsByBuildIds(deleteParams);
+            if (scriptList != null && !scriptList.isEmpty()) {
+                for (Map<String, Object> script : scriptList) {
+                    ScriptDTO scriptDTO = new ScriptDTO();
+                    scriptDTO.setMyBuildId(myBuildId);
+                    scriptDTO.setOppBuildId(oppBuildId);
+                    scriptDTO.setResult((String) script.get("resultType"));
+                    scriptDTO.setContent((String) script.get("content"));
+                    scriptDAO.insertScript(scriptDTO);
+                }
+            }
+            result.put("success", true);
+            result.put("message", "저장 완료");
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("success", false);
+            result.put("message", "저장 실패: " + e.getMessage());
+        }
+        return result;
+    }
+
+    // ===================== ENTITY =====================
 
     @GetMapping("/entity")
     public String adminEntityPage(HttpSession session, Model model, HttpServletRequest request) {
         if (!isAdmin(session)) return "redirect:/login";
-
         String entityDir = request.getServletContext().getRealPath("/resources/image/entities");
         File dir = new File(entityDir);
         Map<String, String> existingImages = new HashMap<>();
@@ -861,7 +955,6 @@ public class AdminController {
                 existingImages.put(key, request.getContextPath() + "/image/entities/" + fname);
             }
         }
-
         String[][] defs = {
             {"command_center","커맨드센터","building","T"},{"refinery","정제소","building","T"},
             {"barracks","배럭스","building","T"},{"academy","아카데미","building","T"},
@@ -890,7 +983,6 @@ public class AdminController {
             {"reaver","리버","unit","P"},{"high_templar","하이템플러","unit","P"},
             {"corsair","커세어","unit","P"},{"carrier","캐리어","unit","P"}
         };
-
         StringBuilder json = new StringBuilder("[");
         for (int i = 0; i < defs.length; i++) {
             String[] d = defs[i];
@@ -968,285 +1060,4 @@ public class AdminController {
         return res;
     }
 
-    // ========================================
-    // 빌드 & 대본 관리 (관리자 전용)
-    // ========================================
-
-    /**
-     * 관리자 빌드 관리 메인 페이지
-     */
-    @GetMapping("/build/manage")
-    public String adminBuildManage(HttpSession session, Model model) {
-        if (!isAdmin(session)) return "redirect:/login";
-        
-        try {
-            List<BuildDTO> allBuilds = buildService.getAllBuilds();
-            model.addAttribute("builds", allBuilds != null ? allBuilds : new ArrayList<>());
-        } catch (Exception e) {
-            e.printStackTrace();
-            model.addAttribute("builds", new ArrayList<>());
-        }
-        
-        return "admin/buildManage";
-    }
-
-    /**
-     * 관리자 빌드 생성 페이지
-     */
-    @GetMapping("/build/create")
-    public String adminBuildCreate(HttpSession session, Model model) {
-        if (!isAdmin(session)) return "redirect:/login";
-        return "admin/buildCreate";
-    }
-
-    /**
-     * 관리자 빌드 수정 페이지
-     */
-    @GetMapping("/build/edit")
-    public String adminBuildEdit(@RequestParam("id") int buildId, 
-                                  HttpSession session, Model model) {
-        if (!isAdmin(session)) return "redirect:/login";
-        
-        try {
-            BuildDTO build = buildService.getBuildById(buildId);
-            if (build == null) {
-                return "redirect:/admin/build/manage";
-            }
-            
-            // 기존 대본들도 함께 조회
-            List<ScriptDTO> scripts = scriptDAO.selectScriptSummaryByMyBuild(buildId);
-            
-            model.addAttribute("build", build);
-            model.addAttribute("existingScripts", scripts != null ? scripts : new ArrayList<>());
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "redirect:/admin/build/manage";
-        }
-        
-        return "admin/buildEdit";
-    }
-
-    /**
-     * 관리자 빌드 생성 처리 (AJAX)
-     */
-    @PostMapping("/build/create")
-    @ResponseBody
-    public Map<String, Object> createAdminBuild(@RequestBody BuildDTO buildDto, 
-                                                 HttpSession session) {
-        Map<String, Object> response = new HashMap<>();
-        
-        if (!isAdmin(session)) {
-            response.put("success", false);
-            response.put("message", "관리자 권한이 필요합니다.");
-            return response;
-        }
-        
-        try {
-            // 관리자 빌드는 userId를 "SYSTEM"으로 설정
-            buildDto.setUserId("SYSTEM");
-            buildService.createBuild(buildDto);
-            response.put("success", true);
-        } catch (Exception e) {
-            e.printStackTrace();
-            response.put("success", false);
-            response.put("message", "빌드 생성 실패: " + e.getMessage());
-        }
-        
-        return response;
-    }
-
-    /**
-     * 관리자 빌드 수정 처리 (AJAX)
-     */
-    @PostMapping("/build/update")
-    @ResponseBody
-    public Map<String, Object> updateAdminBuild(@RequestBody BuildDTO buildDto, 
-                                                 HttpSession session) {
-        Map<String, Object> response = new HashMap<>();
-        
-        if (!isAdmin(session)) {
-            response.put("success", false);
-            response.put("message", "관리자 권한이 필요합니다.");
-            return response;
-        }
-        
-        try {
-            buildService.modifyBuild(buildDto);
-            response.put("success", true);
-        } catch (Exception e) {
-            e.printStackTrace();
-            response.put("success", false);
-            response.put("message", "빌드 수정 실패: " + e.getMessage());
-        }
-        
-        return response;
-    }
-
-    /**
-     * 관리자 빌드 삭제 (AJAX)
-     */
-    @PostMapping("/build/delete")
-    @ResponseBody
-    public Map<String, Object> deleteAdminBuild(@RequestParam("buildId") int buildId, 
-                                                 HttpSession session) {
-        Map<String, Object> response = new HashMap<>();
-        
-        if (!isAdmin(session)) {
-            response.put("success", false);
-            response.put("message", "관리자 권한이 필요합니다.");
-            return response;
-        }
-        
-        try {
-            buildService.removeBuild(buildId);
-            response.put("success", true);
-        } catch (Exception e) {
-            e.printStackTrace();
-            response.put("success", false);
-            response.put("message", "빌드 삭제 실패: " + e.getMessage());
-        }
-        
-        return response;
-    }
-
-    /**
-     * 관리자용 종족별 빌드 조회 (AJAX)
-     */
-    @GetMapping("/build/list-by-race")
-    @ResponseBody
-    public List<BuildDTO> getAdminBuildsByRace(
-            @RequestParam("race") String race,
-            HttpSession session) {
-        
-        if (!isAdmin(session)) {
-            return new ArrayList<>();
-        }
-        
-        try {
-            // 모든 빌드 조회 후 필터링 (vsRace 제거 - 빌드는 자기 종족만 구분)
-            List<BuildDTO> allBuilds = buildService.getAllBuilds();
-            
-            return allBuilds.stream()
-                .filter(b -> race.equals(b.getRace()))
-                .collect(Collectors.toList());
-        } catch (Exception e) {
-            e.printStackTrace();
-            return new ArrayList<>();
-        }
-    }
-
-    // =====================================================
-    // 대본 관리
-    // =====================================================
-    
- // =====================================================
-    // 대본 관리
-    // =====================================================
-    
-    @GetMapping("/script/manage")
-    public String scriptManagePage(HttpSession session, Model model) {
-        if (!isAdmin(session)) return "redirect:/login";
-        
-        // 1. 객체 리스트 그대로 넘기기 (JSTL용)
-        List<BuildDTO> allBuilds = buildService.getAllBuilds();
-        model.addAttribute("builds", allBuilds);
-        
-        // 2. JSON 문자열로도 만들어서 넘기기 (JS 파싱용)
-        StringBuilder buildJson = new StringBuilder("[");
-        for (int i = 0; i < allBuilds.size(); i++) {
-            BuildDTO b = allBuilds.get(i);
-            if (i > 0) buildJson.append(",");
-            buildJson.append("{")
-                .append("\"buildId\":").append(b.getBuildId()).append(",")
-                .append("\"buildName\":\"").append(je(b.getBuildName())).append("\",")
-                .append("\"race\":\"").append(je(b.getRace())).append("\"")
-                .append("}");
-        }
-        buildJson.append("]");
-        model.addAttribute("buildJsonData", buildJson.toString());
-        
-        return "admin/scriptManage";
-    }
-    
-    @PostMapping("/script/load")
-    @ResponseBody
-    public Map<String, Object> loadScripts(@RequestBody Map<String, Object> params, HttpSession session) {
-        Map<String, Object> result = new HashMap<>();
-        
-        if (!isAdmin(session)) {
-            result.put("success", false);
-            result.put("message", "권한 없음");
-            return result;
-        }
-        
-        try {
-            int myBuildId = Integer.parseInt(params.get("myBuildId").toString());
-            int oppBuildId = Integer.parseInt(params.get("oppBuildId").toString());
-            
-            // ScriptDAO에 전달할 파라미터 Map 생성
-            Map<String, Object> queryParams = new HashMap<>();
-            queryParams.put("myBuildId", myBuildId);
-            queryParams.put("oppBuildId", oppBuildId);
-            
-            // ★ 수정포인트: 쓸데없는 파싱 삭제! DB에 있는 통짜 대본을 그대로 던져줍니다. (화면이 알아서 4탭으로 쪼갬)
-            List<ScriptDTO> scripts = scriptDAO.selectScriptsByMatchup(queryParams);
-            
-            result.put("success", true);
-            result.put("scripts", scripts != null ? scripts : new ArrayList<>());
-        } catch (Exception e) {
-            e.printStackTrace();
-            result.put("success", false);
-            result.put("message", "로드 실패: " + e.getMessage());
-        }
-        
-        return result;
-    }
-    
-    @PostMapping("/script/save")
-    @ResponseBody
-    public Map<String, Object> saveScripts(@RequestBody Map<String, Object> params, HttpSession session) {
-        Map<String, Object> result = new HashMap<>();
-        
-        if (!isAdmin(session)) {
-            result.put("success", false);
-            result.put("message", "권한 없음");
-            return result;
-        }
-        
-        try {
-            int myBuildId = Integer.parseInt(params.get("myBuildId").toString());
-            int oppBuildId = Integer.parseInt(params.get("oppBuildId").toString());
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> scriptList = (List<Map<String, Object>>) params.get("scripts");
-            
-            // 1. 기존 매치업 스크립트 싹 비우기 (에러 및 꼬임 완벽 방지)
-            Map<String, Object> deleteParams = new HashMap<>();
-            deleteParams.put("myBuildId", myBuildId);
-            deleteParams.put("oppBuildId", oppBuildId);
-            scriptDAO.deleteScriptsByBuildIds(deleteParams);
-            
-            // 2. 화면에서 넘어온 'WIN' 덩어리와 'LOSE' 덩어리를 바로 DB에 넣기
-            if (scriptList != null && !scriptList.isEmpty()) {
-                for (Map<String, Object> script : scriptList) {
-                    ScriptDTO scriptDTO = new ScriptDTO();
-                    scriptDTO.setMyBuildId(myBuildId);
-                    scriptDTO.setOppBuildId(oppBuildId);
-                    scriptDTO.setResult((String) script.get("resultType"));
-                    scriptDTO.setContent((String) script.get("content")); // ★ 'lineText'가 아닌 'content' 통짜 텍스트를 받음
-                    
-                    scriptDAO.insertScript(scriptDTO);
-                }
-            }
-            
-            result.put("success", true);
-            result.put("message", "저장 완료");
-        } catch (Exception e) {
-            e.printStackTrace();
-            result.put("success", false);
-            result.put("message", "저장 실패: " + e.getMessage());
-        }
-        
-        return result;
-    }
-
-} // 클래스 닫는 괄호
+}

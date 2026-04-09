@@ -529,11 +529,22 @@ public class MainController {
         try {
             // 관리자(SYSTEM) 빌드만 제공 - 유저는 관리자가 만든 빌드를 선택해서 사용
             List<BuildDTO> myBuilds = buildService.getSystemBuilds();
-            if (myBuilds == null) myBuilds = new ArrayList<>();
+            if (myBuilds == null || myBuilds.isEmpty()) {
+                // fallback: 전체 빌드에서 SYSTEM만 필터링
+                List<BuildDTO> allBuilds = buildService.getAllBuilds();
+                if (allBuilds != null) {
+                    myBuilds = allBuilds.stream()
+                        .filter(b -> "SYSTEM".equals(b.getUserId()))
+                        .collect(Collectors.toList());
+                } else {
+                    myBuilds = new ArrayList<>();
+                }
+            }
             // JS Syntax Error 방지: EL 대신 Jackson으로 JSON 직렬화해서 넘김
             ObjectMapper om = new ObjectMapper();
             mv.addObject("myBuildsJson", om.writeValueAsString(myBuilds));
         } catch (Exception e) {
+            e.printStackTrace();
             mv.addObject("myBuildsJson", "[]");
         }
 

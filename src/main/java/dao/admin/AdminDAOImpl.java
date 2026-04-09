@@ -128,6 +128,16 @@ public class AdminDAOImpl implements AdminDAO {
     }
 
     @Override
+    public int deleteSubstageMapsByStage(int stageLevel) {
+        return sqlSession.delete(NS + "deleteSubstageMapsByStage", stageLevel);
+    }
+
+    @Override
+    public int deleteSubstageMapsBySubstage(Map<String, Object> params) {
+        return sqlSession.delete(NS + "deleteSubstageMapsBySubstage", params);
+    }
+
+    @Override
     public int insertSubstageMap(Map<String, Object> params) {
         return sqlSession.insert(NS + "insertSubstageMap", params);
     }
@@ -135,6 +145,18 @@ public class AdminDAOImpl implements AdminDAO {
     @Override
     public List<PlayerDTO> findAllPlayers() {
         return sqlSession.selectList(NS + "selectAllPlayers");
+    }
+
+    @Override
+    public int findMaxPlayerSeq() {
+        Integer result = sqlSession.selectOne(NS + "selectMaxPlayerSeq");
+        return result != null ? result : 0;
+    }
+
+    @Override
+    public int findMaxPackSeq() {
+        Integer result = sqlSession.selectOne(NS + "selectMaxPackSeq");
+        return result != null ? result : 0;
     }
 
     @Override

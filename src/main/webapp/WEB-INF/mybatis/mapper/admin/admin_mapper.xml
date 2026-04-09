@@ -175,6 +175,17 @@
         WHERE STAGE_LEVEL = #{stageLevel} AND SUB_LEVEL = #{subLevel} AND SET_NUMBER = #{setNumber}
     </delete>
 
+    <!-- 스테이지 전체 맵 배정 삭제 (스테이지 삭제 시 선처리) -->
+    <delete id="deleteSubstageMapsByStage" parameterType="int">
+        DELETE FROM TBL_PVE_SUBSTAGE_MAPS WHERE STAGE_LEVEL = #{value}
+    </delete>
+
+    <!-- 라운드 전체 맵 배정 삭제 (라운드 삭제 시 선처리) -->
+    <delete id="deleteSubstageMapsBySubstage" parameterType="map">
+        DELETE FROM TBL_PVE_SUBSTAGE_MAPS
+        WHERE STAGE_LEVEL = #{stageLevel} AND SUB_LEVEL = #{subLevel}
+    </delete>
+
     <insert id="insertSubstageMap" parameterType="map">
         INSERT INTO TBL_PVE_SUBSTAGE_MAPS (STAGE_LEVEL, SUB_LEVEL, SET_NUMBER, MAP_ID)
         VALUES (#{stageLevel}, #{subLevel}, #{setNumber}, #{mapId})
@@ -305,6 +316,15 @@
                 ELSE 5
             END,
             PLAYER_NAME ASC
+    </select>
+
+    <!-- INSERT 후 신규 SEQ 조회 -->
+    <select id="selectMaxPlayerSeq" resultType="int">
+        SELECT NVL(MAX(PLAYER_SEQ), 0) FROM TBL_PLAYERS
+    </select>
+
+    <select id="selectMaxPackSeq" resultType="int">
+        SELECT NVL(MAX(PACK_SEQ), 0) FROM TBL_PACKS
     </select>
 
 

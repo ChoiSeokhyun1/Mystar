@@ -868,6 +868,21 @@ function confirmAssign() {
         buildIdVsP: selectedBuildIdP
     };
     
+    // DB 저장
+    fetchPost('<c:url value="/admin/round/opponent/assign"/>', {
+        stageLevel:  currentStageLevel,
+        subLevel:    currentSubLevel,
+        setNumber:   currentSetSlot,
+        playerSeq:   selectedPlayerSeq,
+        buildIdVsT:  selectedBuildIdT || null,
+        buildIdVsZ:  selectedBuildIdZ || null,
+        buildIdVsP:  selectedBuildIdP || null
+    }, function(data) {
+        if (!data.success) {
+            showToast(data.message || '서버 저장 실패', 'error');
+        }
+    });
+
     // UI 업데이트
     renderSlot(currentSetSlot);
     closePlayerModal();
