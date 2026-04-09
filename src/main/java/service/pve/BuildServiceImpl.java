@@ -92,6 +92,19 @@ public class BuildServiceImpl implements BuildService {
     }
 
     @Override
+    public List<BuildDTO> getSystemBuilds() {
+        return buildDAO.selectSystemBuilds();
+    }
+
+    @Override
+    public List<BuildDTO> getBuildsByRaceAndVsRace(String race, String vsRace) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("race", race);
+        params.put("vsRace", vsRace);
+        return buildDAO.selectBuildsByRaceAndVsRace(params);
+    }
+
+    @Override
     public int assignBuildToPlayer(int ownedPlayerSeq, int buildId) {
         Map<String, Object> params = new HashMap<>();
         params.put("playerSeq", ownedPlayerSeq);

@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.stream.Collectors;
 import java.lang.reflect.Type;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.servlet.http.HttpSession;
 
@@ -60,7 +61,6 @@ import service.pve.PveScenarioService;
 import service.pve.PveSubstageService;
 import service.pve.BuildService;
 import service.pve.PveBattleService;
-import service.pve.PveSimulationService;
 
 
 @Controller
@@ -81,7 +81,6 @@ public class MainController {
     @Autowired private BattleSessionDAO battleSessionDAO;
     @Autowired private PveSubstageDAO pveSubstageDAO;
     @Autowired private PveBattleService pveBattleService;
-    @Autowired private PveSimulationService pveSimulationService;
     @Autowired private DailyMissionService dailyMissionService;
 
     private final Random rand = new Random();
@@ -515,7 +514,9 @@ public class MainController {
         String opponentTeamName = (substageDetails != null) ? substageDetails.getOpponentTeamName() : "AI Team";
 
         List<PveStageMapDTO> mapList = pveSubstageService.getMapsForSubstage(stageLevel, subLevel);
+        if (mapList == null) mapList = new ArrayList<>();
         List<OwnedPlayerInfoDTO> myEntryList = pveEntryService.getPveEntry(userId);
+        if (myEntryList == null) myEntryList = new ArrayList<>();
         List<PveOpponentInfoDTO> opponentEntryList = pveSubstageService.getOpponentEntryForSubstage(stageLevel, subLevel);
 
         Map<Integer, PveOpponentInfoDTO> aiPlayerMap = new HashMap<>();
@@ -526,10 +527,14 @@ public class MainController {
         }
 
         try {
-            List<BuildDTO> myBuilds = buildService.getBuildsByUserId(userId);
-            mv.addObject("myBuilds", myBuilds != null ? myBuilds : new ArrayList<BuildDTO>());
+            // 관리자(SYSTEM) 빌드만 제공 - 유저는 관리자가 만든 빌드를 선택해서 사용
+            List<BuildDTO> myBuilds = buildService.getSystemBuilds();
+            if (myBuilds == null) myBuilds = new ArrayList<>();
+            // JS Syntax Error 방지: EL 대신 Jackson으로 JSON 직렬화해서 넘김
+            ObjectMapper om = new ObjectMapper();
+            mv.addObject("myBuildsJson", om.writeValueAsString(myBuilds));
         } catch (Exception e) {
-            mv.addObject("myBuilds", new ArrayList<BuildDTO>());
+            mv.addObject("myBuildsJson", "[]");
         }
 
         mv.addObject("stageLevel", stageLevel);
@@ -809,11 +814,11 @@ public class MainController {
             String aiRace = (String) currentMatchup.get("aiPlayerRace");
 
             BuildDTO myBuildDto = (myBuildIds[0] > 0) ? buildService.getBuildById(myBuildIds[0]) : null;
-            if (myBuildDto == null) myBuildDto = pveSimulationService.generateDefaultBuild(myRace, aiRace);
+            // 빌드 없으면 null (기본 전략 사용)
 
             int aiBuildIdVal = safeInt(currentMatchup.get("aiBuildId"), 0);
             BuildDTO aiBuildDto = (aiBuildIdVal > 0) ? buildService.getBuildById(aiBuildIdVal) : null;
-            if (aiBuildDto == null) aiBuildDto = pveSimulationService.generateDefaultBuild(aiRace, myRace);
+            // AI 빌드 없으면 null (기본 전략 사용)
 
             String myPlayerName = (String) currentMatchup.getOrDefault("myPlayerName", "아군");
             String aiPlayerName = (String) currentMatchup.getOrDefault("aiPlayerName", "AI");
@@ -1132,11 +1137,11 @@ public class MainController {
 
                 int myBuildIdVal = safeInt(nextMatchup.get("myBuildId"), 0);
                 BuildDTO myBuildDto = (myBuildIdVal > 0) ? buildService.getBuildById(myBuildIdVal) : null;
-                if (myBuildDto == null) myBuildDto = pveSimulationService.generateDefaultBuild(myRace, aiRace);
+                // 빌드 없으면 null (기본 전략 사용)
 
                 int aiBuildIdVal = safeInt(nextMatchup.get("aiBuildId"), 0);
                 BuildDTO aiBuildDto = (aiBuildIdVal > 0) ? buildService.getBuildById(aiBuildIdVal) : null;
-                if (aiBuildDto == null) aiBuildDto = pveSimulationService.generateDefaultBuild(aiRace, myRace);
+                // AI 빌드 없으면 null (기본 전략 사용)
 
                 String myPName = (String) nextMatchup.getOrDefault("myPlayerName", "아군");
                 String aiPName = (String) nextMatchup.getOrDefault("aiPlayerName", "AI");

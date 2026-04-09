@@ -1,12 +1,10 @@
+// dto/pve/BuildDTO.java 전체 교체용 코드
+
 package dto.pve;
 
 import java.sql.Timestamp;
 import java.util.List;
 
-/**
- * 빌드 DTO (대본 방식 - 간소화)
- * VS_RACE 제거: 빌드는 종족만 표시
- */
 public class BuildDTO {
     
     // 기본 정보
@@ -15,6 +13,9 @@ public class BuildDTO {
     private String buildName;
     private String race;           // 이 빌드의 종족 (저그/테란/프로토스)
     
+    // ★ 추가 1: 상대 가능 종족 (vsRace) 변수 추가
+    private String vsRace;         // ALL, ZERG, TERRAN, PROTOSS
+
     // 전적
     private int winCount;
     private int loseCount;
@@ -29,102 +30,50 @@ public class BuildDTO {
     // Getters & Setters
     // ========================================
     
-    public int getBuildId() {
-        return buildId;
-    }
+    public int getBuildId() { return buildId; }
+    public void setBuildId(int buildId) { this.buildId = buildId; }
 
-    public void setBuildId(int buildId) {
-        this.buildId = buildId;
-    }
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
 
-    public String getUserId() {
-        return userId;
-    }
+    public String getBuildName() { return buildName; }
+    public void setBuildName(String buildName) { this.buildName = buildName; }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
+    public String getRace() { return race; }
+    public void setRace(String race) { this.race = race; }
 
-    public String getBuildName() {
-        return buildName;
-    }
+    // ★ 추가 2: vsRace의 Getter, Setter 추가
+    public String getVsRace() { return vsRace; }
+    public void setVsRace(String vsRace) { this.vsRace = vsRace; }
 
-    public void setBuildName(String buildName) {
-        this.buildName = buildName;
-    }
+    public int getWinCount() { return winCount; }
+    public void setWinCount(int winCount) { this.winCount = winCount; }
 
-    public String getRace() {
-        return race;
-    }
+    public int getLoseCount() { return loseCount; }
+    public void setLoseCount(int loseCount) { this.loseCount = loseCount; }
 
-    public void setRace(String race) {
-        this.race = race;
-    }
+    public Timestamp getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Timestamp createdAt) { this.createdAt = createdAt; }
 
-    public int getWinCount() {
-        return winCount;
-    }
+    public List<BuildMatchupDTO> getMatchups() { return matchups; }
+    public void setMatchups(List<BuildMatchupDTO> matchups) { this.matchups = matchups; }
 
-    public void setWinCount(int winCount) {
-        this.winCount = winCount;
-    }
+    public List<BuildStatBonusDTO> getStatBonuses() { return statBonuses; }
+    public void setStatBonuses(List<BuildStatBonusDTO> statBonuses) { this.statBonuses = statBonuses; }
 
-    public int getLoseCount() {
-        return loseCount;
-    }
-
-    public void setLoseCount(int loseCount) {
-        this.loseCount = loseCount;
-    }
-
-    public Timestamp getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Timestamp createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public List<BuildMatchupDTO> getMatchups() {
-        return matchups;
-    }
-
-    public void setMatchups(List<BuildMatchupDTO> matchups) {
-        this.matchups = matchups;
-    }
-
-    public List<BuildStatBonusDTO> getStatBonuses() {
-        return statBonuses;
-    }
-
-    public void setStatBonuses(List<BuildStatBonusDTO> statBonuses) {
-        this.statBonuses = statBonuses;
-    }
-
-    public List<ScriptDTO> getScripts() {
-        return scripts;
-    }
-
-    public void setScripts(List<ScriptDTO> scripts) {
-        this.scripts = scripts;
-    }
+    public List<ScriptDTO> getScripts() { return scripts; }
+    public void setScripts(List<ScriptDTO> scripts) { this.scripts = scripts; }
 
     // ========================================
     // 유틸리티 메서드
     // ========================================
     
-    /**
-     * 승률 계산
-     */
     public double getWinRate() {
         int total = winCount + loseCount;
         if (total == 0) return 0.0;
         return (double) winCount / total * 100;
     }
     
-    /**
-     * 종족 이름 (한글)
-     */
     public String getRaceName() {
         if ("ZERG".equals(race)) return "저그";
         if ("TERRAN".equals(race)) return "테란";
@@ -132,12 +81,14 @@ public class BuildDTO {
         return race;
     }
 
+    // ★ 추가 3: toString() 에도 vsRace 내용이 찍히도록 수정
     @Override
     public String toString() {
         return "BuildDTO{" +
                 "buildId=" + buildId +
                 ", buildName='" + buildName + '\'' +
                 ", race='" + race + '\'' +
+                ", vsRace='" + vsRace + '\'' + 
                 ", winCount=" + winCount +
                 ", loseCount=" + loseCount +
                 '}';

@@ -96,7 +96,7 @@
                         </c:forEach>
                     </c:when>
                     <c:otherwise>
-                        <li class="empty-list">1군 엔트리가 비어있습니다.<br><br><a href="<c:url value='/my-team/entry' />">엔트리 설정하기 →</a></li>
+                        <li class="empty-list">1군 엔트리가 비어있습니다.<br><small style="color:var(--text-dim)">PVE 로비 → 엔트리 관리에서 출전 선수를 등록하세요.</small><br><br><a href="<c:url value='/pve/entry' />">엔트리 설정하기 →</a></li>
                     </c:otherwise>
                 </c:choose>
             </ul>
@@ -114,6 +114,11 @@
             </div>
             <div class="msl-panel-body sets-body">
                 <ul class="set-list" id="setList">
+                    <c:if test="${empty mapList}">
+                        <li style="text-align:center; padding:2rem; color:var(--text-dim); font-style:italic;">
+                            ⚠️ 이 라운드에 맵이 배정되어 있지 않습니다.<br>관리자에게 문의하세요.
+                        </li>
+                    </c:if>
                     <c:forEach var="map" items="${mapList}" varStatus="status">
                         <c:set var="aiPlayer" value="${aiPlayerMap[map.setNumber]}" />
                         <li class="set-item" data-set-number="${map.setNumber}">
@@ -206,6 +211,9 @@
     </div>
 </div>
 
+<%-- 빌드 데이터 (JSON 안전 전달용) --%>
+<script type="application/json" id="_myBuildsData">${myBuildsJson}</script>
+
 <%-- 전투 폼 --%>
 <form id="battleStartForm" method="POST" action="<c:url value='/pve/battle/start' />" style="display:none;">
     <input type="hidden" name="level"    value="${stageLevel}">
@@ -217,12 +225,24 @@
 </form>
 
 <script>
-    // 빌드 리스트
-    const myBuilds = [
-        <c:forEach var="build" items="${myBuilds}" varStatus="s">
-            { id:"${build.buildId}", name:"${fn:escapeXml(build.buildName)}", race:"${build.race}", vsRace:"${build.vsRace}", playStyle:"${build.playStyle}", harassStyle:"${build.harassStyle}" }<c:if test="${!s.last}">,</c:if>
-        </c:forEach>
-    ];
+    // 빌드 리스트 - hidden script 태그에서 안전하게 파싱 (JS Syntax Error 완전 차단)
+    const myBuilds = (function() {
+        try {
+            var el  = document.getElementById('_myBuildsData');
+            var raw = JSON.parse(el ? el.textContent : '[]');
+            return raw.map(function(b) {
+                return {
+                    id:     b.buildId,
+                    name:   b.buildName || '',
+                    race:   b.race      || '',
+                    vsRace: b.vsRace    || ''
+                };
+            });
+        } catch(e) {
+            console.error('myBuilds 파싱 오류:', e);
+            return [];
+        }
+    })();
 
     // ★ JS 에러(Syntax Error) 원천 차단: 모든 EL 태그를 "" 따옴표로 감싸서 문자열로 처리
     const myPlayerData = {
@@ -329,7 +349,7 @@
         list.innerHTML = '';
         
         if (filtered.length === 0) {
-            list.innerHTML = '<li class="modal-empty">사용 가능한 전략이 없습니다.<br>전략 수립 메뉴에서 먼저 전략을 생성하세요.</li>';
+            list.innerHTML = '<li class="modal-empty">이 선수의 종족에 맞는 전략이 없습니다.<br>관리자가 아직 해당 종족 전략을 등록하지 않았습니다.</li>';
         } else {
             filtered.forEach(b => {
                 const li = document.createElement('li');

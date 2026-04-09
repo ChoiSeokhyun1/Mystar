@@ -127,21 +127,17 @@ public class AdminController {
         }
         packJson.append("]");
 
-        // 빌드 JSON
-        List<Map<String, Object>> allBuilds = adminDAO.findAllBuilds();
+        // 빌드 JSON - BuildService 사용 (DTO 방식)
+        List<BuildDTO> allBuilds = buildService.getAllBuilds();
         StringBuilder buildJson = new StringBuilder("[");
         for (int i = 0; i < allBuilds.size(); i++) {
-            Map<String, Object> b = allBuilds.get(i);
+            BuildDTO b = allBuilds.get(i);
             if (i > 0) buildJson.append(",");
             buildJson.append("{")
-                .append("\"id\":").append(b.get("BUILDID") != null ? b.get("BUILDID") : b.get("buildId")).append(",")
-                .append("\"name\":\"").append(je(String.valueOf(b.get("BUILDNAME") != null ? b.get("BUILDNAME") : b.get("buildName")))).append("\",")
-                .append("\"race\":\"").append(je(String.valueOf(b.get("RACE") != null ? b.get("RACE") : b.get("race")))).append("\",")
-                .append("\"vsRace\":\"").append(je(String.valueOf(b.get("VSRACE") != null ? b.get("VSRACE") : b.get("vsRace")))).append("\",")
-                .append("\"playStyle\":\"").append(je(String.valueOf(b.get("PLAYSTYLE") != null ? b.get("PLAYSTYLE") : b.get("playStyle")))).append("\",")
-                .append("\"harassStyle\":\"").append(je(String.valueOf(b.get("HARASSSTYLE") != null ? b.get("HARASSSTYLE") : b.getOrDefault("harassStyle", "NORMAL_HARASS")))).append("\",")
-                .append("\"aggression\":\"").append(je(String.valueOf(b.get("AGGRESSION") != null ? b.get("AGGRESSION") : b.get("aggression")))).append("\",")
-                .append("\"userId\":\"").append(je(String.valueOf(b.get("USERID") != null ? b.get("USERID") : b.get("userId")))).append("\"")
+                .append("\"id\":").append(b.getBuildId()).append(",")
+                .append("\"name\":\"").append(je(b.getBuildName())).append("\",")
+                .append("\"race\":\"").append(je(b.getRace())).append("\",")
+                .append("\"vsRace\":\"").append(je(b.getVsRace() != null ? b.getVsRace() : "")).append("\"")
                 .append("}");
         }
         buildJson.append("]");
@@ -1139,4 +1135,118 @@ public class AdminController {
         }
     }
 
-}
+    // =====================================================
+    // 대본 관리
+    // =====================================================
+    
+ // =====================================================
+    // 대본 관리
+    // =====================================================
+    
+    @GetMapping("/script/manage")
+    public String scriptManagePage(HttpSession session, Model model) {
+        if (!isAdmin(session)) return "redirect:/login";
+        
+        // 1. 객체 리스트 그대로 넘기기 (JSTL용)
+        List<BuildDTO> allBuilds = buildService.getAllBuilds();
+        model.addAttribute("builds", allBuilds);
+        
+        // 2. JSON 문자열로도 만들어서 넘기기 (JS 파싱용)
+        StringBuilder buildJson = new StringBuilder("[");
+        for (int i = 0; i < allBuilds.size(); i++) {
+            BuildDTO b = allBuilds.get(i);
+            if (i > 0) buildJson.append(",");
+            buildJson.append("{")
+                .append("\"buildId\":").append(b.getBuildId()).append(",")
+                .append("\"buildName\":\"").append(je(b.getBuildName())).append("\",")
+                .append("\"race\":\"").append(je(b.getRace())).append("\"")
+                .append("}");
+        }
+        buildJson.append("]");
+        model.addAttribute("buildJsonData", buildJson.toString());
+        
+        return "admin/scriptManage";
+    }
+    
+    @PostMapping("/script/load")
+    @ResponseBody
+    public Map<String, Object> loadScripts(@RequestBody Map<String, Object> params, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        
+        if (!isAdmin(session)) {
+            result.put("success", false);
+            result.put("message", "권한 없음");
+            return result;
+        }
+        
+        try {
+            int myBuildId = Integer.parseInt(params.get("myBuildId").toString());
+            int oppBuildId = Integer.parseInt(params.get("oppBuildId").toString());
+            
+            // ScriptDAO에 전달할 파라미터 Map 생성
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("myBuildId", myBuildId);
+            queryParams.put("oppBuildId", oppBuildId);
+            
+            // ★ 수정포인트: 쓸데없는 파싱 삭제! DB에 있는 통짜 대본을 그대로 던져줍니다. (화면이 알아서 4탭으로 쪼갬)
+            List<ScriptDTO> scripts = scriptDAO.selectScriptsByMatchup(queryParams);
+            
+            result.put("success", true);
+            result.put("scripts", scripts != null ? scripts : new ArrayList<>());
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("success", false);
+            result.put("message", "로드 실패: " + e.getMessage());
+        }
+        
+        return result;
+    }
+    
+    @PostMapping("/script/save")
+    @ResponseBody
+    public Map<String, Object> saveScripts(@RequestBody Map<String, Object> params, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        
+        if (!isAdmin(session)) {
+            result.put("success", false);
+            result.put("message", "권한 없음");
+            return result;
+        }
+        
+        try {
+            int myBuildId = Integer.parseInt(params.get("myBuildId").toString());
+            int oppBuildId = Integer.parseInt(params.get("oppBuildId").toString());
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> scriptList = (List<Map<String, Object>>) params.get("scripts");
+            
+            // 1. 기존 매치업 스크립트 싹 비우기 (에러 및 꼬임 완벽 방지)
+            Map<String, Object> deleteParams = new HashMap<>();
+            deleteParams.put("myBuildId", myBuildId);
+            deleteParams.put("oppBuildId", oppBuildId);
+            scriptDAO.deleteScriptsByBuildIds(deleteParams);
+            
+            // 2. 화면에서 넘어온 'WIN' 덩어리와 'LOSE' 덩어리를 바로 DB에 넣기
+            if (scriptList != null && !scriptList.isEmpty()) {
+                for (Map<String, Object> script : scriptList) {
+                    ScriptDTO scriptDTO = new ScriptDTO();
+                    scriptDTO.setMyBuildId(myBuildId);
+                    scriptDTO.setOppBuildId(oppBuildId);
+                    scriptDTO.setResult((String) script.get("resultType"));
+                    scriptDTO.setContent((String) script.get("content")); // ★ 'lineText'가 아닌 'content' 통짜 텍스트를 받음
+                    
+                    scriptDAO.insertScript(scriptDTO);
+                }
+            }
+            
+            result.put("success", true);
+            result.put("message", "저장 완료");
+        } catch (Exception e) {
+            e.printStackTrace();
+            result.put("success", false);
+            result.put("message", "저장 실패: " + e.getMessage());
+        }
+        
+        return result;
+    }
+
+} // 클래스 닫는 괄호

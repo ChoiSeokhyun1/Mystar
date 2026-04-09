@@ -13,6 +13,7 @@
         <result property="userId"       column="USER_ID"/>
         <result property="buildName"    column="BUILD_NAME"/>
         <result property="race"         column="RACE"/>
+        <result property="vsRace"       column="VS_RACE"/>
         <result property="winCount"     column="WIN_COUNT"/>
         <result property="loseCount"    column="LOSE_COUNT"/>
         <result property="createdAt"    column="CREATED_AT"/>
@@ -27,9 +28,9 @@
             SELECT SEQ_BUILDS.NEXTVAL FROM DUAL
         </selectKey>
         INSERT INTO TBL_BUILDS (
-            BUILD_ID, USER_ID, BUILD_NAME, RACE
+            BUILD_ID, USER_ID, BUILD_NAME, RACE, VS_RACE
         ) VALUES (
-            #{buildId}, #{userId}, #{buildName}, #{race}
+            #{buildId}, #{userId}, #{buildName}, #{race}, #{vsRace}
         )
     </insert>
 
@@ -37,6 +38,7 @@
         UPDATE TBL_BUILDS
         SET BUILD_NAME = #{buildName},
             RACE       = #{race},
+            VS_RACE    = #{vsRace},
             WIN_COUNT  = 0,
             LOSE_COUNT = 0
         WHERE BUILD_ID = #{buildId}
@@ -49,7 +51,13 @@
 
     <!-- 빌드 삭제 전처리: PVE 상대 배정 해제 (BUILD_ID → NULL) -->
     <update id="nullifyOpponentBuildId" parameterType="int">
-        UPDATE TBL_PVE_OPPONENTS SET BUILD_ID = NULL WHERE BUILD_ID = #{buildId}
+        UPDATE TBL_PVE_OPPONENTS
+        SET BUILD_ID_VS_T = CASE WHEN BUILD_ID_VS_T = #{buildId} THEN NULL ELSE BUILD_ID_VS_T END,
+            BUILD_ID_VS_Z = CASE WHEN BUILD_ID_VS_Z = #{buildId} THEN NULL ELSE BUILD_ID_VS_Z END,
+            BUILD_ID_VS_P = CASE WHEN BUILD_ID_VS_P = #{buildId} THEN NULL ELSE BUILD_ID_VS_P END
+        WHERE BUILD_ID_VS_T = #{buildId}
+           OR BUILD_ID_VS_Z = #{buildId}
+           OR BUILD_ID_VS_P = #{buildId}
     </update>
 
     <!-- 빌드 삭제 전처리: 선수-빌드 연결 삭제 -->
@@ -72,6 +80,7 @@
                USER_ID,
                BUILD_NAME,
                RACE,
+               VS_RACE,
                NVL(WIN_COUNT,   0) AS WIN_COUNT,
                NVL(LOSE_COUNT,  0) AS LOSE_COUNT,
                CREATED_AT
@@ -85,6 +94,7 @@
                USER_ID,
                BUILD_NAME,
                RACE,
+               VS_RACE,
                NVL(WIN_COUNT,   0) AS WIN_COUNT,
                NVL(LOSE_COUNT,  0) AS LOSE_COUNT,
                CREATED_AT
@@ -99,6 +109,7 @@
                USER_ID,
                BUILD_NAME,
                RACE,
+               VS_RACE,
                NVL(WIN_COUNT,   0) AS WIN_COUNT,
                NVL(LOSE_COUNT,  0) AS LOSE_COUNT,
                CREATED_AT
@@ -112,12 +123,28 @@
                USER_ID,
                BUILD_NAME,
                RACE,
+               VS_RACE,
                NVL(WIN_COUNT,   0) AS WIN_COUNT,
                NVL(LOSE_COUNT,  0) AS LOSE_COUNT,
                CREATED_AT
         FROM TBL_BUILDS
         WHERE RACE = #{race}
         ORDER BY BUILD_NAME
+    </select>
+
+    <!-- 관리자(SYSTEM) 빌드 전체 조회 (유저 전투 준비 화면용) -->
+    <select id="selectSystemBuilds" resultMap="buildMap">
+        SELECT BUILD_ID,
+               USER_ID,
+               BUILD_NAME,
+               RACE,
+               VS_RACE,
+               NVL(WIN_COUNT,   0) AS WIN_COUNT,
+               NVL(LOSE_COUNT,  0) AS LOSE_COUNT,
+               CREATED_AT
+        FROM TBL_BUILDS
+        WHERE USER_ID = 'SYSTEM'
+        ORDER BY RACE, VS_RACE, BUILD_NAME
     </select>
 
     <!-- =====================================================
@@ -149,6 +176,7 @@
                b.USER_ID, 
                b.BUILD_NAME, 
                b.RACE,
+               b.VS_RACE,
                NVL(b.WIN_COUNT,   0) AS WIN_COUNT,
                NVL(b.LOSE_COUNT,  0) AS LOSE_COUNT,
                b.CREATED_AT

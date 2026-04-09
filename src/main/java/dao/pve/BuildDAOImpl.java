@@ -62,6 +62,16 @@ public class BuildDAOImpl implements BuildDAO {
     }
 
     @Override
+    public List<BuildDTO> selectSystemBuilds() {
+        return sql.selectList(NS + "selectSystemBuilds");
+    }
+
+    @Override
+    public List<BuildDTO> selectBuildsByRaceAndVsRace(Map<String, Object> params) {
+        return sql.selectList(NS + "selectBuildsByRaceAndVsRace", params);
+    }
+
+    @Override
     public int deleteBuildUnitsByBuildId(int buildId) {
         return sql.delete(NS + "deleteBuildUnitsByBuildId", buildId);
     }

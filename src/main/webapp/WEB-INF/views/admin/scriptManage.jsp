@@ -214,9 +214,9 @@
                 <label>빌드 A 선택</label>
                 <select id="buildASelect" onchange="loadBuildB()">
                     <option value="">먼저 빌드를 선택하세요</option>
-                    <c:forEach items="${allBuilds}" var="build">
+                    <c:forEach items="${builds}" var="build">
                         <option value="${build.buildId}" data-race="${build.race}">
-                            ${build.buildName} (${build.raceName})
+                            ${build.buildName} (${build.race})
                         </option>
                     </c:forEach>
                 </select>
@@ -381,46 +381,61 @@ function updateMatchupInfo() {
     }
 }
 
+//서버에서 대본 불러오기
 function loadScripts() {
     if (!buildAId || !buildBId) {
         alert('빌드를 먼저 선택하세요!');
         return;
     }
-
     document.getElementById('scriptEditor').style.display = 'block';
 
     const firstId = Math.min(parseInt(buildAId), parseInt(buildBId));
     const secondId = Math.max(parseInt(buildAId), parseInt(buildBId));
-    const isSwapped = (firstId != buildAId);
+    // ★ isSwapped: 내가 고른 빌드A가 2번(더 큰 번호)으로 밀려났는가? (자리바꿈 여부)
+    const isSwapped = (firstId != buildAId); 
 
-    fetch('<c:url value="/admin/script/load" />?myBuildId=' + firstId + '&oppBuildId=' + secondId)
-        .then(res => res.json())
-        .then(data => {
-            let winSets = data.winScriptSets || [];
-            let loseSets = data.loseScriptSets || [];
-            
-            if (isSwapped) {
-                const temp = winSets;
-                winSets = loseSets;
-                loseSets = temp;
-            }
-            
-            // 최대 4개까지만
-            for (let i = 0; i < 4; i++) {
-                winScripts[i] = winSets[i] ? parseScriptSet(winSets[i], isSwapped) : [{text: '', speaker: 'narration'}];
-                loseScripts[i] = loseSets[i] ? parseScriptSet(loseSets[i], isSwapped) : [{text: '', speaker: 'narration'}];
-            }
-            
-            renderAllScripts();
-        })
-        .catch(err => {
-            console.error('대본 로드 실패:', err);
-            for (let i = 0; i < 4; i++) {
-                winScripts[i] = [{text: '', speaker: 'narration'}];
-                loseScripts[i] = [{text: '', speaker: 'narration'}];
-            }
-            renderAllScripts();
-        });
+    fetch('<c:url value="/admin/script/load" />', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ myBuildId: firstId, oppBuildId: secondId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        // 1. 4개 탭 초기화
+        for (let i = 0; i < 4; i++) {
+            winScripts[i] = [{text: '', speaker: 'narration'}];
+            loseScripts[i] = [{text: '', speaker: 'narration'}];
+        }
+
+        // 2. /// 로 묶여있던 통짜 데이터를 4개 탭으로 분리해서 쏙쏙 넣기
+        if (data.success && data.scripts) {
+            data.scripts.forEach(dto => {
+                const tabs = dto.content.split('///'); // 4조각으로 분리
+                
+                // ★ 핵심 수정: 자리가 바뀌었다면(isSwapped), 
+                // DB에서 가져온 'WIN' 대본은 내 입장에선 'LOSE'가 되어야 합니다!
+                let currentResult = dto.result;
+                if (isSwapped) {
+                    currentResult = (dto.result === 'WIN') ? 'LOSE' : 'WIN';
+                }
+                
+                // 뒤집힌 결과에 맞춰서 들어갈 배열(탭)을 결정
+                let targetArray = (currentResult === 'WIN') ? winScripts : loseScripts;
+                
+                for (let i = 0; i < 4; i++) {
+                    if (tabs[i] && tabs[i].trim() !== '') {
+                        const lines = tabs[i].split('\n').filter(l => l.trim() !== '');
+                        targetArray[i] = parseScriptSet(lines, isSwapped);
+                    }
+                }
+            });
+        }
+        renderAllScripts();
+    })
+    .catch(err => {
+        console.error('대본 로드 실패:', err);
+        renderAllScripts();
+    });
 }
 
 function parseScriptSet(lines, isSwapped) {
@@ -546,26 +561,27 @@ function saveScripts() {
         return;
     }
 
-    // 빈 대본 필터링
-    const validWinSets = winScripts
-        .map(set => set.filter(s => s.text.trim() !== ''))
-        .filter(set => set.length > 0)
-        .map(set => set.map(s => {
-            if (s.speaker === 'buildA') return '[빌드A] ' + s.text;
-            if (s.speaker === 'buildB') return '[빌드B] ' + s.text;
-            return s.text;
-        }));
-    
-    const validLoseSets = loseScripts
-        .map(set => set.filter(s => s.text.trim() !== ''))
-        .filter(set => set.length > 0)
-        .map(set => set.map(s => {
-            if (s.speaker === 'buildA') return '[빌드A] ' + s.text;
-            if (s.speaker === 'buildB') return '[빌드B] ' + s.text;
-            return s.text;
-        }));
+    // 4개의 탭 데이터를 /// 로 묶어서 하나의 통짜 문자열로 만드는 마법의 함수
+    const serializeTabs = (scriptArray) => {
+        return scriptArray.map(set => {
+            let lines = [];
+            set.forEach(s => {
+                if (s.text.trim() !== '') {
+                    let prefix = '';
+                    if (s.speaker === 'buildA') prefix = '[빌드A] ';
+                    if (s.speaker === 'buildB') prefix = '[빌드B] ';
+                    lines.push(prefix + s.text);
+                }
+            });
+            return lines.join('\n');
+        }).join('\n///\n');
+    };
 
-    if (validWinSets.length === 0 && validLoseSets.length === 0) {
+    const winContent = serializeTabs(winScripts);
+    const loseContent = serializeTabs(loseScripts);
+
+    // 아무것도 안 썼으면 빠꾸
+    if (winContent.replace(/\/\/\//g, '').trim() === '' && loseContent.replace(/\/\/\//g, '').trim() === '') {
         alert('최소 하나의 대본을 작성하세요!');
         return;
     }
@@ -573,11 +589,14 @@ function saveScripts() {
     const firstId = Math.min(parseInt(buildAId), parseInt(buildBId));
     const secondId = Math.max(parseInt(buildAId), parseInt(buildBId));
 
+    // 컨트롤러에 딱 2덩어리(WIN, LOSE)로 깔끔하게 전송
     const data = {
         myBuildId: firstId,
         oppBuildId: secondId,
-        winScriptSets: validWinSets,
-        loseScriptSets: validLoseSets
+        scripts: [
+            { resultType: 'WIN', content: winContent },
+            { resultType: 'LOSE', content: loseContent }
+        ]
     };
 
     fetch('<c:url value="/admin/script/save" />', {
@@ -588,7 +607,7 @@ function saveScripts() {
     .then(res => res.json())
     .then(result => {
         if (result.success) {
-            alert('대본이 저장되었습니다!');
+            alert('대본이 성공적으로 저장되었습니다!');
         } else {
             alert('저장 실패: ' + result.message);
         }

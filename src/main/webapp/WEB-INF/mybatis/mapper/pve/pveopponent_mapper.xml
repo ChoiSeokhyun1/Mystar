@@ -17,7 +17,9 @@
             p.PLAYER_IMG_URL as playerImgUrl,
             p.PLAYER_COST   as playerCost,
             opp.SET_NUMBER  as setNumber,
-            opp.BUILD_ID    as buildId
+            opp.BUILD_ID_VS_T as buildIdVsT,
+            opp.BUILD_ID_VS_Z as buildIdVsZ,
+            opp.BUILD_ID_VS_P as buildIdVsP
         FROM
             TBL_PVE_OPPONENTS opp
         JOIN

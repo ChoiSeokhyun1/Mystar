@@ -51,6 +51,8 @@
         .race-zerg { background: #9b59b6; color: #fff; }
         .race-terran { background: #3498db; color: #fff; }
         .race-protoss { background: #f1c40f; color: #000; }
+        .race-all { background: #95a5a6; color: #fff; } /* 전체 종족용 배지 */
+        
         .btn {
             padding: 8px 16px;
             border: none;
@@ -151,8 +153,8 @@
             <tr>
                 <th>ID</th>
                 <th>빌드 이름</th>
-                <th>종족</th>
-                <th>승 / 패</th>
+                <th>내 종족</th>
+                <th>상대 종족 (VS)</th> <th>승 / 패</th>
                 <th>승률</th>
                 <th>생성일</th>
                 <th>관리</th>
@@ -163,6 +165,7 @@
                 <tr>
                     <td>${build.buildId}</td>
                     <td><strong>${build.buildName}</strong></td>
+                    
                     <td>
                         <c:choose>
                             <c:when test="${build.race == 'ZERG'}">
@@ -176,11 +179,29 @@
                             </c:when>
                         </c:choose>
                     </td>
+
+                    <td>
+                        <c:choose>
+                            <c:when test="${build.vsRace == 'Z'}">
+                                <span class="race-badge race-zerg">VS 저그</span>
+                            </c:when>
+                            <c:when test="${build.vsRace == 'T'}">
+                                <span class="race-badge race-terran">VS 테란</span>
+                            </c:when>
+                            <c:when test="${build.vsRace == 'P'}">
+                                <span class="race-badge race-protoss">VS 토스</span>
+                            </c:when>
+                            <c:otherwise>
+                                <span class="race-badge">-</span>
+                            </c:otherwise>
+                        </c:choose>
+                    </td>
+
                     <td>${build.winCount} / ${build.loseCount}</td>
                     <td>${String.format("%.1f", build.winRate)}%</td>
                     <td>${build.createdAt}</td>
                     <td>
-                        <button class="btn btn-edit" onclick="editBuild(${build.buildId}, '${build.buildName}', '${build.race}')">
+                        <button class="btn btn-edit" onclick="editBuild(${build.buildId}, '${build.buildName}', '${build.race}', '${build.vsRace}')">
                             수정
                         </button>
                         <button class="btn btn-danger" onclick="deleteBuild(${build.buildId}, '${build.buildName}')">
@@ -193,7 +214,6 @@
     </table>
 </div>
 
-<!-- 생성/수정 모달 -->
 <div id="buildModal" class="modal">
     <div class="modal-content">
         <div class="modal-header" id="modalTitle">새 빌드 만들기</div>
@@ -205,14 +225,26 @@
                 <input type="text" id="buildName" placeholder="예: 4드론, 8배럭" required>
             </div>
             
-            <div class="form-group">
-                <label>종족</label>
-                <select id="race" required>
-                    <option value="">선택하세요</option>
-                    <option value="ZERG">저그</option>
-                    <option value="TERRAN">테란</option>
-                    <option value="PROTOSS">프로토스</option>
-                </select>
+            <div style="display: flex; gap: 15px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>내 종족</label>
+                    <select id="race" required>
+                        <option value="">선택하세요</option>
+                        <option value="ZERG">저그</option>
+                        <option value="TERRAN">테란</option>
+                        <option value="PROTOSS">프로토스</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" style="flex: 1;">
+                    <label>상대 가능한 종족 (VS)</label>
+                    <select id="vsRace" required>
+                        <option value="">선택하세요</option>
+                        <option value="Z">저그전 전용</option>
+                        <option value="T">테란전 전용</option>
+                        <option value="P">토스전 전용</option>
+                    </select>
+                </div>
             </div>
 
             <div class="form-actions">
@@ -236,15 +268,18 @@ function openCreateModal() {
     document.getElementById('buildId').value = '0';
     document.getElementById('buildName').value = '';
     document.getElementById('race').value = '';
+    document.getElementById('vsRace').value = ''; // ★ 초기화 추가
     document.getElementById('buildModal').style.display = 'block';
 }
 
-function editBuild(id, name, race) {
+// ★ 파라미터에 vsRace 추가
+function editBuild(id, name, race, vsRace) {
     isEditMode = true;
     document.getElementById('modalTitle').textContent = '빌드 수정';
     document.getElementById('buildId').value = id;
     document.getElementById('buildName').value = name;
     document.getElementById('race').value = race;
+    document.getElementById('vsRace').value = vsRace || ''; // ★ 기존 값 세팅
     document.getElementById('buildModal').style.display = 'block';
 }
 
@@ -256,22 +291,25 @@ function saveBuild() {
     const buildId = parseInt(document.getElementById('buildId').value);
     const buildName = document.getElementById('buildName').value.trim();
     const race = document.getElementById('race').value;
+    const vsRace = document.getElementById('vsRace').value; // ★ 상대 종족 값 가져오기
     
-    if (!buildName || !race) {
+    if (!buildName || !race || !vsRace) {
         alert('모든 항목을 입력하세요!');
         return;
     }
     
+    // ★ data 객체에 vsRace 추가
     const data = {
         buildId: buildId,
         buildName: buildName,
-        race: race
+        race: race,
+        vsRace: vsRace
     };
-    
+
     const url = isEditMode ? 
         '<c:url value="/admin/build/update" />' :
         '<c:url value="/admin/build/create" />';
-    
+
     fetch(url, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -294,7 +332,7 @@ function saveBuild() {
 
 function deleteBuild(id, name) {
     if (!confirm(name + ' 빌드를 삭제하시겠습니까?')) return;
-    
+
     fetch('<c:url value="/admin/build/delete" />', {
         method: 'POST',
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},

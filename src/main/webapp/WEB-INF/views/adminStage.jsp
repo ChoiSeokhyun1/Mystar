@@ -410,7 +410,11 @@ try {
     if (pd)  ALL_PLAYERS = JSON.parse(pd.textContent || pd.innerHTML);
     if (rd)  ROUND_MAP   = JSON.parse(rd.textContent || rd.innerHTML);
     if (pkd) ALL_PACKS   = JSON.parse(pkd.textContent || pkd.innerHTML);
-    if (bdd) ALL_BUILDS  = JSON.parse(bdd.textContent || bdd.innerHTML);
+    if (bdd) {
+        console.log('buildDataScript 내용:', bdd.textContent || bdd.innerHTML);
+        ALL_BUILDS  = JSON.parse(bdd.textContent || bdd.innerHTML);
+        console.log('파싱된 ALL_BUILDS:', ALL_BUILDS);
+    }
     if (mpd) ALL_MAPS    = JSON.parse(mpd.textContent || mpd.innerHTML);
 } catch(e) { console.error('데이터 파싱 오류:', e); }
 
@@ -584,6 +588,7 @@ function renderSlot(n) {
     } else {
         buildLabel = '<div style=\"font-size:11px;color:#64748b;margin-top:4px;padding:2px 6px;background:rgba(100,116,139,0.15);border-radius:4px;display:inline-block;\">🎲 빌드 없음 (랜덤)</div>';
     }
+    info.innerHTML =
         '<div class="slot-player-race">' + (RACE_ICON[p.race]||'?') + '</div>' +
         '<div class="slot-player-name">' + safeStr(p.playerName) + '</div>' +
         '<span class="slot-player-rarity rarity-' + (p.rarity||'N') + '">' + (p.rarity||'N') + '</span>' +
@@ -720,6 +725,10 @@ function setRaceFilter(race, btn) {
     renderPlayerTable();
 }
 function loadBuildOptions() {
+    console.log('loadBuildOptions 호출됨');
+    console.log('selectedPlayerSeq:', selectedPlayerSeq);
+    console.log('ALL_BUILDS:', ALL_BUILDS);
+    
     var selectT = document.getElementById('buildSelectT');
     var selectZ = document.getElementById('buildSelectZ');
     var selectP = document.getElementById('buildSelectP');
@@ -728,22 +737,56 @@ function loadBuildOptions() {
     selectZ.innerHTML = '<option value="">빌드 미지정 (랜덤)</option>';
     selectP.innerHTML = '<option value="">빌드 미지정 (랜덤)</option>';
     
-    if (!selectedPlayerSeq) return;
+    if (!selectedPlayerSeq) {
+        console.log('선수가 선택되지 않음');
+        return;
+    }
     
     var player = ALL_PLAYERS.find(function(p){ return p.seq === selectedPlayerSeq; });
-    if (!player) return;
+    if (!player) {
+        console.log('선수를 찾을 수 없음');
+        return;
+    }
     
     var playerRace = player.race;
+    console.log('선수 종족:', playerRace);
     
+    // 종족 매핑: T -> TERRAN, Z -> ZERG, P -> PROTOSS
+    var raceMap = {
+        'T': 'TERRAN',
+        'Z': 'ZERG',
+        'P': 'PROTOSS',
+        'TERRAN': 'TERRAN',
+        'ZERG': 'ZERG',
+        'PROTOSS': 'PROTOSS'
+    };
+    var normalizedPlayerRace = raceMap[playerRace] || playerRace;
+    
+    // vs T/Z/P 드롭다운별로 vsRace 필터링
     ALL_BUILDS.forEach(function(build){
-        if (build.race === playerRace) {
+        var normalizedBuildRace = raceMap[build.race] || build.race;
+        var normalizedVsRace = raceMap[build.vsRace] || build.vsRace;
+        
+        // 선수 종족과 빌드 주체 종족이 같아야 함
+        if (normalizedBuildRace === normalizedPlayerRace) {
             var opt = document.createElement('option');
             opt.value = build.id;
             opt.textContent = build.name;
             
-            selectT.appendChild(opt.cloneNode(true));
-            selectZ.appendChild(opt.cloneNode(true));
-            selectP.appendChild(opt.cloneNode(true));
+            // vs T 드롭다운: vsRace="T" 또는 vsRace="" (전용 아님)
+            if (normalizedVsRace === 'TERRAN' || !build.vsRace) {
+                selectT.appendChild(opt.cloneNode(true));
+            }
+            
+            // vs Z 드롭다운: vsRace="Z" 또는 vsRace=""
+            if (normalizedVsRace === 'ZERG' || !build.vsRace) {
+                selectZ.appendChild(opt.cloneNode(true));
+            }
+            
+            // vs P 드롭다운: vsRace="P" 또는 vsRace=""
+            if (normalizedVsRace === 'PROTOSS' || !build.vsRace) {
+                selectP.appendChild(opt.cloneNode(true));
+            }
         }
     });
     

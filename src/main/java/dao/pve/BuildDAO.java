@@ -18,6 +18,12 @@ public interface BuildDAO {
     // 종족별 빌드 조회 (대본 관리용)
     List<BuildDTO> selectBuildsByRace(String race);
 
+    // 관리자(SYSTEM) 빌드 전체 조회 (유저 전투 준비 화면용)
+    List<BuildDTO> selectSystemBuilds();
+
+    // 종족 + 상대종족별 빌드 조회 (매치 빌드 선택용)
+    List<BuildDTO> selectBuildsByRaceAndVsRace(Map<String, Object> params);
+
     // 유닛 설정 (호환성)
     int deleteBuildUnitsByBuildId(int buildId);
 
