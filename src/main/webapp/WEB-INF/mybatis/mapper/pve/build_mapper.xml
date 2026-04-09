@@ -42,7 +42,7 @@
             WIN_COUNT  = 0,
             LOSE_COUNT = 0
         WHERE BUILD_ID = #{buildId}
-          AND USER_ID  = #{userId}
+          AND (USER_ID = #{userId} OR #{userId} = 'SYSTEM')
     </update>
 
     <delete id="deleteBuild" parameterType="int">

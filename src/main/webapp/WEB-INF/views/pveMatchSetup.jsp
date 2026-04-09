@@ -135,6 +135,7 @@
                                 <div class="matchup-slot my-slot assignable-slot empty"
                                      data-slot-player-seq=""
                                      data-slot-build-id=""
+                                     data-opp-race="${not empty aiPlayer ? aiPlayer.race : ''}"
                                      onclick="onSlotClick(this)">
                                     <span class="slot-hint">← 선수 선택 후 클릭</span>
                                 </div>
@@ -342,16 +343,34 @@
         }
 
         currentTargetSlot = slot;
-        const myRace = selectedMyPlayerEl.dataset.race;
-        const filtered = myBuilds.filter(b => (b.race || '').trim() === (myRace || '').trim());
-        console.log('[DEBUG] 선수 종족:', myRace, '/ 매칭 빌드:', filtered.length, '개');
+        const myRace  = selectedMyPlayerEl.dataset.race;
+        const oppRace = (slot.dataset.oppRace || '').trim();  // AI 상대 종족 (예: 'TERRAN')
+
+        // DB의 VS_RACE는 단일 코드('T','Z','P'), aiPlayer.race는 풀네임('TERRAN','ZERG','PROTOSS')
+        // → 풀네임을 코드로 변환해서 비교
+        const raceToCode = { 'TERRAN': 'T', 'ZERG': 'Z', 'PROTOSS': 'P' };
+        const oppRaceCode = raceToCode[oppRace] || oppRace;  // 'TERRAN' → 'T'
+
+        const filtered = myBuilds.filter(b => {
+            const raceOk   = (b.race   || '').trim() === myRace;       // 'ZERG' === 'ZERG'
+            const vsRaceOk = !oppRaceCode                              // 상대 미정이면 전부 표시
+                          || (b.vsRace || '').trim() === oppRaceCode   // 'T' === 'T' ✓
+                          || (b.vsRace || '').trim() === 'A';          // 전체 적용 빌드
+            return raceOk && vsRaceOk;
+        });
+        console.log('[DEBUG] 내 선수 종족:', myRace, '/ AI 종족:', oppRace, '→ 코드:', oppRaceCode, '/ 매칭 빌드:', filtered.length, '개');
 
         const list = document.getElementById('modalBuildList');
         document.getElementById('modalRaceInfo').textContent = '선택된 선수: ' + selectedMyPlayerEl.dataset.name + ' (' + myRace + ')';
         list.innerHTML = '';
         
         if (filtered.length === 0) {
-            list.innerHTML = '<li class="modal-empty">이 선수의 종족에 맞는 전략이 없습니다.<br>관리자가 아직 해당 종족 전략을 등록하지 않았습니다.</li>';
+            const raceLabel = {'ZERG':'저그','TERRAN':'테란','PROTOSS':'프로토스'};
+            const oppLabel  = {'ZERG':'저그전','TERRAN':'테란전','PROTOSS':'프토전'};
+            list.innerHTML = '<li class="modal-empty">'
+                + (raceLabel[myRace] || myRace) + ' 선수의 '
+                + (oppLabel[oppRace] || (oppRace ? oppRace + '전' : '해당 종족')) + ' 전략이 없습니다.<br>'
+                + '관리자 페이지에서 해당 빌드를 등록해 주세요.</li>';
         } else {
             filtered.forEach(b => {
                 const li = document.createElement('li');

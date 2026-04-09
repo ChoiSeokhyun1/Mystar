@@ -825,6 +825,43 @@ public class AdminController {
         return "admin/buildManage";
     }
 
+
+    @Transactional
+    @PostMapping("/build/create")
+    @ResponseBody
+    public Map<String, Object> createAdminBuild(@RequestBody BuildDTO buildDto, HttpSession session) {
+        Map<String, Object> res = new HashMap<>();
+        if (!isAdmin(session)) { res.put("success", false); res.put("message", "관리자 권한이 필요합니다."); return res; }
+        try {
+            buildDto.setUserId("SYSTEM");   // 관리자 빌드는 항상 SYSTEM 소유
+            buildService.createBuild(buildDto);
+            res.put("success", true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            res.put("success", false);
+            res.put("message", "빌드 생성 실패: " + e.getMessage());
+        }
+        return res;
+    }
+
+    @Transactional
+    @PostMapping("/build/edit")
+    @ResponseBody
+    public Map<String, Object> editAdminBuild(@RequestBody BuildDTO buildDto, HttpSession session) {
+        Map<String, Object> res = new HashMap<>();
+        if (!isAdmin(session)) { res.put("success", false); res.put("message", "관리자 권한이 필요합니다."); return res; }
+        try {
+            buildDto.setUserId("SYSTEM");   // 관리자 빌드는 항상 SYSTEM 소유
+            buildService.modifyBuild(buildDto);
+            res.put("success", true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            res.put("success", false);
+            res.put("message", "빌드 수정 실패: " + e.getMessage());
+        }
+        return res;
+    }
+
     @Transactional
     @PostMapping("/build/delete")
     @ResponseBody

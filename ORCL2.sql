@@ -1123,3 +1123,38 @@ WHERE MY_BUILD_ID = 25 AND OPP_BUILD_ID = 26;
 SELECT BUILD_ID, BUILD_NAME, RACE 
 FROM TBL_BUILDS 
 WHERE USER_ID = 'SYSTEM';
+
+
+
+
+
+
+
+
+
+
+
+-- ============================================================
+-- 기존 관리자 빌드의 USER_ID를 'SYSTEM'으로 일괄 수정
+-- 실행 전: 현재 관리자 계정 ID로 'testuser3' 확인 필요
+-- ============================================================
+
+-- 1. 현재 어떤 USER_ID로 빌드가 저장됐는지 확인
+SELECT USER_ID, COUNT(*) AS CNT
+FROM TBL_BUILDS
+GROUP BY USER_ID;
+
+-- 2. 관리자 계정(testuser3)으로 만든 빌드를 SYSTEM으로 변경
+UPDATE TBL_BUILDS
+SET USER_ID = 'SYSTEM'
+WHERE USER_ID = 'testuser3';   -- ← 실제 관리자 ID로 변경
+
+COMMIT;
+
+-- 3. 확인
+SELECT BUILD_ID, USER_ID, BUILD_NAME, RACE, VS_RACE
+FROM TBL_BUILDS
+WHERE USER_ID = 'SYSTEM'
+ORDER BY RACE, VS_RACE;
+
+commit;
