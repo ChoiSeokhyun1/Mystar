@@ -155,10 +155,22 @@ public class PveBattleServiceImpl implements PveBattleService {
      */
     @Override
     public List<String> selectScriptLines(int myBuildId, int oppBuildId, boolean myWin) {
-        String result = myWin ? "WIN" : "LOSE";
+        // ★ 핵심 수정: 저장 시 항상 min/max 순서로 저장하므로 조회도 동일하게 정규화
+        int firstId  = Math.min(myBuildId, oppBuildId);
+        int secondId = Math.max(myBuildId, oppBuildId);
+        boolean isSwapped = (firstId != myBuildId); // 순서가 뒤집혔는지 여부
+
+        // 뒤집혔으면 WIN/LOSE도 반전 (DB 기준 firstId가 이긴 건 WIN이므로)
+        String result;
+        if (isSwapped) {
+            result = myWin ? "LOSE" : "WIN";
+        } else {
+            result = myWin ? "WIN" : "LOSE";
+        }
+
         Map<String, Object> params = new HashMap<>();
-        params.put("myBuildId",  myBuildId);
-        params.put("oppBuildId", oppBuildId);
+        params.put("myBuildId",  firstId);
+        params.put("oppBuildId", secondId);
         params.put("result",     result);
 
         List<ScriptDTO> scripts = scriptDAO.selectScriptForPlay(params);
@@ -167,9 +179,55 @@ public class PveBattleServiceImpl implements PveBattleService {
             return Collections.singletonList(myWin ? "승리하였습니다." : "패배하였습니다.");
         }
 
-        // selectScriptForPlay가 이미 랜덤 정렬되어 첫 번째만 반환하므로 첫 번째 선택
+        // 첫 번째 대본 선택 후 탭 분리 (///로 구분된 4탭 중 랜덤 1개 선택)
         ScriptDTO chosen = scripts.get(0);
-        return chosen.getLines();
+        String rawContent = chosen.getContent();
+        if (rawContent == null || rawContent.trim().isEmpty()) {
+            return Collections.singletonList(myWin ? "승리하였습니다." : "패배하였습니다.");
+        }
+
+        // /// 구분자로 탭 분리
+        String[] tabs = rawContent.split("///");
+        // 비어있지 않은 탭만 필터링
+        List<String[]> validTabs = new ArrayList<>();
+        for (String tab : tabs) {
+            String trimmed = tab.trim();
+            if (!trimmed.isEmpty()) {
+                String[] tabLines = trimmed.split("\\r?\\n");
+                List<String> nonEmpty = new ArrayList<>();
+                for (String l : tabLines) {
+                    if (!l.trim().isEmpty()) nonEmpty.add(l.trim());
+                }
+                if (!nonEmpty.isEmpty()) {
+                    validTabs.add(nonEmpty.toArray(new String[0]));
+                }
+            }
+        }
+
+        if (validTabs.isEmpty()) {
+            return Collections.singletonList(myWin ? "승리하였습니다." : "패배하였습니다.");
+        }
+
+        // 랜덤으로 탭 하나 선택
+        String[] selectedTab = validTabs.get(new Random().nextInt(validTabs.size()));
+        List<String> lines = Arrays.asList(selectedTab);
+
+        if (isSwapped) {
+            // [빌드A]↔[빌드B] 교체
+            List<String> swapped = new ArrayList<>();
+            for (String line : lines) {
+                if (line.startsWith("[빌드A]")) {
+                    swapped.add(line.replace("[빌드A]", "[빌드B]"));
+                } else if (line.startsWith("[빌드B]")) {
+                    swapped.add(line.replace("[빌드B]", "[빌드A]"));
+                } else {
+                    swapped.add(line);
+                }
+            }
+            return swapped;
+        }
+
+        return lines;
     }
 
     // =====================================================

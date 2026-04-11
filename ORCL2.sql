@@ -1267,3 +1267,22 @@ CREATE TABLE TBL_MAP_POINTS (
 
 CREATE SEQUENCE SEQ_MAP_POINTS START WITH 1 INCREMENT BY 1 NOCACHE;
 commit;
+
+
+
+
+
+-- 1. 맵 마스터 테이블의 ID와 이름을 띄어쓰기 없는 영문으로 통일 (대소문자/공백 버그 원천 차단)
+UPDATE TBL_MAPS 
+SET MAP_ID = 'fighting_spirit', 
+    MAP_NAME = 'fighting_spirit'
+WHERE MAP_NAME = 'Fighting Spirit';
+
+COMMIT;
+
+-- 2. 만약 기존에 세트에 배정해둔 데이터가 있다면 거기도 업데이트 (혹시 테이블명이 다르면 에러가 날 수 있는데, 무시하셔도 됩니다!)
+UPDATE TBL_PVE_SUBSTAGE_MAPS
+SET MAP_ID = 'fighting_spirit'
+WHERE MAP_ID = 'Fighting Spirit';
+
+COMMIT;

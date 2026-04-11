@@ -146,13 +146,11 @@ public class MainController {
         userToLogin.setUserPw(userPw);
         UserDTO loginUser = loginService.login(userToLogin, session);
         if (loginUser != null) {
-            // ★ 일일 미션 초기화 (로그인 미션 자동 완료)
             try {
                 dailyMissionService.getUserMissionsToday(loginUser.getUserId());
             } catch (Exception e) {
                 System.err.println("일일 미션 초기화 실패: " + e.getMessage());
             }
-            
             return "redirect:/mode-select";
         } else {
             rttr.addFlashAttribute("loginError", "아이디 또는 비밀번호가 올바르지 않습니다.");
@@ -221,7 +219,6 @@ public class MainController {
                 response.put("player", drawnPlayer);
                 response.put("success", true);
                 
-                // ★ 가챠 미션 진행도 업데이트
                 try {
                     dailyMissionService.incrementMissionProgress(loginUser.getUserId(), "GACHA", 1);
                 } catch (Exception e) {
@@ -495,7 +492,6 @@ public class MainController {
             return mv;
         }
 
-        // 이미 클리어된 서브스테이지면 재진입 차단
         try {
             List<Map<String, Object>> subStageList = pveSubstageService.getSubstageListWithStatus(userId, stageLevel);
             boolean isCleared = subStageList.stream()
@@ -527,20 +523,17 @@ public class MainController {
         }
 
         try {
-            // 모든 빌드를 가져와서 조건에 맞는 빌드만 필터링
             List<BuildDTO> allBuilds = buildService.getAllBuilds();
             List<BuildDTO> myBuilds = new ArrayList<>();
             
             if (allBuilds != null) {
                 myBuilds = allBuilds.stream()
-                    // SYSTEM, admin 계정으로 만든 것이거나, 현재 로그인한 유저 본인이 직접 만든 빌드 포함
                     .filter(b -> "SYSTEM".equalsIgnoreCase(b.getUserId()) 
                               || "admin".equalsIgnoreCase(b.getUserId())
                               || userId.equals(b.getUserId()))
                     .collect(Collectors.toList());
             }
             
-            // JS Syntax Error 방지: EL 대신 Jackson으로 JSON 직렬화해서 넘김
             ObjectMapper om = new ObjectMapper();
             mv.addObject("myBuildsJson", om.writeValueAsString(myBuilds));
         } catch (Exception e) {
@@ -576,7 +569,6 @@ public class MainController {
         model.addAttribute("pageTitle", "전략 관리");
         return "buildManagement";
     }
-
 
     @PostMapping("/build/create")
     @ResponseBody
@@ -626,11 +618,9 @@ public class MainController {
     public ModelAndView showTrainPage(ModelAndView mv, HttpSession session) {
         UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
         if (loginUser == null) { mv.setViewName("redirect:/login"); return mv; }
-        // 최신 trainPoint 조회
         UserDTO currency = userDAO.selectUserCurrency(loginUser.getUserId());
         int trainPoint = (currency != null) ? currency.getTrainPoint() : 0;
         mv.addObject("trainPoint", trainPoint);
-        // 보유 선수 목록
         List<OwnedPlayerInfoDTO> players = ownedPlayerDAO.selectOwnedPlayersByUserId(loginUser.getUserId());
         mv.addObject("players", players != null ? players : new ArrayList<>());
         mv.setViewName("pveTrain");
@@ -647,24 +637,20 @@ public class MainController {
         if (loginUser == null) { res.put("success", false); res.put("message", "로그인 필요"); return res; }
 
         String userId = loginUser.getUserId();
-        // 훈련 포인트 확인
         UserDTO currency = userDAO.selectUserCurrency(userId);
         if (currency == null || currency.getTrainPoint() < 1) {
             res.put("success", false); res.put("message", "훈련 포인트가 부족합니다."); return res;
         }
-        // 선수 소유 확인
         OwnedPlayerDTO player = ownedPlayerDAO.selectOwnedPlayer(ownedPlayerSeq);
         if (player == null || !userId.equals(player.getUserId())) {
             res.put("success", false); res.put("message", "선수를 찾을 수 없습니다."); return res;
         }
 
-        // 훈련 포인트 -1
         Map<String, Object> tpParams = new HashMap<>();
         tpParams.put("userId", userId);
         tpParams.put("amount", -1);
         userDAO.updateUserTrainPoint(tpParams);
 
-        // 스탯 랜덤 +3 분배
         int a  = player.getCurrentAttack()  == 0 ? 50 : player.getCurrentAttack();
         int d  = player.getCurrentDefense() == 0 ? 50 : player.getCurrentDefense();
         int ma = player.getCurrentMacro()   == 0 ? 50 : player.getCurrentMacro();
@@ -681,7 +667,6 @@ public class MainController {
         player.setCurrentLuck(l    + inc[4]);
         ownedPlayerDAO.updatePlayerStats(player);
         
-        // ★ 훈련 미션 업데이트
         try {
             dailyMissionService.incrementMissionProgress(userId, "TRAIN", 1);
         } catch (Exception e) {
@@ -721,7 +706,6 @@ public class MainController {
         }
         return response;
     }
-
 
     @PostMapping("/build/delete")
     @ResponseBody
@@ -784,10 +768,13 @@ public class MainController {
         int[] myPlayerOwnedSeqs = {set1OwnedSeq, set2OwnedSeq, set3OwnedSeq, set4OwnedSeq, set5OwnedSeq};
         int[] myBuildIds = {set1Build, set2Build, set3Build, set4Build, set5Build};
         Map<Integer, PveOpponentInfoDTO> aiPlayerMap = pveSubstageService.getOpponentMapForSubstage(stageLevel, subLevel);
+        
+        // ★ 맵 리스트를 넘겨서 맵 ID를 반영하도록 처리
+        List<PveStageMapDTO> mapList = pveSubstageService.getMapsForSubstage(stageLevel, subLevel);
 
         try {
             Map<String, Object> creationResult = createNewMatchupList(
-                userId, stageLevel, subLevel, myPlayerOwnedSeqs, myBuildIds, aiPlayerMap
+                userId, stageLevel, subLevel, myPlayerOwnedSeqs, myBuildIds, aiPlayerMap, mapList
             );
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> matchupList = (List<Map<String, Object>>) creationResult.get("matchupList");
@@ -799,22 +786,18 @@ public class MainController {
             String aiRace = (String) currentMatchup.get("aiPlayerRace");
 
             BuildDTO myBuildDto = (myBuildIds[0] > 0) ? buildService.getBuildById(myBuildIds[0]) : null;
-            // 빌드 없으면 null (기본 전략 사용)
 
             int aiBuildIdVal = safeInt(currentMatchup.get("aiBuildId"), 0);
             BuildDTO aiBuildDto = (aiBuildIdVal > 0) ? buildService.getBuildById(aiBuildIdVal) : null;
-            // AI 빌드 없으면 null (기본 전략 사용)
 
             String myPlayerName = (String) currentMatchup.getOrDefault("myPlayerName", "아군");
             String aiPlayerName = (String) currentMatchup.getOrDefault("aiPlayerName", "AI");
             
-            // ★ 신규 파라미터 추출
             String myCondition = (String) currentMatchup.getOrDefault("myPlayerCondition", "NORMAL");
             int myWinStreak = safeInt(currentMatchup.get("myPlayerWinStreak"), 0);
             String aiCondition = (String) currentMatchup.getOrDefault("aiPlayerCondition", "NORMAL");
             int aiWinStreak = safeInt(currentMatchup.get("aiPlayerWinStreak"), 0);
 
-            // ★ 승패 결정 (점수 계산 방식)
             Map<String, Object> firstMatchup = matchupList.get(0);
             firstMatchup.put("myAttack",  myStats.get("attack"));
             firstMatchup.put("myDefense", myStats.get("defense"));
@@ -834,10 +817,10 @@ public class MainController {
             firstMatchup.put("myWinStreak", myWinStreak);
             firstMatchup.put("aiCondition", aiCondition);
             firstMatchup.put("aiWinStreak", aiWinStreak);
+            
             boolean myWinFlag = pveBattleService.calculateWinResults(
                 Collections.singletonList(firstMatchup)).get(0);
 
-            // ★ 대본 선택 (내 빌드 + 상대 빌드 + 승패 기준)
             int scriptBuildId = (myBuildDto != null) ? myBuildDto.getBuildId() : 0;
             int scriptOppBuildId = (aiBuildDto != null) ? aiBuildDto.getBuildId() : 0;
             List<String> scriptLines = pveBattleService.selectScriptLines(
@@ -852,13 +835,15 @@ public class MainController {
             newSession.setCurrentSet(1);
             newSession.setMyWins(0);
             newSession.setAiWins(0);
-            // gameStateData에 대본 줄 목록 + 승패 저장
+            
             Map<String, Object> scriptData = new HashMap<>();
             scriptData.put("lines",  scriptLines);
             scriptData.put("myWin",  myWinFlag);
             scriptData.put("myName", myPlayerName);
             scriptData.put("aiName", aiPlayerName);
+            scriptData.put("mapId",  currentMatchup.get("mapId")); // ★ 맵 ID 프론트에 전달
             newSession.setGameStateData(gson.toJson(scriptData));
+            
             List<SetResult> initialSetResults = (List<SetResult>) creationResult.get("setResults");
             newSession.setSetResultsData(gson.toJson(initialSetResults));
             battleSessionDAO.insertNewBattle(newSession);
@@ -916,7 +901,6 @@ public class MainController {
         session.setAttribute("aiWins", activeBattle.getAiWins());
         session.setAttribute("simulationMatchupList", matchupList);
 
-        // ★ setResults: 세션에 없으면 DB에서 복구 (새로 만들지 않음)
         if (session.getAttribute("setResults") == null) {
             String savedSetResults = activeBattle.getSetResultsData();
             if (savedSetResults != null && !savedSetResults.isEmpty()) {
@@ -925,7 +909,6 @@ public class MainController {
                     List<SetResult> recoveredSetResults = gson.fromJson(savedSetResults, srType);
                     session.setAttribute("setResults", recoveredSetResults);
                 } catch (Exception e) {
-                    // 역직렬화 실패 시 matchupList 기반으로 최소한의 SetResult 재구성
                     List<SetResult> fallback = new ArrayList<>();
                     for (int i = 0; i < matchupList.size(); i++) {
                         Map<String, Object> m = matchupList.get(i);
@@ -1115,6 +1098,8 @@ public class MainController {
             int nextSet = currentSet + 1;
             try {
                 Map<String, Object> nextMatchup = matchupList.get(nextSet - 1);
+                
+                // ★ 다음 라운드를 위한 데이터 재세팅 및 대본(Script) 새로 생성 버그 수정
                 Map<String, Integer> myStats = extractStats(nextMatchup, "myPlayer");
                 Map<String, Integer> aiStats = extractStats(nextMatchup, "aiPlayer");
                 String myRace = (String) nextMatchup.get("myPlayerRace");
@@ -1122,21 +1107,50 @@ public class MainController {
 
                 int myBuildIdVal = safeInt(nextMatchup.get("myBuildId"), 0);
                 BuildDTO myBuildDto = (myBuildIdVal > 0) ? buildService.getBuildById(myBuildIdVal) : null;
-                // 빌드 없으면 null (기본 전략 사용)
 
                 int aiBuildIdVal = safeInt(nextMatchup.get("aiBuildId"), 0);
                 BuildDTO aiBuildDto = (aiBuildIdVal > 0) ? buildService.getBuildById(aiBuildIdVal) : null;
-                // AI 빌드 없으면 null (기본 전략 사용)
 
                 String myPName = (String) nextMatchup.getOrDefault("myPlayerName", "아군");
                 String aiPName = (String) nextMatchup.getOrDefault("aiPlayerName", "AI");
-                
-                // ★ 신규 파라미터 추출
                 String myCondition = (String) nextMatchup.getOrDefault("myPlayerCondition", "NORMAL");
                 int myWinStreak = safeInt(nextMatchup.get("myPlayerWinStreak"), 0);
                 String aiCondition = (String) nextMatchup.getOrDefault("aiPlayerCondition", "NORMAL");
                 int aiWinStreak = safeInt(nextMatchup.get("aiPlayerWinStreak"), 0);
 
+                nextMatchup.put("myAttack",  myStats.get("attack"));
+                nextMatchup.put("myDefense", myStats.get("defense"));
+                nextMatchup.put("myMacro",   myStats.get("macro"));
+                nextMatchup.put("myMicro",   myStats.get("micro"));
+                nextMatchup.put("myLuck",    myStats.get("luck"));
+                nextMatchup.put("aiAttack",  aiStats.get("attack"));
+                nextMatchup.put("aiDefense", aiStats.get("defense"));
+                nextMatchup.put("aiMacro",   aiStats.get("macro"));
+                nextMatchup.put("aiMicro",   aiStats.get("micro"));
+                nextMatchup.put("aiLuck",    aiStats.get("luck"));
+                nextMatchup.put("myRace",    myRace);
+                nextMatchup.put("aiRace",    aiRace);
+                nextMatchup.put("myBuild",   myBuildDto);
+                nextMatchup.put("aiBuild",   aiBuildDto);
+                nextMatchup.put("myCondition", myCondition);
+                nextMatchup.put("myWinStreak", myWinStreak);
+                nextMatchup.put("aiCondition", aiCondition);
+                nextMatchup.put("aiWinStreak", aiWinStreak);
+
+                boolean nextWinFlag = pveBattleService.calculateWinResults(
+                    Collections.singletonList(nextMatchup)).get(0);
+
+                int scriptBuildId = (myBuildDto != null) ? myBuildDto.getBuildId() : 0;
+                int scriptOppBuildId = (aiBuildDto != null) ? aiBuildDto.getBuildId() : 0;
+                List<String> nextScriptLines = pveBattleService.selectScriptLines(
+                    scriptBuildId, scriptOppBuildId, nextWinFlag);
+
+                Map<String, Object> nextScriptData = new HashMap<>();
+                nextScriptData.put("lines", nextScriptLines);
+                nextScriptData.put("myWin", nextWinFlag);
+                nextScriptData.put("myName", myPName);
+                nextScriptData.put("aiName", aiPName);
+                nextScriptData.put("mapId", nextMatchup.get("mapId")); // ★ 다음 세트에도 맵 ID 보장
 
                 BattleProgressDTO progress = new BattleProgressDTO();
                 progress.setUserId(userId);
@@ -1145,6 +1159,8 @@ public class MainController {
                 progress.setMyWins(myWins);
                 progress.setAiWins(aiWins);
                 progress.setCurrentSet(nextSet);
+                progress.setGameStateData(gson.toJson(nextScriptData)); // ★ 갱신된 게임상태 저장
+
                 pveBattleService.saveProgress(progress);
             } catch (Exception e) { e.printStackTrace(); }
             response.put("victory", null);
@@ -1158,7 +1174,6 @@ public class MainController {
     // 강화 시스템
     // ========================================
 
-    /** 강화 단계별 성공 확률 (%) */
     private int getEnhanceSuccessRate(int currentLevel) {
         if (currentLevel < 10) return 90;
         if (currentLevel < 20) return 80;
@@ -1169,10 +1184,9 @@ public class MainController {
         if (currentLevel < 70) return 25;
         if (currentLevel < 80) return 15;
         if (currentLevel < 90) return 8;
-        return 3; // +90 ~ +99
+        return 3; 
     }
 
-    /** GET /enhance — 강화 페이지 */
     @GetMapping("/enhance")
     public String enhancePage(HttpSession session, org.springframework.ui.Model model) {
         if (session.getAttribute("loginUser") == null) return "redirect:/login";
@@ -1182,7 +1196,6 @@ public class MainController {
         return "enhance";
     }
 
-    /** GET /enhance/info?ownedPlayerSeq=X — 강화 정보 AJAX */
     @GetMapping("/enhance/info")
     @ResponseBody
     public Map<String, Object> getEnhanceInfo(@RequestParam("ownedPlayerSeq") int ownedPlayerSeq,
@@ -1196,7 +1209,6 @@ public class MainController {
             res.put("success", false); res.put("message", "선수를 찾을 수 없습니다."); return res;
         }
 
-        // 재료 후보: 같은 playerSeq + 같은 packSeq, 다른 ownedPlayerSeq
         List<OwnedPlayerDTO> materials = ownedPlayerDAO.selectMaterialCandidates(target);
 
         res.put("success", true);
@@ -1214,10 +1226,6 @@ public class MainController {
         return res;
     }
 
-    /**
-     * POST /enhance/execute
-     * 강화 실행: 재료 1장 소모 → 성공 시 랜덤 스탯 +1
-     */
     @PostMapping("/enhance/execute")
     @ResponseBody
     public Map<String, Object> executeEnhance(@RequestParam("ownedPlayerSeq") int ownedPlayerSeq,
@@ -1227,7 +1235,6 @@ public class MainController {
         if (loginUser == null) { res.put("success", false); res.put("message", "로그인 필요"); return res; }
         String userId = loginUser.getUserId();
 
-        // 대상 선수 확인
         OwnedPlayerDTO target = ownedPlayerDAO.selectOwnedPlayer(ownedPlayerSeq);
         if (target == null || !userId.equals(target.getUserId())) {
             res.put("success", false); res.put("message", "선수를 찾을 수 없습니다."); return res;
@@ -1236,22 +1243,18 @@ public class MainController {
             res.put("success", false); res.put("message", "이미 최대 강화 단계입니다. (+99)"); return res;
         }
 
-        // 재료 후보 확인
         List<OwnedPlayerDTO> materials = ownedPlayerDAO.selectMaterialCandidates(target);
         if (materials.isEmpty()) {
             res.put("success", false); res.put("message", "재료 선수가 없습니다. 동일한 선수(같은 팩)가 1장 더 필요합니다."); return res;
         }
 
-        // 재료 1장 소모 (첫 번째 후보)
         OwnedPlayerDTO material = materials.get(0);
         try {
-            // 재료 선수 삭제 전 관련 데이터 정리 (매치 기록은 CASCADE 삭제)
             ownedPlayerDAO.deleteOwnedPlayer(material.getOwnedPlayerSeq());
         } catch (Exception e) {
             res.put("success", false); res.put("message", "재료 소모 중 오류 발생: " + e.getMessage()); return res;
         }
 
-        // 성공 확률 판정
         int successRate = getEnhanceSuccessRate(target.getEnhanceLevel());
         boolean success = rand.nextInt(100) < successRate;
 
@@ -1260,7 +1263,6 @@ public class MainController {
         res.put("enhanced", success);
 
         if (success) {
-            // 랜덤 스탯 +1 (5개 중 하나)
             String[] statNames = {"attack", "defense", "macro", "micro", "luck"};
             int statIdx = rand.nextInt(5);
             String statName = statNames[statIdx];
@@ -1276,13 +1278,11 @@ public class MainController {
             }
             ownedPlayerDAO.updateEnhanceStats(target);
 
-            // 연속 성공 streak 업데이트 (양수 증가, 음수였으면 1로 리셋)
             int prevStreak = target.getEnhanceStreak();
             int newStreak  = prevStreak > 0 ? prevStreak + 1 : 1;
             target.setEnhanceStreak(newStreak);
             ownedPlayerDAO.updateEnhanceStreak(target);
 
-            // ★ 강화 미션 진행도 업데이트
             try {
                 dailyMissionService.incrementMissionProgress(userId, "ENHANCE", 1);
             } catch (Exception e) {
@@ -1299,7 +1299,6 @@ public class MainController {
             res.put("enhanceStreak",     newStreak);
             res.put("message",           "+" + newLevel + " 강화 성공! " + statName + " +1");
         } else {
-            // 연속 실패 streak 업데이트 (음수 감소, 양수였으면 -1로 리셋)
             int prevStreak = target.getEnhanceStreak();
             int newStreak  = prevStreak < 0 ? prevStreak - 1 : -1;
             target.setEnhanceStreak(newStreak);
@@ -1315,9 +1314,6 @@ public class MainController {
         return res;
     }
 
-    // ========================================
-    // 헬퍼 메서드들
-    // ========================================
     private void cleanUpPveSession(HttpSession session) {
         session.removeAttribute("currentBattleId");
         session.removeAttribute("setResults");
@@ -1333,7 +1329,8 @@ public class MainController {
     private Map<String, Object> createNewMatchupList(
             String userId, int stageLevel, int subLevel,
             int[] myPlayerOwnedSeqs, int[] myBuildIds,
-            Map<Integer, PveOpponentInfoDTO> aiPlayerMap) throws Exception {
+            Map<Integer, PveOpponentInfoDTO> aiPlayerMap,
+            List<PveStageMapDTO> mapList) throws Exception {
 
         List<Map<String, Object>> matchupList = new ArrayList<>();
         List<SetResult> setResults = new ArrayList<>();
@@ -1351,7 +1348,8 @@ public class MainController {
             int myBuildId = (myBuildIds != null && myBuildIds.length >= setNum) ? myBuildIds[setNum - 1] : 0;
             PveOpponentInfoDTO aiPlayerDetails = opponentMap.get(setNum);
 
-            Map<String, Object> matchup = createMatchupMap(myPlayerDetails, myBuildId, aiPlayerDetails, setNum, stageLevel, subLevel);
+            // ★ 맵 리스트 파라미터 추가
+            Map<String, Object> matchup = createMatchupMap(myPlayerDetails, myBuildId, aiPlayerDetails, setNum, stageLevel, subLevel, mapList);
             matchupList.add(matchup);
 
             setResults.add(new SetResult(
@@ -1372,13 +1370,28 @@ public class MainController {
     private Map<String, Object> createMatchupMap(
             OwnedPlayerInfoDTO myPlayer, int myBuildId,
             PveOpponentInfoDTO aiPlayer,
-            int setNum, int stageLevel, int subLevel) {
+            int setNum, int stageLevel, int subLevel,
+            List<PveStageMapDTO> mapList) {
 
         Map<String, Object> matchup = new HashMap<>();
         matchup.put("stageLevel", stageLevel);
         matchup.put("subLevel",   subLevel);
         matchup.put("setNumber",  setNum);
-        matchup.put("mapName",    "Fighting Spirit");
+        
+        // ★ 세트 번호에 맞는 맵 ID, 맵 이름 찾기
+        String mapName = "Fighting Spirit";
+        String mapId = null;
+        if (mapList != null) {
+            for (PveStageMapDTO map : mapList) {
+                if (map.getSetNumber() == setNum) {
+                    mapName = map.getMapName();
+                    mapId = map.getMapId();
+                    break;
+                }
+            }
+        }
+        matchup.put("mapName", mapName);
+        matchup.put("mapId", mapId);
 
         if (myPlayer != null) {
             matchup.put("myOwnedPlayerSeq", myPlayer.getOwnedPlayerSeq());
@@ -1387,7 +1400,6 @@ public class MainController {
             matchup.put("myPlayerImgUrl",   myPlayer.getPlayerImgUrl());
             matchup.put("myPlayerRace",     myPlayer.getRace());
             matchup.put("myPlayerRarity",   myPlayer.getCurrentRarity());
-            // ★ 전투 스탯: 일반 스탯 + 강화 스탯 합산
             matchup.put("myPlayerAttack",   myPlayer.getTotalAttack());
             matchup.put("myPlayerDefense",  myPlayer.getTotalDefense());
             matchup.put("myPlayerMacro",    myPlayer.getTotalMacro());
@@ -1420,7 +1432,6 @@ public class MainController {
             matchup.put("aiPlayerLuck",    aiPlayer.getStatLuck());
             matchup.put("aiPlayerTrait",   "안정적인 운영 선호");
 
-            // 유저 종족에 맞는 AI 빌드 선택
             Integer aiBuildId = null;
             if (myPlayer != null) {
                 String userRace = myPlayer.getRace();
@@ -1471,7 +1482,6 @@ public class MainController {
         catch (Exception e) { return defaultVal; }
     }
 
-    // ★★★ 핵심 수정 부분: 새로운 컨디션/연승 배율 로직 반영 ★★★
     private Map<String, Integer> extractStats(Map<String, Object> matchup, String prefix) {
         Map<String, Integer> stats = new HashMap<>();
         int atk  = safeInt(matchup.get(prefix + "Attack"),  50);
@@ -1480,33 +1490,30 @@ public class MainController {
         int mic  = safeInt(matchup.get(prefix + "Micro"),   50);
         int luk  = safeInt(matchup.get(prefix + "Luck"),    50);
 
-        // 1. 컨디션 배율 적용 (데이터가 없으면 NORMAL)
         String condition = (String) matchup.getOrDefault(prefix + "Condition", "NORMAL");
         double condMult = 1.0;
         switch (condition) {
-            case "PEAK":   condMult = 1.20; break; // 20% 증가
-            case "GOOD":   condMult = 1.10; break; // 10% 증가
-            case "NORMAL": condMult = 1.00; break; // 기본
-            case "TIRED":  condMult = 0.90; break; // 10% 감소
-            case "WORST":  condMult = 0.80; break; // 20% 감소
+            case "PEAK":   condMult = 1.20; break; 
+            case "GOOD":   condMult = 1.10; break; 
+            case "NORMAL": condMult = 1.00; break; 
+            case "TIRED":  condMult = 0.90; break; 
+            case "WORST":  condMult = 0.80; break; 
         }
 
-        // 2. 경기력 보정 (연승 1~5 → 최대 10%)
         int winStreak = safeInt(matchup.get(prefix + "WinStreak"), 0);
         double streakMult = 1.0;
         if (winStreak >= 5) {
-            streakMult = 1.10; // 5연승 이상: 10% 증가
+            streakMult = 1.10;
         } else if (winStreak == 4) {
-            streakMult = 1.08; // 4연승: 8% 증가
+            streakMult = 1.08;
         } else if (winStreak == 3) {
-            streakMult = 1.06; // 3연승: 6% 증가
+            streakMult = 1.06;
         } else if (winStreak == 2) {
-            streakMult = 1.03; // 2연승: 3% 증가
+            streakMult = 1.03;
         } else {
-            streakMult = 1.00; // 0~1연승: 효과 없음
+            streakMult = 1.00;
         }
 
-        // 3. 최종 배율 적용
         double totalMult = condMult * streakMult;
 
         stats.put("attack",  (int) Math.round(atk * totalMult));
@@ -1518,18 +1525,6 @@ public class MainController {
         return stats;
     }
 
-    /**
-     * ★ 수정된 스탯 성장 메서드
-     *
-     * DB의 CHECK 제약 조건과 일치하도록 switch-case 전면 교체
-     * PLAY_STYLE  : AGGRESSIVE / NORMAL / DEFENSIVE
-     * AGGRESSION  : MIN_MULTI / MID_MULTI / MAX_MULTI
-     *
-     * 총 포인트:
-     * 강한 상대(aiTotal > myTotal+50) → 8점
-     * 비슷한 상대(±50 이내)           → 5점
-     * 약한 상대(myTotal > aiTotal+50) → 3점
-     */
     private Map<String, Object> applyBuildBasedStatIncrease(
             OwnedPlayerDTO player, BuildDTO build, int myTotal, int aiTotal) {
 
@@ -1542,18 +1537,14 @@ public class MainController {
         changes.put("beforeAttack", a);  changes.put("beforeDefense", d);
         changes.put("beforeMacro",  ma); changes.put("beforeMicro",   mi); changes.put("beforeLuck", l);
 
-        // ── 상대 강도에 따른 총 포인트 결정 ──
         int totalPoints;
         int diff = aiTotal - myTotal;
-        if (diff > 50)       totalPoints = 3;  // 강한 상대 격파 → +3
-        else if (diff > -50) totalPoints = 2;  // 비슷한 상대 → +2
-        else                 totalPoints = 1;  // 약한 상대 → +1
+        if (diff > 50)       totalPoints = 3;  
+        else if (diff > -50) totalPoints = 2;  
+        else                 totalPoints = 1;  
 
-        // ── 빌드 기반 가중치 [attack, defense, macro, micro, luck] ──
         double[] w = {1.0, 1.0, 1.0, 1.0, 1.0};
 
-
-        // ── 가중치 기반 포인트 확률 분배 ──
         double wSum = w[0] + w[1] + w[2] + w[3] + w[4];
         int[] inc = new int[5];
         for (int i = 0; i < totalPoints; i++) {
@@ -1588,12 +1579,12 @@ public class MainController {
         int l  = player.getCurrentLuck()    == 0 ? 50 : player.getCurrentLuck();
         changes.put("beforeAttack", a);  changes.put("beforeDefense", d);
         changes.put("beforeMacro",  ma); changes.put("beforeMicro",   mi); changes.put("beforeLuck", l);
-        // 상대 강도 역산: 내가 강했는데 졌으면 더 많이 떨어짐
+        
         int diff = aiTotal - myTotal;
         int totalDrop;
-        if (diff > 50)       totalDrop = 1;  // 강한 상대에게 패배 → -1
-        else if (diff > -50) totalDrop = 2;  // 비슷한 상대에게 패배 → -2
-        else                 totalDrop = 3;  // 약한 상대에게 패배 → -3
+        if (diff > 50)       totalDrop = 1;  
+        else if (diff > -50) totalDrop = 2;  
+        else                 totalDrop = 3;  
         int rem = totalDrop; int[] dec = new int[5];
         while (rem-- > 0) dec[rand.nextInt(5)]++;
         player.setCurrentAttack(Math.max(1, a   - dec[0])); player.setCurrentDefense(Math.max(1, d  - dec[1]));
@@ -1613,9 +1604,6 @@ public class MainController {
     // 일일 미션 시스템
     // ========================================
     
-    /**
-     * 일일 미션 페이지
-     */
     @GetMapping("/daily-missions")
     public String dailyMissionsPage(HttpSession session, Model model) {
         if (session.getAttribute("loginUser") == null) return "redirect:/login";
@@ -1624,10 +1612,8 @@ public class MainController {
         String userId = loginUser.getUserId();
         
         try {
-            // 오늘 미션 목록 조회 (자동 초기화)
             List<UserDailyMissionDTO> missions = dailyMissionService.getUserMissionsToday(userId);
             
-            // 통계 계산
             int totalMissions = missions.size();
             int completedMissions = (int) missions.stream().filter(m -> "Y".equals(m.getIsCompleted())).count();
             int claimedMissions = (int) missions.stream().filter(m -> "Y".equals(m.getIsClaimed())).count();
@@ -1650,9 +1636,6 @@ public class MainController {
         return "dailyMissions";
     }
     
-    /**
-     * 미션 보상 수령 (AJAX)
-     */
     @PostMapping("/daily-missions/claim")
     @ResponseBody
     public Map<String, Object> claimMissionReward(@RequestParam("missionId") int missionId, 
@@ -1669,10 +1652,8 @@ public class MainController {
             
             String userId = loginUser.getUserId();
             
-            // 보상 수령
             int rewardAmount = dailyMissionService.claimMissionReward(userId, missionId);
             
-            // 세션 업데이트
             UserDTO updatedUser = userDAO.selectUserCurrency(userId);
             session.setAttribute("loginUser", updatedUser);
             
@@ -1693,9 +1674,6 @@ public class MainController {
         return result;
     }
     
-    /**
-     * 전체 보상 일괄 수령 (AJAX)
-     */
     @PostMapping("/daily-missions/claim-all")
     @ResponseBody
     public Map<String, Object> claimAllRewards(HttpSession session) {
@@ -1711,7 +1689,6 @@ public class MainController {
             
             String userId = loginUser.getUserId();
             
-            // 모든 수령 가능한 미션 조회
             List<UserDailyMissionDTO> missions = dailyMissionService.getUserMissionsToday(userId);
             int totalReward = 0;
             int claimedCount = 0;
@@ -1723,13 +1700,11 @@ public class MainController {
                         totalReward += reward;
                         claimedCount++;
                     } catch (Exception e) {
-                        // 개별 미션 수령 실패 시 로그만 찍고 계속 진행
                         System.err.println("미션 " + mission.getMissionId() + " 수령 실패: " + e.getMessage());
                     }
                 }
             }
             
-            // 세션 업데이트
             UserDTO updatedUser = userDAO.selectUserCurrency(userId);
             session.setAttribute("loginUser", updatedUser);
             
@@ -1748,9 +1723,6 @@ public class MainController {
         return result;
     }
     
-    /**
-     * 수령 가능한 보상 개수 조회 (AJAX - 사이드바 뱃지용)
-     */
     @GetMapping("/daily-missions/claimable-count")
     @ResponseBody
     public Map<String, Object> getClaimableCount(HttpSession session) {

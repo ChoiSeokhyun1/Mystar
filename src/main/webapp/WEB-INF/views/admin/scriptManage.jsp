@@ -12,7 +12,12 @@
             max-width: 1400px;
             margin: 40px auto;
             padding: 20px;
+            height: calc(100vh - 60px);
+            overflow-y: auto;
         }
+        .script-container::-webkit-scrollbar { width: 6px; }
+        .script-container::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+        .script-container::-webkit-scrollbar-track { background: #1a1a1a; }
         .script-header {
             color: #00ff88;
             margin-bottom: 30px;
@@ -108,7 +113,12 @@
             padding: 20px;
             border-radius: 4px;
             margin-bottom: 15px;
+            max-height: 400px;
+            overflow-y: auto;
         }
+        .script-lines::-webkit-scrollbar { width: 6px; }
+        .script-lines::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+        .script-lines::-webkit-scrollbar-track { background: #1a1a1a; }
         .script-line {
             display: grid;
             grid-template-columns: 1fr auto auto;
@@ -543,6 +553,9 @@ function addLine(type, setIdx) {
         loseScripts[setIdx].push({text: '', speaker: 'narration'});
         renderScript('lose', setIdx, loseScripts[setIdx]);
     }
+    // 자동 스크롤
+    const container = document.getElementById(type + 'Lines' + setIdx);
+    setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
 }
 
 function removeLine(type, setIdx, lineIdx) {
