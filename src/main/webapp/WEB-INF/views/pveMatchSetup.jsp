@@ -38,12 +38,20 @@
 
 <main class="msl-main">
 
-    <form id="battleForm" action="<c:url value='/pve/battle/start' />" method="post">
+<form id="battleForm" action="<c:url value='/pve/battle/start' />" method="post">
         <input type="hidden" name="level"    value="${stageLevel}">
         <input type="hidden" name="subLevel" value="${subLevel}">
-        <c:forEach var="i" begin="1" end="9">
-            <input type="hidden" name="p${i}" id="hidden_p${i}" value="">
-        </c:forEach>
+        
+        <input type="hidden" name="set1Player" id="hidden_p1" value="">
+        <input type="hidden" name="set2Player" id="hidden_p2" value="">
+        <input type="hidden" name="set3Player" id="hidden_p3" value="">
+        
+        <input type="hidden" name="p4" id="hidden_p4" value="">
+        <input type="hidden" name="p5" id="hidden_p5" value="">
+        <input type="hidden" name="p6" id="hidden_p6" value="">
+        <input type="hidden" name="p7" id="hidden_p7" value="">
+        <input type="hidden" name="p8" id="hidden_p8" value="">
+        <input type="hidden" name="p9" id="hidden_p9" value="">
     </form>
 
     <div class="match-layout">

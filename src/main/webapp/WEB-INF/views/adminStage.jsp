@@ -374,20 +374,21 @@ function assignMap(setNum) {
 /* ============================================================
    AI 선수 로드
    ============================================================ */
-function loadOpponents(stageLevel, subLevel) {
-    fetch('<c:url value="/admin/round/opponents"/>?stageLevel=' + stageLevel + '&subLevel=' + subLevel)
-        .then(function(r){ return r.json(); })
-        .then(function(data) {
-            if (!data.success || !data.opponents) return;
-            data.opponents.forEach(function(opp) {
-                if (opp.setNumber >= 1 && opp.setNumber <= 5) {
-                    slotData[opp.setNumber] = opp;
-                    renderSlot(opp.setNumber);
-                }
-            });
-        })
-        .catch(function(e){ console.error(e); });
-}
+   function loadOpponents(stageLevel, subLevel) {
+	    fetch('<c:url value="/admin/round/opponents"/>?stageLevel=' + stageLevel + '&subLevel=' + subLevel)
+	        .then(function(r){ return r.json(); })
+	        .then(function(data) {
+	            if (!data.success || !data.opponents) return;
+	            data.opponents.forEach(function(opp) {
+	                // 👇 9번 슬롯(전체)까지 불러오도록 수정
+	                if (opp.setNumber >= 1 && opp.setNumber <= 9) {
+	                    slotData[opp.setNumber] = opp;
+	                    renderSlot(opp.setNumber);
+	                }
+	            });
+	        })
+	        .catch(function(e){ console.error(e); });
+	}
 
 /* ============================================================
    슬롯 렌더링 (innerHTML 사용 - EL 없음)

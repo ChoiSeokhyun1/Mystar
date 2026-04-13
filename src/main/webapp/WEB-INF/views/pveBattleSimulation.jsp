@@ -200,12 +200,11 @@
     let maxHpState = {};
     let totalBlueMaxHp = 0, totalRedMaxHp = 0;
     
-    // 위치 하드코딩 (빠른무한 대칭형 배치)
-    const posMap = {
-        'blue': [{x: 20, y: 25}, {x: 15, y: 55}, {x: 35, y: 80}],
-        'red':  [{x: 80, y: 20}, {x: 85, y: 60}, {x: 65, y: 85}]
-    };
-    let blueIdx = 0, redIdx = 0;
+    // 스타팅 위치 (API에서 동적으로 로드, 실패 시 폴백)
+    const fallbackPositions = [
+        {x: 20, y: 25}, {x: 15, y: 55}, {x: 35, y: 80},
+        {x: 80, y: 20}, {x: 85, y: 60}, {x: 65, y: 85}
+    ];
 
     function initBattleUI() {
         battleData.forEach(f => {
@@ -216,7 +215,8 @@
             else totalRedMaxHp += f.maxHp;
 
             // 1. 맵 위에 기지 생성
-            let pos = f.team === 'blue' ? posMap['blue'][blueIdx++] : posMap['red'][redIdx++];
+            // startX/startY는 loadMapAndAssignPositions()에서 사전 할당됨
+            let pos = (f.startX != null) ? { x: f.startX, y: f.startY } : fallbackPositions.shift() || {x: 50, y: 50};
             f.x = pos.x; f.y = pos.y; // 좌표 저장
             
             let baseHtml = `
@@ -427,7 +427,61 @@
     // ==========================================
     const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+    // ==========================================
+    // 5-0. 맵 스타팅 포인트 로드 및 랜덤 배치
+    // ==========================================
+    async function loadMapAndAssignPositions() {
+        try {
+            const resp = await fetch('${pageContext.request.contextPath}/api/map/info?stageLevel=${stageLevel}&subLevel=${subLevel}&setNum=1');
+            const data = await resp.json();
+
+            if (!data.success) return;
+
+            // 맵 배경 이미지 설정
+            if (data.bgImageUrl) {
+                const board = document.getElementById('tacticalBoard');
+                board.style.backgroundImage = "url('" + data.bgImageUrl + "')";
+                board.style.backgroundSize  = 'cover';
+                board.style.backgroundPosition = 'center';
+            }
+
+            // STARTING 타입 지점만 필터링
+            const startingPoints = (data.points || []).filter(p => p.pointType === 'STARTING');
+            if (startingPoints.length < battleData.length) return; // 포인트 수 부족 시 폴백
+
+            // 이미지 자연 크기 로드 후 % 좌표 계산
+            await new Promise(resolve => {
+                const img = new Image();
+                img.onload = function() {
+                    const W = img.naturalWidth  || 1;
+                    const H = img.naturalHeight || 1;
+
+                    // Fisher-Yates 셔플
+                    for (let i = startingPoints.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [startingPoints[i], startingPoints[j]] = [startingPoints[j], startingPoints[i]];
+                    }
+
+                    // battleData 순서대로 스타팅 위치 할당
+                    battleData.forEach((fighter, idx) => {
+                        if (idx < startingPoints.length) {
+                            fighter.startX = (startingPoints[idx].pixelX / W) * 100;
+                            fighter.startY = (startingPoints[idx].pixelY / H) * 100;
+                        }
+                    });
+                    resolve();
+                };
+                img.onerror = resolve; // 이미지 로드 실패 시 폴백 사용
+                img.src = data.bgImageUrl || '';
+            });
+
+        } catch(e) {
+            console.warn('[MSL] 맵 정보 로드 실패, 기본 위치 사용:', e);
+        }
+    }
+
     async function startReplay() {
+        await loadMapAndAssignPositions(); // 맵 로드 및 스타팅 위치 할당
         initBattleUI();
         addLog("SYSTEM: 3v3 전술 교전 데이터를 수신했습니다.", "system");
         await sleep(1500);
