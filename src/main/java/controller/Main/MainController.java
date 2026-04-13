@@ -535,20 +535,21 @@ public class MainController {
         tpParams.put("amount", -1);
         userDAO.updateUserTrainPoint(tpParams);
 
+        // 변경된 DTO 메서드 적용
         int a  = player.getCurrentAttack()  == 0 ? 50 : player.getCurrentAttack();
         int d  = player.getCurrentDefense() == 0 ? 50 : player.getCurrentDefense();
-        int ma = player.getCurrentMacro()   == 0 ? 50 : player.getCurrentMacro();
-        int mi = player.getCurrentMicro()   == 0 ? 50 : player.getCurrentMicro();
-        int l  = player.getCurrentLuck()    == 0 ? 50 : player.getCurrentLuck();
+        int hp = player.getCurrentHp()      == 0 ? 50 : player.getCurrentHp();
+        int ha = player.getCurrentHarass()  == 0 ? 50 : player.getCurrentHarass();
+        int s  = player.getCurrentSpeed()   == 0 ? 50 : player.getCurrentSpeed();
 
         int[] inc = new int[5];
         for (int i = 0; i < 3; i++) inc[rand.nextInt(5)]++;
 
         player.setCurrentAttack(a  + inc[0]);
         player.setCurrentDefense(d + inc[1]);
-        player.setCurrentMacro(ma  + inc[2]);
-        player.setCurrentMicro(mi  + inc[3]);
-        player.setCurrentLuck(l    + inc[4]);
+        player.setCurrentHp(hp     + inc[2]);
+        player.setCurrentHarass(ha + inc[3]);
+        player.setCurrentSpeed(s   + inc[4]);
         ownedPlayerDAO.updatePlayerStats(player);
         
         try {
@@ -559,12 +560,14 @@ public class MainController {
 
         res.put("success", true);
         res.put("attackInc",  inc[0]); res.put("defenseInc", inc[1]);
-        res.put("macroInc",   inc[2]); res.put("microInc",   inc[3]); res.put("luckInc", inc[4]);
+        
+        // JSON Key 변경 적용
+        res.put("hpInc",      inc[2]); res.put("harassInc",  inc[3]); res.put("speedInc", inc[4]);
         res.put("afterAttack",  player.getCurrentAttack());
         res.put("afterDefense", player.getCurrentDefense());
-        res.put("afterMacro",   player.getCurrentMacro());
-        res.put("afterMicro",   player.getCurrentMicro());
-        res.put("afterLuck",    player.getCurrentLuck());
+        res.put("afterHp",      player.getCurrentHp());
+        res.put("afterHarass",  player.getCurrentHarass());
+        res.put("afterSpeed",   player.getCurrentSpeed());
         res.put("remainPoint",  currency.getTrainPoint() - 1);
         return res;
     }
@@ -758,9 +761,12 @@ public class MainController {
         res.put("enhanceLevel",    target.getEnhanceLevel());
         res.put("enhanceAttack",   target.getEnhanceAttack());
         res.put("enhanceDefense",  target.getEnhanceDefense());
-        res.put("enhanceMacro",    target.getEnhanceMacro());
-        res.put("enhanceMicro",    target.getEnhanceMicro());
-        res.put("enhanceLuck",     target.getEnhanceLuck());
+        
+        // 변경된 DTO 메서드 및 JSON Key 적용
+        res.put("enhanceHp",       target.getEnhanceHp());
+        res.put("enhanceHarass",   target.getEnhanceHarass());
+        res.put("enhanceSpeed",    target.getEnhanceSpeed());
+        
         res.put("enhanceStreak",   target.getEnhanceStreak());
         res.put("materialCount",   materials.size());
         res.put("successRate",     getEnhanceSuccessRate(target.getEnhanceLevel()));
@@ -805,18 +811,21 @@ public class MainController {
         res.put("enhanced", success);
 
         if (success) {
-            String[] statNames = {"attack", "defense", "macro", "micro", "luck"};
+            // statNames 배열 변경
+            String[] statNames = {"attack", "defense", "hp", "harass", "speed"};
             int statIdx = rand.nextInt(5);
             String statName = statNames[statIdx];
 
             int newLevel = target.getEnhanceLevel() + 1;
             target.setEnhanceLevel(newLevel);
+            
+            // 변경된 Setter 적용
             switch (statIdx) {
                 case 0: target.setEnhanceAttack(target.getEnhanceAttack()   + 1); break;
                 case 1: target.setEnhanceDefense(target.getEnhanceDefense() + 1); break;
-                case 2: target.setEnhanceMacro(target.getEnhanceMacro()     + 1); break;
-                case 3: target.setEnhanceMicro(target.getEnhanceMicro()     + 1); break;
-                case 4: target.setEnhanceLuck(target.getEnhanceLuck()       + 1); break;
+                case 2: target.setEnhanceHp(target.getEnhanceHp()           + 1); break;
+                case 3: target.setEnhanceHarass(target.getEnhanceHarass()   + 1); break;
+                case 4: target.setEnhanceSpeed(target.getEnhanceSpeed()     + 1); break;
             }
             ownedPlayerDAO.updateEnhanceStats(target);
 
@@ -835,12 +844,16 @@ public class MainController {
             res.put("enhancedStat",      statName);
             res.put("enhanceAttack",     target.getEnhanceAttack());
             res.put("enhanceDefense",    target.getEnhanceDefense());
-            res.put("enhanceMacro",      target.getEnhanceMacro());
-            res.put("enhanceMicro",      target.getEnhanceMicro());
-            res.put("enhanceLuck",       target.getEnhanceLuck());
+            
+            // JSON Key 변경 적용
+            res.put("enhanceHp",         target.getEnhanceHp());
+            res.put("enhanceHarass",     target.getEnhanceHarass());
+            res.put("enhanceSpeed",      target.getEnhanceSpeed());
+            
             res.put("enhanceStreak",     newStreak);
             res.put("message",           "+" + newLevel + " 강화 성공! " + statName + " +1");
         } else {
+            // ... (실패 처리 등 나머지 코드 동일) ...
             int prevStreak = target.getEnhanceStreak();
             int newStreak  = prevStreak < 0 ? prevStreak - 1 : -1;
             target.setEnhanceStreak(newStreak);

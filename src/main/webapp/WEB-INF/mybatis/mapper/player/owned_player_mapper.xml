@@ -7,12 +7,12 @@
     <insert id="insertOwnedPlayer" parameterType="OwnedPlayerDTO">
         INSERT INTO TBL_OWNED_PLAYERS (
             OWNED_PLAYER_SEQ, USER_ID, PLAYER_SEQ,
-            CURRENT_ATTACK, CURRENT_DEFENSE, CURRENT_MACRO, CURRENT_MICRO, CURRENT_LUCK,
+            CURRENT_ATTACK, CURRENT_DEFENSE, CURRENT_HP, CURRENT_HARASS, CURRENT_SPEED,
             ACQUIRED_AT, CURRENT_RARITY, ACQUIRED_FROM_PACK_SEQ,
             CONDITION, WIN_STREAK
         ) VALUES (
             SEQ_OWNED_PLAYERS.NEXTVAL, #{userId}, #{playerSeq},
-            #{currentAttack}, #{currentDefense}, #{currentMacro}, #{currentMicro}, #{currentLuck},
+            #{currentAttack}, #{currentDefense}, #{currentHp}, #{currentHarass}, #{currentSpeed},
             SYSDATE, #{currentRarity}, #{acquiredFromPackSeq},
             'NORMAL', 0
         )
@@ -21,16 +21,16 @@
     <select id="selectOwnedPlayersByUserId" parameterType="String" resultType="OwnedPlayerInfoDTO">
         SELECT
             op.OWNED_PLAYER_SEQ, op.USER_ID, op.PLAYER_SEQ,
-            op.CURRENT_ATTACK, op.CURRENT_DEFENSE, op.CURRENT_MACRO, op.CURRENT_MICRO, op.CURRENT_LUCK,
+            op.CURRENT_ATTACK, op.CURRENT_DEFENSE, op.CURRENT_HP, op.CURRENT_HARASS, op.CURRENT_SPEED,
             op.ACQUIRED_AT, op.CURRENT_RARITY,
             op.CONDITION AS condition,
             op.WIN_STREAK AS winStreak,
             op.ENHANCE_LEVEL   AS enhanceLevel,
             op.ENHANCE_ATTACK  AS enhanceAttack,
             op.ENHANCE_DEFENSE AS enhanceDefense,
-            op.ENHANCE_MACRO   AS enhanceMacro,
-            op.ENHANCE_MICRO   AS enhanceMicro,
-            op.ENHANCE_LUCK    AS enhanceLuck,
+            op.ENHANCE_HP      AS enhanceHp,
+            op.ENHANCE_HARASS  AS enhanceHarass,
+            op.ENHANCE_SPEED   AS enhanceSpeed,
             p.PLAYER_NAME, p.RACE, p.RARITY AS "baseRarity",
             p.PLAYER_IMG_URL, p.PLAYER_COST,
             pack.PACK_NAME,
@@ -52,7 +52,7 @@
             GROUP BY OWNED_PLAYER_SEQ
         ) r ON op.OWNED_PLAYER_SEQ = r.OWNED_PLAYER_SEQ
         WHERE op.USER_ID = #{userId}
-        ORDER BY op.CURRENT_ATTACK + op.CURRENT_DEFENSE + op.CURRENT_MACRO + op.CURRENT_MICRO DESC
+        ORDER BY op.CURRENT_ATTACK + op.CURRENT_DEFENSE + op.CURRENT_HP + op.CURRENT_HARASS DESC
     </select>
 
     <select id="selectOwnedPlayerDetails" parameterType="int" resultType="OwnedPlayerInfoDTO">
@@ -62,9 +62,9 @@
             op.PLAYER_SEQ,
             op.CURRENT_ATTACK,
             op.CURRENT_DEFENSE,
-            op.CURRENT_MACRO,
-            op.CURRENT_MICRO,
-            op.CURRENT_LUCK,
+            op.CURRENT_HP,
+            op.CURRENT_HARASS,
+            op.CURRENT_SPEED,
             op.ACQUIRED_AT,
             op.CURRENT_RARITY,
             op.CONDITION AS condition,
@@ -72,9 +72,9 @@
             op.ENHANCE_LEVEL   AS enhanceLevel,
             op.ENHANCE_ATTACK  AS enhanceAttack,
             op.ENHANCE_DEFENSE AS enhanceDefense,
-            op.ENHANCE_MACRO   AS enhanceMacro,
-            op.ENHANCE_MICRO   AS enhanceMicro,
-            op.ENHANCE_LUCK    AS enhanceLuck,
+            op.ENHANCE_HP      AS enhanceHp,
+            op.ENHANCE_HARASS  AS enhanceHarass,
+            op.ENHANCE_SPEED   AS enhanceSpeed,
 
             p.PLAYER_NAME,
             p.RACE,
@@ -101,9 +101,9 @@
             PLAYER_SEQ,
             CURRENT_ATTACK,
             CURRENT_DEFENSE,
-            CURRENT_MACRO,
-            CURRENT_MICRO,
-            CURRENT_LUCK,
+            CURRENT_HP,
+            CURRENT_HARASS,
+            CURRENT_SPEED,
             ACQUIRED_AT,
             CURRENT_RARITY,
             ACQUIRED_FROM_PACK_SEQ,
@@ -112,40 +112,36 @@
             ENHANCE_LEVEL   AS enhanceLevel,
             ENHANCE_ATTACK  AS enhanceAttack,
             ENHANCE_DEFENSE AS enhanceDefense,
-            ENHANCE_MACRO   AS enhanceMacro,
-            ENHANCE_MICRO   AS enhanceMicro,
-            ENHANCE_LUCK    AS enhanceLuck,
+            ENHANCE_HP      AS enhanceHp,
+            ENHANCE_HARASS  AS enhanceHarass,
+            ENHANCE_SPEED   AS enhanceSpeed,
             ENHANCE_STREAK  AS enhanceStreak
         FROM TBL_OWNED_PLAYERS
         WHERE OWNED_PLAYER_SEQ = #{ownedPlayerSeq}
     </select>
 
-    <!-- ★ 강화 재료 소모: 보유 선수 삭제 (매치 기록은 ON DELETE CASCADE로 자동 삭제) -->
     <delete id="deleteOwnedPlayer" parameterType="int">
         DELETE FROM TBL_OWNED_PLAYERS WHERE OWNED_PLAYER_SEQ = #{ownedPlayerSeq}
     </delete>
 
-    <!-- ★ 강화 스탯 업데이트 -->
     <update id="updateEnhanceStats" parameterType="OwnedPlayerDTO">
         UPDATE TBL_OWNED_PLAYERS
         SET
             ENHANCE_LEVEL   = #{enhanceLevel},
             ENHANCE_ATTACK  = #{enhanceAttack},
             ENHANCE_DEFENSE = #{enhanceDefense},
-            ENHANCE_MACRO   = #{enhanceMacro},
-            ENHANCE_MICRO   = #{enhanceMicro},
-            ENHANCE_LUCK    = #{enhanceLuck}
+            ENHANCE_HP      = #{enhanceHp},
+            ENHANCE_HARASS  = #{enhanceHarass},
+            ENHANCE_SPEED   = #{enhanceSpeed}
         WHERE OWNED_PLAYER_SEQ = #{ownedPlayerSeq}
     </update>
 
-    <!-- ★ 강화 연속 성공/실패 streak (양수=연속성공, 음수=연속실패) -->
     <update id="updateEnhanceStreak" parameterType="OwnedPlayerDTO">
         UPDATE TBL_OWNED_PLAYERS
         SET ENHANCE_STREAK = #{enhanceStreak}
         WHERE OWNED_PLAYER_SEQ = #{ownedPlayerSeq}
     </update>
 
-    <!-- ★ 강화 재료 후보 조회: 같은 playerSeq + packSeq, 다른 ownedPlayerSeq -->
     <select id="selectMaterialCandidates" parameterType="OwnedPlayerDTO" resultType="OwnedPlayerDTO">
         SELECT
             OWNED_PLAYER_SEQ,
@@ -153,9 +149,9 @@
             PLAYER_SEQ,
             CURRENT_ATTACK,
             CURRENT_DEFENSE,
-            CURRENT_MACRO,
-            CURRENT_MICRO,
-            CURRENT_LUCK,
+            CURRENT_HP,
+            CURRENT_HARASS,
+            CURRENT_SPEED,
             ACQUIRED_AT,
             CURRENT_RARITY,
             ACQUIRED_FROM_PACK_SEQ,
@@ -164,9 +160,9 @@
             ENHANCE_LEVEL   AS enhanceLevel,
             ENHANCE_ATTACK  AS enhanceAttack,
             ENHANCE_DEFENSE AS enhanceDefense,
-            ENHANCE_MACRO   AS enhanceMacro,
-            ENHANCE_MICRO   AS enhanceMicro,
-            ENHANCE_LUCK    AS enhanceLuck
+            ENHANCE_HP      AS enhanceHp,
+            ENHANCE_HARASS  AS enhanceHarass,
+            ENHANCE_SPEED   AS enhanceSpeed
         FROM TBL_OWNED_PLAYERS
         WHERE USER_ID               = #{userId}
           AND PLAYER_SEQ            = #{playerSeq}
@@ -180,27 +176,24 @@
         SET
             CURRENT_ATTACK = #{currentAttack},
             CURRENT_DEFENSE = #{currentDefense},
-            CURRENT_MACRO = #{currentMacro},
-            CURRENT_MICRO = #{currentMicro},
-            CURRENT_LUCK = #{currentLuck}
+            CURRENT_HP = #{currentHp},
+            CURRENT_HARASS = #{currentHarass},
+            CURRENT_SPEED = #{currentSpeed}
         WHERE OWNED_PLAYER_SEQ = #{ownedPlayerSeq}
     </update>
 
-    <!-- 경기 결과 후 연승 업데이트 -->
     <update id="updateWinStreak" parameterType="OwnedPlayerDTO">
         UPDATE TBL_OWNED_PLAYERS
         SET WIN_STREAK = #{winStreak}
         WHERE OWNED_PLAYER_SEQ = #{ownedPlayerSeq}
     </update>
 
-    <!-- 자정 컨디션 일괄 업데이트 -->
     <update id="updateConditionBySeq" parameterType="OwnedPlayerDTO">
         UPDATE TBL_OWNED_PLAYERS
         SET CONDITION = #{condition}
         WHERE OWNED_PLAYER_SEQ = #{ownedPlayerSeq}
     </update>
 
-    <!-- 전체 선수 seq 조회 (스케줄러용) -->
     <select id="selectAllOwnedPlayerSeqs" resultType="int">
         SELECT OWNED_PLAYER_SEQ FROM TBL_OWNED_PLAYERS
     </select>

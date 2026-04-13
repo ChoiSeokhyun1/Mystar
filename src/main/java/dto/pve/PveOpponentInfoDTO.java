@@ -4,23 +4,29 @@ import lombok.Data;
 
 @Data
 public class PveOpponentInfoDTO {
+    
     // TBL_PLAYERS 정보
     private int playerSeq;
     private String playerName;
     private String race;
     private String rarity;
+    
     private int statAttack;
     private int statDefense;
-    private int statMacro;
-    private int statMicro;
-    private int statLuck;
+    
+    // [수정됨] Macro, Micro, Luck -> Hp, Harass, Speed
+    private int statHp;
+    private int statHarass;
+    private int statSpeed;
+    
     private String playerImgUrl;
-    private int playerCost;
     
     // TBL_PVE_OPPONENTS 정보
-    private int setNumber; // (★) 배정된 세트 번호 (1~5, 벤치면 0 또는 null)
-    private Integer opponentId; // opponent ID
-    private Integer buildIdVsT; // vs 테란 빌드 ID (nullable)
-    private Integer buildIdVsZ; // vs 저그 빌드 ID (nullable)
-    private Integer buildIdVsP; // vs 프로토스 빌드 ID (nullable)
+    private int setNumber;
+    private int opponentId;
+    
+    // 상대방 빌드 (AI 로직용)
+    private Integer buildIdVsT;
+    private Integer buildIdVsZ;
+    private Integer buildIdVsP;
 }

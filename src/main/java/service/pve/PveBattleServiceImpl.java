@@ -52,7 +52,6 @@ public class PveBattleServiceImpl implements PveBattleService {
         applyTeamMatchupBonus(fighters);
 
         // ── 3. 시뮬레이션용 내부 상태 복사 ──
-        //    (BattleFighterDTO 는 프론트 전달용 초기값 보존 → 시뮬은 복사본 사용)
         List<SimFighter> simFighters = toSimFighters(fighters);
         List<GameEvent>  events      = new ArrayList<>();
 
@@ -108,13 +107,12 @@ public class PveBattleServiceImpl implements PveBattleService {
                         boolean lethal = target.hp <= 0;
                         if (lethal) target.hp = 0;
 
-                        // SHIELD 이벤트 기록 (BattleFighterDTO 좌표 참조)
+                        // SHIELD 이벤트 기록
                         BattleFighterDTO actorDto  = getDtoById(fighters, actor.id);
                         BattleFighterDTO targetDto = getDtoById(fighters, target.id);
                         BattleFighterDTO intDto    = getDtoById(fighters, interceptor.id);
 
-                        // SHIELD 이벤트에 현재 HP 반영
-                        targetDto.setHp(target.hp); // 임시 반영 (로그용)
+                        targetDto.setHp(target.hp); // 임시 반영
                         GameEvent shieldEv = GameEvent.shield(tick, actorDto, targetDto, intDto, reducedDmg);
                         shieldEv.setCurrentHp(target.hp);
                         shieldEv.setLethal(lethal);
@@ -151,7 +149,7 @@ public class PveBattleServiceImpl implements PveBattleService {
                 }
             }
 
-            // 4-g. 매 틱 후 전멸 체크 (안전망)
+            // 4-g. 매 틱 후 전멸 체크
             if (isTeamWiped(simFighters, "blue") || isTeamWiped(simFighters, "red")) {
                 break;
             }
@@ -165,14 +163,14 @@ public class PveBattleServiceImpl implements PveBattleService {
 
         // ── 6. 결과 반환 ──
         Map<String, Object> result = new HashMap<>();
-        result.put("fighters",     fighters);          // 초기 스탯 (JS 렌더링용)
-        result.put("eventLogJson", gson.toJson(events)); // 타임라인 JSON
+        result.put("fighters",     fighters);
+        result.put("eventLogJson", gson.toJson(events));
         result.put("winner",       winner);
         return result;
     }
 
     // =====================================================================
-    // 종족 상성 보너스 적용 (블루팀 스탯에 배율 곱하기)
+    // 종족 상성 보너스 적용
     // =====================================================================
     private void applyTeamMatchupBonus(List<BattleFighterDTO> fighters) {
         List<BattleFighterDTO> blueTeam = new ArrayList<>();
@@ -204,7 +202,6 @@ public class PveBattleServiceImpl implements PveBattleService {
         }
     }
 
-    /** 팀 종족 코드 알파벳 정렬 문자열 생성 (예: ["T","Z","T"] → "TTZ") */
     private String buildTeamCombo(List<BattleFighterDTO> team) {
         char[] chars = new char[3];
         for (int i = 0; i < Math.min(team.size(), 3); i++) {
@@ -251,12 +248,10 @@ public class PveBattleServiceImpl implements PveBattleService {
         return true;
     }
 
-    /** 남은 HP가 가장 낮은 적을 타겟으로 선정 */
     private SimFighter pickLowestHpTarget(List<SimFighter> enemies) {
         return enemies.stream().min(Comparator.comparingInt(a -> a.hp)).orElse(null);
     }
 
-    /** 방어 난입 판정 */
     private SimFighter tryIntercept(SimFighter target, List<SimFighter> all, Random rand) {
         List<SimFighter> allies = new ArrayList<>();
         for (SimFighter sf : all) {
@@ -268,7 +263,6 @@ public class PveBattleServiceImpl implements PveBattleService {
         return allies.get(0);
     }
 
-    /** 콤보 공격 시도 */
     private boolean tryCombo(SimFighter actor, List<SimFighter> enemies,
                               List<SimFighter> allFighters,
                               List<GameEvent> events, int tick, Random rand) {
@@ -319,7 +313,6 @@ public class PveBattleServiceImpl implements PveBattleService {
         ev.setLogMessage("💀 <strong>[" + dead.name + "]</strong> 전사!");
         ev.setLogType("kill");
         ev.setAtbSnapshotJson(buildAtbSnapshot(allSim));
-        // 좌표는 fighters 초기 DTO 에서 가져옴
         if (fighters != null) {
             BattleFighterDTO dto = getDtoById(fighters, dead.id);
             if (dto != null) { ev.setActorX(dto.getX()); ev.setActorY(dto.getY()); }
@@ -344,13 +337,9 @@ public class PveBattleServiceImpl implements PveBattleService {
         return null;
     }
 
-    /** fighters 리스트가 없을 때 simFighters 에서 좌표 없이 DTO 생성 */
     private BattleFighterDTO getDtoByIdMutable(List<SimFighter> all,
                                                String id,
                                                List<SimFighter> enemies) {
-        // ※ 실제 프로젝트에서는 fighters(초기 DTO) 를 파라미터로 전달해서 쓰는 것이 정석
-        //   여기서는 prepareBattleData 결과를 서비스 멤버로 캐시하거나 파라미터로 넘기세요.
-        //   임시: null 반환 방지를 위해 SimFighter 기반 최소 DTO 생성
         for (SimFighter sf : all) {
             if (sf.id.equals(id)) {
                 BattleFighterDTO dto = new BattleFighterDTO();
@@ -364,7 +353,7 @@ public class PveBattleServiceImpl implements PveBattleService {
     }
 
     // =====================================================================
-    // 전투원 데이터 준비 (기존 로직 유지)
+    // ★ 여기서 수정! Macro, Micro, Luck -> Hp, Harass, Speed 로 호출 
     // =====================================================================
     @Override
     public List<BattleFighterDTO> prepareBattleData(String userId, int stageLevel, int subLevel) {
@@ -382,8 +371,9 @@ public class PveBattleServiceImpl implements PveBattleService {
                 "b" + (i + 1), p.getPlayerName(), "blue",
                 p.getRace(), p.getCurrentRarity(), p.getPlayerImgUrl(),
                 p.getPlayerSeq(), p.getOwnedPlayerSeq(),
-                p.getTotalAttack(), p.getTotalDefense(), p.getTotalMacro(),
-                p.getTotalMicro(), p.getTotalLuck(),
+                // 변경된 DTO 메서드 호출 적용
+                p.getTotalAttack(), p.getTotalDefense(), p.getTotalHp(),
+                p.getTotalHarass(), p.getTotalSpeed(),
                 bluePos[i][0], bluePos[i][1]
             ));
         }
@@ -403,8 +393,9 @@ public class PveBattleServiceImpl implements PveBattleService {
                 "r" + (i + 1), opp.getPlayerName(), "red",
                 opp.getRace(), opp.getRarity(), opp.getPlayerImgUrl(),
                 opp.getPlayerSeq(), 0,
-                opp.getStatAttack(), opp.getStatDefense(), opp.getStatMacro(),
-                opp.getStatMicro(), opp.getStatLuck(),
+                // 변경된 DTO 메서드 호출 적용
+                opp.getStatAttack(), opp.getStatDefense(), opp.getStatHp(),
+                opp.getStatHarass(), opp.getStatSpeed(),
                 redPos[i][0], redPos[i][1]
             ));
         }
@@ -413,7 +404,7 @@ public class PveBattleServiceImpl implements PveBattleService {
     }
 
     // =====================================================================
-    // 승패 결정 (대본/상성/가산점 제거 → 순수 스탯)
+    // 승패 결정 
     // =====================================================================
     @Override
     public List<Boolean> calculateWinResults(List<Map<String, Object>> matchupList) {
@@ -438,8 +429,9 @@ public class PveBattleServiceImpl implements PveBattleService {
     }
 
     private double calcBaseScore(Map<String, Object> m, String prefix) {
-        return getInt(m, prefix+"Attack",50)+getInt(m, prefix+"Defense",50)
-             + getInt(m, prefix+"Macro",50)+getInt(m, prefix+"Micro",50)+getInt(m, prefix+"Luck",50);
+        // 기존의 Macro/Micro/Luck 키 대신 Hp/Harass/Speed 키를 찾도록 변경
+        return getInt(m, prefix+"Attack",50) + getInt(m, prefix+"Defense",50)
+             + getInt(m, prefix+"Hp",50) + getInt(m, prefix+"Harass",50) + getInt(m, prefix+"Speed",50);
     }
 
     private double conditionMult(String c) {

@@ -90,9 +90,10 @@ public class AdminController {
                 .append("\"rarity\":\"").append(je(p.getRarity())).append("\",")
                 .append("\"atk\":").append(p.getStatAttack()).append(",")
                 .append("\"def\":").append(p.getStatDefense()).append(",")
-                .append("\"mac\":").append(p.getStatMacro()).append(",")
-                .append("\"mic\":").append(p.getStatMicro()).append(",")
-                .append("\"lck\":").append(p.getStatLuck())
+                // 수정된 스탯 부분
+                .append("\"hp\":").append(p.getStatHp()).append(",")
+                .append("\"harass\":").append(p.getStatHarass()).append(",")
+                .append("\"speed\":").append(p.getStatSpeed())
                 .append("}");
         }
         playerJson.append("]");
@@ -345,6 +346,44 @@ public class AdminController {
         return res;
     }
 
+    @Transactional
+    @PostMapping("/round/opponents/save")
+    @ResponseBody
+    public Map<String, Object> saveOpponentsBatch(@RequestBody Map<String, Object> body, HttpSession session) {
+        Map<String, Object> res = new HashMap<>();
+        if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
+        try {
+            int stageLevel = (int) body.get("stageLevel");
+            int subLevel   = (int) body.get("subLevel");
+            @SuppressWarnings("unchecked")
+            java.util.List<Map<String, Object>> slots = (java.util.List<Map<String, Object>>) body.get("slots");
+
+            Map<String, Object> delParams = new HashMap<>();
+            delParams.put("stageLevel", stageLevel);
+            delParams.put("subLevel",   subLevel);
+            adminDAO.deleteAllOpponentsBySubstage(delParams);
+
+            if (slots != null) {
+                for (Map<String, Object> slot : slots) {
+                    if (slot.get("playerSeq") != null) {
+                        Map<String, Object> ins = new HashMap<>();
+                        ins.put("stageLevel", stageLevel);
+                        ins.put("subLevel",   subLevel);
+                        ins.put("setNumber",  slot.get("setNumber"));
+                        ins.put("playerSeq",  slot.get("playerSeq"));
+                        adminDAO.insertOpponent(ins);
+                    }
+                }
+            }
+            res.put("success", true);
+        } catch (Exception e) {
+            e.printStackTrace();
+            res.put("success", false);
+            res.put("message", "선수 저장 실패: " + e.getMessage());
+        }
+        return res;
+    }
+
     @GetMapping("/round/maps")
     @ResponseBody
     public Map<String, Object> getSubstageMaps(
@@ -444,9 +483,10 @@ public class AdminController {
                 .append("\"rarity\":\"").append(je(p.getRarity())).append("\",")
                 .append("\"atk\":").append(p.getStatAttack()).append(",")
                 .append("\"def\":").append(p.getStatDefense()).append(",")
-                .append("\"mac\":").append(p.getStatMacro()).append(",")
-                .append("\"mic\":").append(p.getStatMicro()).append(",")
-                .append("\"lck\":").append(p.getStatLuck()).append(",")
+                // 수정된 스탯 부분
+                .append("\"hp\":").append(p.getStatHp()).append(",")
+                .append("\"harass\":").append(p.getStatHarass()).append(",")
+                .append("\"speed\":").append(p.getStatSpeed()).append(",")
                 .append("\"imgUrl\":\"").append(je(p.getPlayerImgUrl() != null ? p.getPlayerImgUrl() : "")).append("\",")
                 .append("\"cost\":").append(p.getPlayerCost()).append(",")
                 .append("\"packs\":[");
@@ -493,9 +533,12 @@ public class AdminController {
             dto.setRarity((String) body.get("rarity"));
             dto.setStatAttack(toInt(body.get("statAttack")));
             dto.setStatDefense(toInt(body.get("statDefense")));
-            dto.setStatMacro(toInt(body.get("statMacro")));
-            dto.setStatMicro(toInt(body.get("statMicro")));
-            dto.setStatLuck(toInt(body.get("statLuck")));
+            
+            // 수정된 스탯 부분 (프론트에서도 statHp, statHarass, statSpeed로 넘겨야 함)
+            dto.setStatHp(toInt(body.get("statHp")));
+            dto.setStatHarass(toInt(body.get("statHarass")));
+            dto.setStatSpeed(toInt(body.get("statSpeed")));
+            
             dto.setPlayerImgUrl((String) body.getOrDefault("playerImgUrl", ""));
             dto.setPlayerCost(toInt(body.get("playerCost")));
             adminDAO.insertPlayer(dto);
@@ -538,9 +581,12 @@ public class AdminController {
             dto.setRarity((String) body.get("rarity"));
             dto.setStatAttack(toInt(body.get("statAttack")));
             dto.setStatDefense(toInt(body.get("statDefense")));
-            dto.setStatMacro(toInt(body.get("statMacro")));
-            dto.setStatMicro(toInt(body.get("statMicro")));
-            dto.setStatLuck(toInt(body.get("statLuck")));
+            
+            // 수정된 스탯 부분
+            dto.setStatHp(toInt(body.get("statHp")));
+            dto.setStatHarass(toInt(body.get("statHarass")));
+            dto.setStatSpeed(toInt(body.get("statSpeed")));
+            
             dto.setPlayerImgUrl((String) body.getOrDefault("playerImgUrl", ""));
             dto.setPlayerCost(toInt(body.get("playerCost")));
             adminDAO.updatePlayer(dto);

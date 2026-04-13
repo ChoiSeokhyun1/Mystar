@@ -87,10 +87,7 @@
             p.RARITY        as rarity,
             p.STAT_ATTACK   as statAttack,
             p.STAT_DEFENSE  as statDefense,
-            p.STAT_MACRO    as statMacro,
-            p.STAT_MICRO    as statMicro,
-            p.STAT_LUCK     as statLuck,
-            p.PLAYER_IMG_URL as playerImgUrl,
+            p.STAT_HP       as statHp,      p.STAT_HARASS   as statHarass,  p.STAT_SPEED    as statSpeed,   p.PLAYER_IMG_URL as playerImgUrl,
             opp.SET_NUMBER  as setNumber,
             opp.OPPONENT_ID as opponentId,
             opp.BUILD_ID_VS_T as buildIdVsT,
@@ -243,10 +240,7 @@
             RARITY          as rarity,
             STAT_ATTACK     as statAttack,
             STAT_DEFENSE    as statDefense,
-            STAT_MACRO      as statMacro,
-            STAT_MICRO      as statMicro,
-            STAT_LUCK       as statLuck,
-            PLAYER_IMG_URL  as playerImgUrl,
+            STAT_HP         as statHp,      STAT_HARASS     as statHarass,  STAT_SPEED      as statSpeed,   PLAYER_IMG_URL  as playerImgUrl,
             PLAYER_COST     as playerCost
         FROM TBL_PLAYERS
         ORDER BY
@@ -277,10 +271,7 @@
             RARITY          as rarity,
             STAT_ATTACK     as statAttack,
             STAT_DEFENSE    as statDefense,
-            STAT_MACRO      as statMacro,
-            STAT_MICRO      as statMicro,
-            STAT_LUCK       as statLuck,
-            PLAYER_IMG_URL  as playerImgUrl,
+            STAT_HP         as statHp,      STAT_HARASS     as statHarass,  STAT_SPEED      as statSpeed,   PLAYER_IMG_URL  as playerImgUrl,
             PLAYER_COST     as playerCost
         FROM TBL_PLAYERS
         ORDER BY
@@ -291,13 +282,11 @@
     <insert id="insertPlayer" parameterType="PlayerDTO">
         INSERT INTO TBL_PLAYERS (
             PLAYER_SEQ, PLAYER_NAME, RACE, RARITY,
-            STAT_ATTACK, STAT_DEFENSE, STAT_MACRO, STAT_MICRO, STAT_LUCK,
-            PLAYER_IMG_URL, PLAYER_COST
+            STAT_ATTACK, STAT_DEFENSE, STAT_HP, STAT_HARASS, STAT_SPEED, PLAYER_IMG_URL, PLAYER_COST
         ) VALUES (
             (SELECT NVL(MAX(PLAYER_SEQ), 0) + 1 FROM TBL_PLAYERS),
             #{playerName}, #{race}, #{rarity},
-            #{statAttack}, #{statDefense}, #{statMacro}, #{statMicro}, #{statLuck},
-            #{playerImgUrl}, #{playerCost}
+            #{statAttack}, #{statDefense}, #{statHp}, #{statHarass}, #{statSpeed}, #{playerImgUrl}, #{playerCost}
         )
     </insert>
 
@@ -308,10 +297,7 @@
             RARITY          = #{rarity},
             STAT_ATTACK     = #{statAttack},
             STAT_DEFENSE    = #{statDefense},
-            STAT_MACRO      = #{statMacro},
-            STAT_MICRO      = #{statMicro},
-            STAT_LUCK       = #{statLuck},
-            PLAYER_IMG_URL  = #{playerImgUrl},
+            STAT_HP         = #{statHp},      STAT_HARASS     = #{statHarass},  STAT_SPEED      = #{statSpeed},   PLAYER_IMG_URL  = #{playerImgUrl},
             PLAYER_COST     = #{playerCost}
         WHERE PLAYER_SEQ = #{playerSeq}
     </update>
@@ -393,11 +379,6 @@
             VALUES (SEQ_BUILD_MATCHUP.NEXTVAL, #{buildA}, #{buildB}, #{status})
     </update>
     
-    <!-- ============================================================
-         admin_mapper.xml 의 </mapper> 태그 바로 위에 붙여넣으세요.
-    ============================================================ -->
-
-    <!-- ===================== 맵 CRUD ===================== -->
     <select id="selectAllMapsDetail" resultType="map">
         SELECT MAP_ID      AS mapId,
                MAP_NAME    AS mapName,
@@ -431,7 +412,6 @@
         DELETE FROM TBL_MAPS WHERE MAP_ID = #{value}
     </delete>
 
-    <!-- ===================== 맵 지점 CRUD ===================== -->
     <select id="selectPointsByMapId" parameterType="String" resultType="dto.pve.MapPointDTO">
         SELECT POINT_ID   AS pointId,
                MAP_ID     AS mapId,

@@ -1,22 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="pveopponent_mapper">
 
-    <select id="selectOpponentEntryBySubstage" parameterType="map" resultType="PveOpponentInfoDTO">
+    <select id="selectOpponentEntryBySubstage" parameterType="map" resultType="dto.pve.PveOpponentInfoDTO">
         SELECT
-            p.PLAYER_SEQ    as playerSeq,
-            p.PLAYER_NAME   as playerName,
-            p.RACE          as race,
-            p.RARITY        as rarity,
-            p.STAT_ATTACK   as statAttack,
-            p.STAT_DEFENSE  as statDefense,
-            p.STAT_MACRO    as statMacro,
-            p.STAT_MICRO    as statMicro,
-            p.STAT_LUCK     as statLuck,
+            p.PLAYER_SEQ     as playerSeq,
+            p.PLAYER_NAME    as playerName,
+            p.RACE           as race,
+            p.RARITY         as rarity,
+            p.STAT_ATTACK    as statAttack,
+            p.STAT_DEFENSE   as statDefense,  
+            p.STAT_HP        as statHp,
+            p.STAT_HARASS    as statHarass,
+            p.STAT_SPEED     as statSpeed,
             p.PLAYER_IMG_URL as playerImgUrl,
-            p.PLAYER_COST   as playerCost,
-            opp.SET_NUMBER  as setNumber,
+            p.PLAYER_COST    as playerCost,
+            opp.SET_NUMBER   as setNumber,
             opp.BUILD_ID_VS_T as buildIdVsT,
             opp.BUILD_ID_VS_Z as buildIdVsZ,
             opp.BUILD_ID_VS_P as buildIdVsP
@@ -27,19 +28,7 @@
         WHERE
             opp.STAGE_LEVEL = #{stageLevel} AND opp.SUB_LEVEL = #{subLevel}
         ORDER BY
-            opp.OPPONENT_ID ASC 
-    </select>
-
-    <!-- 전체 빌드 목록 (관리자 스테이지 배정용) -->
-    <select id="selectAllBuilds" resultType="map">
-        SELECT
-            b.BUILD_ID      as buildId,
-            b.BUILD_NAME    as buildName,
-            b.RACE          as race,
-            b.VS_RACE       as vsRace,
-            b.USER_ID       as userId
-        FROM TBL_BUILDS b
-        ORDER BY b.RACE, b.BUILD_ID
+            opp.OPPONENT_ID ASC
     </select>
 
 </mapper>

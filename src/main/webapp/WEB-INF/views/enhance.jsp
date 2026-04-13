@@ -45,7 +45,6 @@
 
     <div class="squad-grid msl-animate msl-animate-d1">
 
-        <!-- ── 좌측: 선수 목록 (myTeam 동일) ── -->
         <div class="msl-panel squad-list-panel">
             <div class="myteam-toolbar">
                 <input type="text" id="searchInput" placeholder="🔍 이름 검색..." oninput="filterList()">
@@ -80,9 +79,9 @@
                             <th class="name-header">이름</th>
                             <th class="col-atk">ATK</th>
                             <th class="col-def">DEF</th>
-                            <th class="col-mac">MAC</th>
-                            <th class="col-mic">MIC</th>
-                            <th class="col-luk">LCK</th>
+                            <th class="col-mac">HP</th>
+                            <th class="col-mic">HARASS</th>
+                            <th class="col-luk">SPEED</th>
                             <th>합계</th>
                             <th>상태</th>
                             <th>경기력</th>
@@ -91,7 +90,7 @@
                     <tbody id="playerTableBody">
                         <c:choose>
                             <c:when test="${empty players}">
-                                <tr><td colspan="11" style="text-align:center;padding:30px;color:#4a5568">보유한 선수가 없습니다.</td></tr>
+                                <tr><td colspan="12" style="text-align:center;padding:30px;color:#4a5568">보유한 선수가 없습니다.</td></tr>
                             </c:when>
                             <c:otherwise>
                                 <c:forEach var="player" items="${players}">
@@ -109,10 +108,13 @@
                                         <td class="col-name">${fn:escapeXml(player.playerName)}</td>
                                         <td class="col-atk">${player.currentAttack  + player.enhanceAttack}</td>
                                         <td class="col-def">${player.currentDefense + player.enhanceDefense}</td>
-                                        <td class="col-mac">${player.currentMacro   + player.enhanceMacro}</td>
-                                        <td class="col-mic">${player.currentMicro   + player.enhanceMicro}</td>
-                                        <td class="col-luk">${player.currentLuck    + player.enhanceLuck}</td>
-                                        <td class="col-tot">${player.currentAttack+player.enhanceAttack+player.currentDefense+player.enhanceDefense+player.currentMacro+player.enhanceMacro+player.currentMicro+player.enhanceMicro+player.currentLuck+player.enhanceLuck}</td>
+                                        
+                                        <%-- 변경된 DTO 적용 --%>
+                                        <td class="col-mac">${player.currentHp      + player.enhanceHp}</td>
+                                        <td class="col-mic">${player.currentHarass  + player.enhanceHarass}</td>
+                                        <td class="col-luk">${player.currentSpeed   + player.enhanceSpeed}</td>
+                                        <td class="col-tot">${player.currentAttack+player.enhanceAttack+player.currentDefense+player.enhanceDefense+player.currentHp+player.enhanceHp+player.currentHarass+player.enhanceHarass+player.currentSpeed+player.enhanceSpeed}</td>
+                                        
                                         <td class="cond-cell" data-cond="${player.condition}"></td>
                                         <td class="streak-cell" data-streak="${player.winStreak}"></td>
                                     </tr>
@@ -124,20 +126,16 @@
             </div>
         </div>
 
-        <!-- ── 우측: 선수 상세 + 강화 (myTeam 구조 동일) ── -->
         <div class="squad-right-col enhance-right-col">
             <div class="msl-panel squad-detail-panel enhance-detail-panel">
 
-                <!-- placeholder -->
                 <div class="msl-panel-body squad-detail-body" id="cardPlaceholder">
                     <div class="placeholder-icon">👈</div>
                     <p>좌측 목록에서 강화할 선수를 선택해주세요.</p>
                 </div>
 
-                <!-- 선수 상세 (myTeam 동일 구조) -->
                 <div class="msl-panel-body squad-detail-body enhance-scroll-body" id="cardContent" style="display:none;">
 
-                    <!-- 1. 아이덴티티 (myTeam 동일) -->
                     <div class="pro-identity-section">
                         <div class="pro-avatar">
                             <img id="cardImg" src="" alt="" style="display:none;">
@@ -159,7 +157,6 @@
                         </div>
                     </div>
 
-                    <!-- 2. 데이터 분석: 능력치 + 강화 현황 -->
                     <div class="pro-analytics-section">
                         <div class="pro-data-box stat-box">
                             <h3 class="box-title">능력치 스카우팅</h3>
@@ -173,7 +170,6 @@
                         </div>
                     </div>
 
-                    <!-- 3. 강화 전용 섹션 -->
                     <div class="enhance-section">
                         <div class="enhance-info-card">
                             <div>
@@ -196,7 +192,6 @@
                     </div>
                 </div>
 
-                <!-- 강화 버튼 (하단 고정) -->
                 <div class="enhance-action-area" id="enhanceActionArea" style="display:none;">
                     <button class="msl-btn enhance-do-btn" id="enhanceBtn" onclick="doEnhance()">
                         ⚡ 강화하기
@@ -208,11 +203,9 @@
     </div>
 </main>
 
-<!-- 강화 모달 -->
 <div class="enhance-modal-overlay" id="enhanceModal">
     <div class="enhance-modal">
 
-        <!-- 강화 중 화면 -->
         <div id="modalLoading" style="display:none;">
             <div class="loading-anvil" id="loadingAnvil">⚒️</div>
             <div class="loading-sparks" id="loadingSparks"></div>
@@ -220,7 +213,6 @@
             <div class="loading-bar-wrap"><div class="loading-bar" id="loadingBar"></div></div>
         </div>
 
-        <!-- 결과 화면 -->
         <div id="modalResult" style="display:none;">
             <div class="enhance-result-icon" id="modalIcon"></div>
             <div class="enhance-result-title" id="modalTitle"></div>
@@ -292,7 +284,6 @@
 
     /* ── 선수 선택 ── */
     var selectedSeq = null;
-
     function selectPlayerRow(element, seq) {
         document.querySelectorAll('.myteam-row').forEach(function(el){ el.classList.remove('active'); });
         if (element) element.classList.add('active');
@@ -309,7 +300,7 @@
             ]);
             const detailData  = await detailRes.json();
             const enhanceData = await enhanceRes.json();
-
+            
             if (detailData.error === 'not_logged_in') { location.href = CTX + '/login'; return; }
             if (!detailData.success) { showCardError(); return; }
 
@@ -324,7 +315,7 @@
         document.getElementById('cardPlaceholder').style.display = 'none';
         document.getElementById('cardContent').style.display     = 'flex';
         document.getElementById('enhanceActionArea').style.display = '';
-
+        
         /* 종족/등급/팩 뱃지 */
         var raceMap = {T:'테란', P:'프로토스', Z:'저그'};
         var raceEl  = document.getElementById('cardRace');
@@ -355,7 +346,7 @@
         document.getElementById('cardName').textContent        = details.playerName;
         document.getElementById('profileTeam').textContent     = details.teamName || '무소속';
         document.getElementById('profileBirth').textContent    = details.nationality ? details.nationality : '';
-
+        
         /* 이미지 */
         var imgEl  = document.getElementById('cardImg');
         var fallEl = document.getElementById('cardImgFallback');
@@ -368,19 +359,25 @@
             fallEl.style.display = 'block';
         }
 
-        /* 능력치 바 (total = base + enhance) */
+        /* 능력치 바 (total = base + enhance) - 변경된 스탯키도 유연하게 대응 */
         var eAtk = enhanceData.enhanceAttack  || 0;
         var eDef = enhanceData.enhanceDefense || 0;
-        var eMac = enhanceData.enhanceMacro   || 0;
-        var eMic = enhanceData.enhanceMicro   || 0;
-        var eLuk = enhanceData.enhanceLuck    || 0;
+        var eHp  = enhanceData.enhanceHp      || enhanceData.enhanceMacro || 0;
+        var eHar = enhanceData.enhanceHarass  || enhanceData.enhanceMicro || 0;
+        var eSpd = enhanceData.enhanceSpeed   || enhanceData.enhanceLuck  || 0;
+        
+        var baseHp  = details.currentHp      || details.currentMacro || 0;
+        var baseHar = details.currentHarass  || details.currentMicro || 0;
+        var baseSpd = details.currentSpeed   || details.currentLuck  || 0;
+
         var statDefs = [
             {label:'ATK', name:'공격',   base: details.currentAttack,  enh: eAtk, color:'#f87171'},
             {label:'DEF', name:'수비',   base: details.currentDefense, enh: eDef, color:'#60a5fa'},
-            {label:'MAC', name:'매크로', base: details.currentMacro,   enh: eMac, color:'#34d399'},
-            {label:'MIC', name:'컨트롤', base: details.currentMicro,   enh: eMic, color:'#fbbf24'},
-            {label:'LCK', name:'럭',     base: details.currentLuck,    enh: eLuk, color:'#a78bfa'}
+            {label:'HP',  name:'체력',   base: baseHp,                 enh: eHp,  color:'#34d399'},
+            {label:'HAR', name:'견제력', base: baseHar,                enh: eHar, color:'#fbbf24'},
+            {label:'SPD', name:'속도',   base: baseSpd,                enh: eSpd, color:'#a78bfa'}
         ];
+        
         document.getElementById('statList').innerHTML = statDefs.map(function(s) {
             var total   = s.base + s.enh;
             var basePct = Math.min(s.base / 1.5, 100);
@@ -394,7 +391,7 @@
                  + enhTxt
                  + '</div>';
         }).join('');
-
+        
         /* 강화 현황 박스 — 연속 성공/실패 streak */
         var streak   = enhanceData.enhanceStreak || 0;
         var detailEl = document.getElementById('enhanceStatDetail');
@@ -432,16 +429,16 @@
 
         /* 강화 정보 */
         updateEnhanceInfo(enhanceData);
-
+        
         /* ── 목록 행 스탯 실시간 업데이트 ── */
         var activeRow = document.querySelector('.myteam-row.active');
         if (activeRow) {
             var totals = [
                 details.currentAttack  + eAtk,
                 details.currentDefense + eDef,
-                details.currentMacro   + eMac,
-                details.currentMicro   + eMic,
-                details.currentLuck    + eLuk
+                baseHp   + eHp,
+                baseHar  + eHar,
+                baseSpd  + eSpd
             ];
             var sum   = totals.reduce(function(a, b) { return a + b; }, 0);
             var cells = activeRow.querySelectorAll('.col-atk, .col-def, .col-mac, .col-mic, .col-luk, .col-tot');
@@ -454,11 +451,10 @@
 
     function updateEnhanceInfo(data) {
         if (!data || !data.success) return;
-
         var level    = data.enhanceLevel    || 0;
         var rate     = data.successRate     || 0;
         var matCount = data.materialCount;
-
+        
         document.getElementById('infoLevel').textContent = '+' + level;
 
         var rateEl = document.getElementById('infoRate');
@@ -491,10 +487,10 @@
         var btn = document.getElementById('enhanceBtn');
         btn.disabled    = true;
         btn.textContent = '강화 중...';
-
+        
         // 1. 모달 열고 로딩 화면 표시
         showLoadingModal();
-
+        
         fetch(CTX + '/enhance/execute', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -542,7 +538,7 @@
         bar.style.width = '0%';
         bar.style.transition = 'none';
         setTimeout(function(){ bar.style.transition = 'width 1.6s cubic-bezier(.4,0,.2,1)'; bar.style.width = '90%'; }, 50);
-
+        
         // 망치 흔들기
         var anvil = document.getElementById('loadingAnvil');
         anvil.style.animation = 'hammerHit 0.35s ease-in-out infinite alternate';
@@ -578,16 +574,25 @@
 
         var enhanced = data.enhanced;
         document.getElementById('modalIcon').textContent  = enhanced ? '✨' : '💨';
+        
         var titleEl = document.getElementById('modalTitle');
         titleEl.textContent = enhanced ? '강화 성공!' : '강화 실패';
         titleEl.className   = 'enhance-result-title ' + (enhanced ? 'success' : 'fail');
+        
         document.getElementById('modalMsg').textContent = data.message;
-
-        var STAT_KR = {attack:'공격(ATK)', defense:'수비(DEF)', macro:'매크로(MAC)', micro:'컨트롤(MIC)', luck:'럭(LUK)'};
+        
+        // 결과 모달의 언어 변환 맵핑
+        var STAT_KR = {
+            attack:'공격(ATK)', defense:'수비(DEF)', 
+            hp:'체력(HP)', harass:'견제력(HAR)', speed:'속도(SPD)', 
+            macro:'체력(HP)', micro:'견제력(HAR)', luck:'속도(SPD)'
+        };
+        
         document.getElementById('modalStatChips').innerHTML =
             enhanced && data.enhancedStat
             ? '<span class="enhance-result-stat-chip">' + (STAT_KR[data.enhancedStat] || data.enhancedStat) + ' +1</span>'
             : '';
+            
         document.getElementById('modalNext').textContent =
             '남은 재료: ' + data.remainMaterials + '장  |  다음 성공률: ' + data.nextSuccessRate + '%';
     }

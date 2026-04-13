@@ -118,12 +118,13 @@ public class GachaServiceImpl implements GachaService {
         OwnedPlayerDTO newOwnedPlayer = new OwnedPlayerDTO();
         newOwnedPlayer.setUserId(userId);
         newOwnedPlayer.setPlayerSeq(drawnPlayer.getPlayerSeq());
-        // TBL_PLAYERS의 기본 스탯과 초기 등급(RARITY)을 복사
+        
+        // TBL_PLAYERS의 기본 스탯과 초기 등급(RARITY)을 복사 (변경된 스탯 적용)
         newOwnedPlayer.setCurrentAttack(drawnPlayer.getStatAttack());
         newOwnedPlayer.setCurrentDefense(drawnPlayer.getStatDefense());
-        newOwnedPlayer.setCurrentMacro(drawnPlayer.getStatMacro());
-        newOwnedPlayer.setCurrentMicro(drawnPlayer.getStatMicro());
-        newOwnedPlayer.setCurrentLuck(drawnPlayer.getStatLuck());
+        newOwnedPlayer.setCurrentHp(drawnPlayer.getStatHp());           // Macro -> Hp
+        newOwnedPlayer.setCurrentHarass(drawnPlayer.getStatHarass());   // Micro -> Harass
+        newOwnedPlayer.setCurrentSpeed(drawnPlayer.getStatSpeed());     // Luck -> Speed
         newOwnedPlayer.setCurrentRarity(drawnPlayer.getRarity()); // 초기 등급 설정
         
         // (★★) [핵심 수정] 획득한 팩 ID를 DTO에 저장

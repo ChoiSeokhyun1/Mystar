@@ -3,7 +3,7 @@ package service.entry;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // 트랜잭션 import
+import org.springframework.transaction.annotation.Transactional;
 import dao.entry.PveEntryDAO;
 import dto.entry.PveEntryDTO;
 import dto.player.OwnedPlayerInfoDTO;
@@ -29,9 +29,9 @@ public class PveEntryServiceImpl implements PveEntryService {
     @Transactional(rollbackFor = Exception.class) // 오류 발생 시 롤백
     public boolean updatePveEntry(String userId, List<Integer> ownedPlayerSeqList) throws Exception {
         
-        // 1. 유효성 검사 (최대 7명)
-        if (ownedPlayerSeqList == null || ownedPlayerSeqList.size() > 7) {
-            throw new Exception("엔트리 선수 목록이 유효하지 않습니다. (최대 7명)");
+        // 1. 유효성 검사 (최대 9명으로 수정)
+        if (ownedPlayerSeqList == null || ownedPlayerSeqList.size() > 9) {
+            throw new Exception("엔트리 선수 목록이 유효하지 않습니다. (최대 9명)");
         }
 
         try {

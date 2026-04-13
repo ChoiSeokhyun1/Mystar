@@ -12,9 +12,22 @@
             op.USER_ID,
             op.CURRENT_ATTACK,
             op.CURRENT_DEFENSE,
-            op.CURRENT_MACRO,
-            op.CURRENT_MICRO,
-            op.CURRENT_LUCK,
+            
+            -- [수정] 변경된 스탯 명칭 적용
+            op.CURRENT_HP,
+            op.CURRENT_HARASS,
+            op.CURRENT_SPEED,
+            
+            -- [추가] 강화 스탯 및 컨디션 연승 데이터 매핑
+            op.ENHANCE_LEVEL   AS enhanceLevel,
+            op.ENHANCE_ATTACK  AS enhanceAttack,
+            op.ENHANCE_DEFENSE AS enhanceDefense,
+            op.ENHANCE_HP      AS enhanceHp,
+            op.ENHANCE_HARASS  AS enhanceHarass,
+            op.ENHANCE_SPEED   AS enhanceSpeed,
+            op.CONDITION       AS condition,
+            op.WIN_STREAK      AS winStreak,
+
             op.ACQUIRED_AT,
             op.CURRENT_RARITY,
             
@@ -25,19 +38,19 @@
             p.PLAYER_IMG_URL,
             p.PLAYER_COST,
             
-            pack.PACK_NAME  -- (★★) [수정 1] 팩 이름(PACK_NAME) 컬럼 추가
+            pack.PACK_NAME
         FROM
-            TBL_PVE_ENTRY pe -- (기준) PVE 엔트리
+            TBL_PVE_ENTRY pe
         JOIN
-            TBL_OWNED_PLAYERS op ON pe.OWNED_PLAYER_SEQ = op.OWNED_PLAYER_SEQ -- 보유 선수
+            TBL_OWNED_PLAYERS op ON pe.OWNED_PLAYER_SEQ = op.OWNED_PLAYER_SEQ
         JOIN
-            TBL_PLAYERS p ON op.PLAYER_SEQ = p.PLAYER_SEQ -- 선수 마스터
+            TBL_PLAYERS p ON op.PLAYER_SEQ = p.PLAYER_SEQ
         LEFT JOIN 
-            TBL_PACKS pack ON op.ACQUIRED_FROM_PACK_SEQ = pack.PACK_SEQ -- (★★) [수정 2] 올바른 JOIN 구문
+            TBL_PACKS pack ON op.ACQUIRED_FROM_PACK_SEQ = pack.PACK_SEQ
         WHERE
             pe.USER_ID = #{userId}
         ORDER BY
-            pe.SLOT_NUMBER ASC -- 슬롯 번호 순서대로 정렬
+            pe.SLOT_NUMBER ASC
     </select>
 
     <delete id="deletePveEntryByUserId" parameterType="string">

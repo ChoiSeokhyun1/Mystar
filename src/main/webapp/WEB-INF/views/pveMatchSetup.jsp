@@ -38,7 +38,6 @@
 
 <main class="msl-main">
 
-    <!-- 숨겨진 폼 -->
     <form id="battleForm" action="<c:url value='/pve/battle/start' />" method="post">
         <input type="hidden" name="level"    value="${stageLevel}">
         <input type="hidden" name="subLevel" value="${subLevel}">
@@ -49,24 +48,28 @@
 
     <div class="match-layout">
 
-        <!-- ══ 헤더 (전체 너비) ══ -->
         <div class="match-header">
             <div>
                 <div class="match-eyebrow">TACTICAL SETUP · 3v3 · BO3</div>
                 <div class="match-title">전술 배치</div>
                 <div class="match-subtitle">3개 세트에 출전할 9명의 선수를 중복 없이 배치하세요</div>
             </div>
-            <div class="placement-progress">
-                <span class="progress-label">배치 현황</span>
-                <div class="progress-dots">
-                    <c:forEach var="i" begin="1" end="9">
-                        <div class="progress-dot" id="dot_${i}"></div>
-                    </c:forEach>
+            
+            <div class="match-header-right">
+                <div class="placement-progress">
+                    <span class="progress-label">배치 현황</span>
+                    <div class="progress-dots">
+                        <c:forEach var="i" begin="1" end="9">
+                            <div class="progress-dot" id="dot_${i}"></div>
+                        </c:forEach>
+                    </div>
                 </div>
+                <button class="start-btn-new" id="startBtn" disabled onclick="submitBattle()">
+                    ⚔ 전투 개시 (0/9)
+                </button>
             </div>
         </div>
 
-        <!-- ══ 좌측: 내 선수단 풀 ══ -->
         <div class="pool-panel">
             <div class="pool-header">
                 <span class="pool-title">내 선수단</span>
@@ -84,11 +87,13 @@
                 <c:forEach var="my" items="${myEntryList}">
                     <c:set var="condVal"   value="${empty my.condition ? 'NORMAL' : my.condition}" />
                     <c:set var="condLabel" value="${condVal == 'PEAK' ? '최상' : condVal == 'GOOD' ? '양호' : condVal == 'NORMAL' ? '보통' : condVal == 'TIRED' ? '피로' : '최악'}" />
-                    <%-- 공격/방어/체력/스피드: DTO에서 totalAttack·totalDefense·totalMacro·totalMicro 재활용 --%>
-                    <c:set var="sAtk" value="${my.totalAttack}"  />
-                    <c:set var="sDef" value="${my.totalDefense}" />
-                    <c:set var="sHp"  value="${my.totalMacro}"   />
-                    <c:set var="sSpd" value="${my.totalMicro}"   />
+                    
+                    <%-- [수정] DTO 새 이름 적용 --%>
+                    <c:set var="sAtk"  value="${my.totalAttack}"  />
+                    <c:set var="sDef"  value="${my.totalDefense}" />
+                    <c:set var="sHp"   value="${my.totalHp}"      />
+                    <c:set var="sHrss" value="${my.totalHarass}"  />
+                    <c:set var="sSpd"  value="${my.totalSpeed}"   />
 
                     <div class="player-card"
                          id="card_${my.ownedPlayerSeq}"
@@ -98,30 +103,22 @@
                          data-atk="${sAtk}"
                          data-def="${sDef}"
                          data-hp="${sHp}"
+                         data-hrss="${sHrss}"
                          data-spd="${sSpd}"
                          style="--race-color: var(--${my.race == 'T' ? 't' : my.race == 'P' ? 'p' : 'z'}-color)"
                          onclick="assignPlayer(this)">
 
-                        <div class="card-top">
+                        <div class="card-header-row">
                             <span class="card-race-badge ${my.race}">${my.race}</span>
                             <span class="card-name">${my.playerName}</span>
                             <c:if test="${my.enhanceLevel > 0}">
                                 <span class="card-enhance">+${my.enhanceLevel}</span>
                             </c:if>
-                        </div>
-
-                        <div class="card-meta">
                             <span class="card-rarity ${my.currentRarity}">${my.currentRarity}</span>
                             <span class="card-condition ${condVal}">${condLabel}</span>
                             <c:if test="${my.winStreak >= 2}">
-                                <span style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:#ffd600;flex-shrink:0;">🔥${my.winStreak}연승</span>
+                                <span class="card-winstreak">🔥${my.winStreak}연승</span>
                             </c:if>
-                            <span class="card-winrate">
-                                <c:choose>
-                                    <c:when test="${my.wins + my.losses > 0}">${my.wins}W ${my.losses}L</c:when>
-                                    <c:otherwise>기록없음</c:otherwise>
-                                </c:choose>
-                            </span>
                         </div>
 
                         <div class="card-stats">
@@ -141,6 +138,11 @@
                                 <span class="stat-val">${sHp}</span>
                             </div>
                             <div class="stat-row">
+                                <span class="stat-label">방해</span>
+                                <div class="stat-bar"><div class="stat-fill" style="width:${sHrss > 100 ? 100 : sHrss}%;background:#ff6d00;"></div></div>
+                                <span class="stat-val">${sHrss}</span>
+                            </div>
+                            <div class="stat-row">
                                 <span class="stat-label">스피드</span>
                                 <div class="stat-bar"><div class="stat-fill" style="width:${sSpd > 100 ? 100 : sSpd}%;background:#ffd600;"></div></div>
                                 <span class="stat-val">${sSpd}</span>
@@ -151,7 +153,6 @@
             </div>
         </div>
 
-        <!-- ══ 중앙: 배치 보드 ══ -->
         <div class="board-panel">
 
             <c:forEach var="setIndex" begin="1" end="3">
@@ -163,9 +164,7 @@
                     </div>
                     <div class="matchup-grid">
 
-                        <!-- 내 팀 슬롯 -->
                         <div class="team-col-new">
-                            <div class="team-col-header my-side">▶ MY SQUADRON</div>
                             <c:forEach var="slot" begin="1" end="3">
                                 <c:set var="gSlot" value="${(setIndex-1)*3 + slot}" />
                                 <div class="battle-slot my-slot"
@@ -183,16 +182,13 @@
                             </c:forEach>
                         </div>
 
-                        <!-- VS -->
                         <div class="vs-divider">
                             <div class="vs-line"></div>
                             <span class="vs-text">VS</span>
                             <div class="vs-line"></div>
                         </div>
 
-                        <!-- 상대팀 슬롯 (고정) -->
                         <div class="team-col-new">
-                            <div class="team-col-header opp-side">OPPONENT ◀</div>
                             <c:forEach var="slot" begin="1" end="3">
                                 <c:set var="gSlot" value="${(setIndex-1)*3 + slot}" />
                                 <div class="battle-slot opp-slot">
@@ -205,7 +201,8 @@
                                                 <div class="filled-stats-mini">
                                                     <span class="stat-chip"><strong>${ai.statAttack}</strong>공격</span>
                                                     <span class="stat-chip"><strong>${ai.statDefense}</strong>방어</span>
-                                                    <span class="stat-chip"><strong>${ai.statMacro}</strong>체력</span>
+                                                    <%-- [수정] DTO 새 이름 적용 --%>
+                                                    <span class="stat-chip"><strong>${ai.statHp}</strong>체력</span>
                                                 </div>
                                             </c:when>
                                             <c:otherwise>
@@ -222,15 +219,8 @@
                 </div>
             </c:forEach>
 
-            <!-- 전투 개시 버튼 -->
-            <div class="board-footer">
-                <button class="start-btn-new" id="startBtn" disabled onclick="submitBattle()">
-                    ⚔ 전투 개시 — 9명 배치 필요
-                </button>
-            </div>
         </div>
 
-        <!-- ══ 우측: AI 선수단 풀 ══ -->
         <div class="ai-pool-panel">
             <div class="pool-header">
                 <span class="pool-title">${opponentTeamName}</span>
@@ -248,22 +238,16 @@
                          data-race="${ai.race}"
                          style="--race-color: var(--${ai.race == 'T' ? 't' : ai.race == 'P' ? 'p' : 'z'}-color)">
 
-                        <div class="card-top">
+                        <div class="card-header-row">
                             <span class="card-race-badge ${ai.race}">${ai.race}</span>
                             <span class="card-name">${ai.playerName}</span>
-                            <span class="card-rarity ${ai.rarity}" style="flex-shrink:0;">${ai.rarity}</span>
-                        </div>
-
-                        <%-- SET 배정 표시 --%>
-                        <div class="card-meta">
+                            <span class="card-rarity ${ai.rarity}">${ai.rarity}</span>
                             <c:choose>
                                 <c:when test="${ai.setNumber > 0}">
-                                    <span style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:var(--gold);flex-shrink:0;">
-                                        SET ${(ai.setNumber - 1) / 3 + 1} · P${((ai.setNumber - 1) mod 3) + 1}
-                                    </span>
+                                    <span class="card-winstreak" style="color:var(--gold);">SET ${(ai.setNumber - 1) / 3 + 1}·P${((ai.setNumber - 1) mod 3) + 1}</span>
                                 </c:when>
                                 <c:otherwise>
-                                    <span style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:var(--text-dim);">벤치</span>
+                                    <span style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:var(--text-dim);flex-shrink:0;">벤치</span>
                                 </c:otherwise>
                             </c:choose>
                         </div>
@@ -279,15 +263,21 @@
                                 <div class="stat-bar"><div class="stat-fill" style="width:${ai.statDefense > 100 ? 100 : ai.statDefense}%;background:#448aff;"></div></div>
                                 <span class="stat-val">${ai.statDefense}</span>
                             </div>
+                            <%-- [수정] DTO 새 이름 적용 --%>
                             <div class="stat-row">
                                 <span class="stat-label">체력</span>
-                                <div class="stat-bar"><div class="stat-fill" style="width:${ai.statMacro > 100 ? 100 : ai.statMacro}%;background:#00e676;"></div></div>
-                                <span class="stat-val">${ai.statMacro}</span>
+                                <div class="stat-bar"><div class="stat-fill" style="width:${ai.statHp > 100 ? 100 : ai.statHp}%;background:#00e676;"></div></div>
+                                <span class="stat-val">${ai.statHp}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">방해</span>
+                                <div class="stat-bar"><div class="stat-fill" style="width:${ai.statHarass > 100 ? 100 : ai.statHarass}%;background:#ff6d00;"></div></div>
+                                <span class="stat-val">${ai.statHarass}</span>
                             </div>
                             <div class="stat-row">
                                 <span class="stat-label">스피드</span>
-                                <div class="stat-bar"><div class="stat-fill" style="width:${ai.statMicro > 100 ? 100 : ai.statMicro}%;background:#ffd600;"></div></div>
-                                <span class="stat-val">${ai.statMicro}</span>
+                                <div class="stat-bar"><div class="stat-fill" style="width:${ai.statSpeed > 100 ? 100 : ai.statSpeed}%;background:#ffd600;"></div></div>
+                                <span class="stat-val">${ai.statSpeed}</span>
                             </div>
                         </div>
                     </div>
@@ -295,9 +285,7 @@
             </div>
         </div>
 
-    </div><!-- /.match-layout -->
-
-    <div class="select-hint" id="selectHint">선수 카드를 클릭하여 배치하세요</div>
+    </div><div class="select-hint" id="selectHint">선수 카드를 클릭하여 배치하세요</div>
 
 </main>
 
@@ -399,7 +387,7 @@ $(function() {
             else                 $('#dot_' + g).removeClass('filled');
         }
         $('#availableCount').text(all - total);
-
+        
         for (var s = 1; s <= 3; s++) {
             var cnt = 0;
             for (var sl = 1; sl <= 3; sl++) { if (assignments[(s-1)*3 + sl]) cnt++; }
@@ -409,16 +397,16 @@ $(function() {
             (cnt > 0 && cnt < 3) ? $('#setBlock_' + s).addClass('has-active') : $('#setBlock_' + s).removeClass('has-active');
         }
 
+        // [수정] 상단 버튼 텍스트 업데이트 로직 변경
         if (total === 9) {
             $('#startBtn').prop('disabled', false).text('⚔ 전투 개시 — SIMULATE').addClass('ready');
         } else {
-            $('#startBtn').prop('disabled', true).text('⚔ 전투 개시 — ' + (9 - total) + '명 더 배치 필요').removeClass('ready');
+            $('#startBtn').prop('disabled', true).text('⚔ 전투 개시 (' + total + '/9)').removeClass('ready');
         }
     }
 
     // ── 풀 필터 (좌/우 구분) ──
     window.filterPool = function(race, btn, listId) {
-        // 같은 패널 내 버튼만 active 토글
         $(btn).closest('.pool-filter').find('.filter-btn').removeClass('active');
         $(btn).addClass('active');
         $('#' + listId + ' .player-card').each(function() {

@@ -11,9 +11,12 @@ public class OwnedPlayerInfoDTO {
     private int playerSeq;
     private int currentAttack;
     private int currentDefense;
-    private int currentMacro;
-    private int currentMicro;
-    private int currentLuck;
+    
+    // 변경된 현재 스탯
+    private int currentHp;
+    private int currentHarass;
+    private int currentSpeed;
+    
     private Date acquiredAt;
     private String currentRarity;
 
@@ -38,16 +41,20 @@ public class OwnedPlayerInfoDTO {
     private int enhanceLevel;
     private int enhanceAttack;
     private int enhanceDefense;
-    private int enhanceMacro;
-    private int enhanceMicro;
-    private int enhanceLuck;
+    
+    // 변경된 강화 스탯
+    private int enhanceHp;
+    private int enhanceHarass;
+    private int enhanceSpeed;
 
     // ★ 전투에서 사용되는 실제 스탯 (일반 + 강화)
     public int getTotalAttack()  { return currentAttack  + enhanceAttack;  }
     public int getTotalDefense() { return currentDefense + enhanceDefense; }
-    public int getTotalMacro()   { return currentMacro   + enhanceMacro;   }
-    public int getTotalMicro()   { return currentMicro   + enhanceMicro;   }
-    public int getTotalLuck()    { return currentLuck    + enhanceLuck;    }
+    
+    // 변경된 합계 계산 메서드
+    public int getTotalHp()      { return currentHp      + enhanceHp;      }
+    public int getTotalHarass()  { return currentHarass  + enhanceHarass;  }
+    public int getTotalSpeed()   { return currentSpeed   + enhanceSpeed;   }
 
     // 만약 롬복(@Data) 적용이 꼬일 경우를 대비한 수동 Getter 추가
     public int getWins() { return wins; }

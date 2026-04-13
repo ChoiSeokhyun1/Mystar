@@ -8,11 +8,14 @@ public class PlayerDTO {
     private String playerName;
     private String race;
     private String rarity;
-    private int statAttack;
-    private int statDefense;
-    private int statMacro;
-    private int statMicro;
-    private int statLuck;
+    
+    // 변경된 스탯
+    private int statAttack;    // 공격력
+    private int statDefense;   // 방어력
+    private int statHp;        // 체력
+    private int statHarass;    // 견제력
+    private int statSpeed;     // 속도
+    
     private String playerImgUrl;
     private int playerCost;
 }

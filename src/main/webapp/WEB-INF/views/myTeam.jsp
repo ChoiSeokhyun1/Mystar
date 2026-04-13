@@ -75,9 +75,9 @@
                             <th class="name-header">이름</th>
                             <th class="col-atk">ATK</th>
                             <th class="col-def">DEF</th>
-                            <th class="col-mac">MAC</th>
-                            <th class="col-mic">MIC</th>
-                            <th class="col-luk">LCK</th>
+                            <th class="col-mac">HP</th>
+                            <th class="col-mic">HARASS</th>
+                            <th class="col-luk">SPEED</th>
                             <th>합계</th>
                             <th>상태</th>
                             <th>경기력</th>
@@ -86,7 +86,7 @@
                     <tbody id="playerTableBody">
                         <c:choose>
                             <c:when test="${empty myPlayerList}">
-                                <tr><td colspan="11" style="text-align:center;padding:30px;color:#4a5568">보유한 선수가 없습니다.</td></tr>
+                                <tr><td colspan="12" style="text-align:center;padding:30px;color:#4a5568">보유한 선수가 없습니다.</td></tr>
                             </c:when>
                             <c:otherwise>
                                 <c:forEach var="player" items="${myPlayerList}">
@@ -104,10 +104,10 @@
                                         <td class="col-name">${fn:escapeXml(player.playerName)}</td>
                                         <td class="col-atk">${player.currentAttack  + player.enhanceAttack}</td>
                                         <td class="col-def">${player.currentDefense + player.enhanceDefense}</td>
-                                        <td class="col-mac">${player.currentMacro   + player.enhanceMacro}</td>
-                                        <td class="col-mic">${player.currentMicro   + player.enhanceMicro}</td>
-                                        <td class="col-luk">${player.currentLuck    + player.enhanceLuck}</td>
-                                        <td class="col-tot">${player.currentAttack+player.enhanceAttack+player.currentDefense+player.enhanceDefense+player.currentMacro+player.enhanceMacro+player.currentMicro+player.enhanceMicro+player.currentLuck+player.enhanceLuck}</td>
+                                        <td class="col-mac">${player.currentHp      + player.enhanceHp}</td>
+                                        <td class="col-mic">${player.currentHarass  + player.enhanceHarass}</td>
+                                        <td class="col-luk">${player.currentSpeed   + player.enhanceSpeed}</td>
+                                        <td class="col-tot">${player.currentAttack+player.enhanceAttack+player.currentDefense+player.enhanceDefense+player.currentHp+player.enhanceHp+player.currentHarass+player.enhanceHarass+player.currentSpeed+player.enhanceSpeed}</td>
                                         <td class="cond-cell" data-cond="${player.condition}"></td>
                                         <td class="streak-cell" data-streak="${player.winStreak}"></td>
                                     </tr>
@@ -183,7 +183,6 @@
 
 <script>
     const CTX = '${pageContext.request.contextPath}';
-
     const COND_LABEL = {PEAK:'🔥 최상', GOOD:'😊 양호', NORMAL:'😐 보통', TIRED:'😓 피로', WORST:'😰 최악'};
     const COND_COLOR = {PEAK:'#ffd600', GOOD:'#4caf7d', NORMAL:'#aaa', TIRED:'#ff9800', WORST:'#ef5350'};
     document.querySelectorAll('.cond-cell').forEach(function(td) {
@@ -200,7 +199,6 @@
         }
         td.innerHTML = bars;
     });
-
     (function buildPackDropdown() {
         var packs = {};
         document.querySelectorAll('.myteam-row').forEach(function(row) {
@@ -215,7 +213,6 @@
             sel.appendChild(opt);
         });
     })();
-
     function filterList() {
         var q    = document.getElementById('searchInput').value.toLowerCase();
         var race = document.getElementById('filterRace').value;
@@ -233,7 +230,6 @@
         document.getElementById('countLabel').textContent = cnt + '명';
     }
     filterList();
-
     function selectPlayerRow(element, seq) {
         document.querySelectorAll('.myteam-row').forEach(function(el){ el.classList.remove('active'); });
         if(element) element.classList.add('active');
@@ -246,7 +242,8 @@
             const res = await fetch(CTX + '/my-team/details?seq=' + seq);
             if (!res.ok) throw new Error('Network error');
             const data = await res.json();
-            if (data.error === 'not_logged_in') { location.href = CTX + '/login'; return; }
+            if (data.error === 'not_logged_in') { location.href = CTX + '/login'; return;
+            }
             if (data.success) {
                 updateDetailView(data.details, data.summary, data.matches);
             } else {
@@ -267,7 +264,6 @@
         var raceEl = document.getElementById('cardRace');
         raceEl.textContent = raceMap[details.race] || details.race || '-';
         raceEl.className = 'badge-tag col-race-' + (details.race || '');
-
         var rarEl = document.getElementById('cardRarity');
         var rVal = (details.currentRarity || details.rarity || '');
         rarEl.textContent = rVal.toUpperCase();
@@ -283,7 +279,7 @@
         document.getElementById('profileTeam').textContent = details.teamName || '무소속';
         document.getElementById('profileBirth').textContent = details.nationality ? (details.nationality + ' ' + (details.birthDate || '')) : '출생정보 없음';
         document.getElementById('profileBody').textContent = details.height ? (details.height + 'cm ' + (details.weight || '') + 'kg') : '신체정보 없음';
-
+        
         // 이미지
         const imgEl  = document.getElementById('cardImg');
         const fallEl = document.getElementById('cardImgFallback');
@@ -300,10 +296,11 @@
         const statDefs = [
             {label:'ATK', name:'공격', val: details.currentAttack,  color:'#f87171'},
             {label:'DEF', name:'수비', val: details.currentDefense, color:'#60a5fa'},
-            {label:'MAC', name:'매크로', val: details.currentMacro,   color:'#34d399'},
-            {label:'MIC', name:'컨트롤', val: details.currentMicro,   color:'#fbbf24'},
-            {label:'LCK', name:'럭',     val: details.currentLuck,    color:'#a78bfa'}
+            {label:'HP',  name:'체력',   val: details.currentHp,      color:'#34d399'},
+            {label:'HAR', name:'견제력', val: details.currentHarass,  color:'#fbbf24'},
+            {label:'SPD', name:'속도',   val: details.currentSpeed,   color:'#a78bfa'}
         ];
+        
         document.getElementById('statList').innerHTML = statDefs.map(function(s) {
             var pct = Math.min(s.val / 1.5, 100);
             return '<div class="pro-stat-item">'
@@ -312,7 +309,7 @@
                  + '<div class="pro-stat-val" style="color:'+s.color+'">' + s.val + '</div>'
                  + '</div>';
         }).join('');
-
+        
         // 3. 타이포그래피 전적 기록
         var s = summary || {};
         var totalW = s.wins || 0;
