@@ -1,15 +1,17 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
-<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${stageLevel}-${subLevel} 전투 준비 - My Star League</title>
+    <title>전술 배치 - My Star League</title>
+
     <link rel="stylesheet" href="<c:url value='/css/msl-layout.css' />">
     <link rel="stylesheet" href="<c:url value='/css/pveMatchSetup.css' />">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
 
@@ -19,11 +21,9 @@
         <nav class="msl-breadcrumb">
             <a href="<c:url value='/mode-select' />">홈</a>
             <span class="sep">/</span>
-            <a href="<c:url value='/pve/lobby' />">스테이지 목록</a>
+            <a href="<c:url value='/pve/lobby' />">PVE 시나리오</a>
             <span class="sep">/</span>
-            <a href="<c:url value='/pve/stage?level=${stageLevel}' />">Stage ${stageLevel}</a>
-            <span class="sep">/</span>
-            <span class="current">${stageLevel}-${subLevel} 전투 준비</span>
+            <span class="current">전술 배치</span>
         </nav>
     </div>
     <div class="msl-topbar-right">
@@ -36,422 +36,409 @@
 <c:set var="activeMenu" value="pve-lobby" />
 <%@ include file="/WEB-INF/views/layout/sideBar.jsp" %>
 
-<main class="msl-main battle-main">
+<main class="msl-main">
 
-    <div class="msl-page-header msl-animate">
-        <div class="msl-page-header-left">
-            <div class="msl-page-eyebrow">STAGE ${stageLevel}-${subLevel} · 전투 준비</div>
-        </div>
-        <div class="msl-page-actions">
-            <a href="<c:url value='/pve/stage?level=${stageLevel}' />" class="msl-btn msl-btn-secondary">← 뒤로</a>
-            <button class="msl-btn msl-btn-primary" id="startBattleButton" disabled>
-                ⚔️ 전투 시작 <span id="readyCount">(0/5)</span>
-            </button>
-        </div>
-    </div>
+    <!-- 숨겨진 폼 -->
+    <form id="battleForm" action="<c:url value='/pve/battle/start' />" method="post">
+        <input type="hidden" name="level"    value="${stageLevel}">
+        <input type="hidden" name="subLevel" value="${subLevel}">
+        <c:forEach var="i" begin="1" end="9">
+            <input type="hidden" name="p${i}" id="hidden_p${i}" value="">
+        </c:forEach>
+    </form>
 
-    <div class="battle-layout msl-animate msl-animate-d1">
+    <div class="match-layout">
 
-        <%-- 1. 왼쪽: 내 팀 엔트리 --%>
-        <div class="msl-panel battle-col">
-            <div class="squad-list-header">
-                <div class="header-left">
-                    <span class="h-rarity">등급</span>
-                    <span class="h-race">종족</span>
-                    <span class="h-name">이름</span>
-                </div>
-                <div class="header-right">
-                    <div class="header-stats">
-                        <span class="h-win">승리</span>
-                        <span class="h-lose">패배</span>
-                        <span class="h-rate">승률</span>
-                    </div>
+        <!-- ══ 헤더 (전체 너비) ══ -->
+        <div class="match-header">
+            <div>
+                <div class="match-eyebrow">TACTICAL SETUP · 3v3 · BO3</div>
+                <div class="match-title">전술 배치</div>
+                <div class="match-subtitle">3개 세트에 출전할 9명의 선수를 중복 없이 배치하세요</div>
+            </div>
+            <div class="placement-progress">
+                <span class="progress-label">배치 현황</span>
+                <div class="progress-dots">
+                    <c:forEach var="i" begin="1" end="9">
+                        <div class="progress-dot" id="dot_${i}"></div>
+                    </c:forEach>
                 </div>
             </div>
+        </div>
 
-            <ul class="squad-list-ul" id="myEntryBody">
-                <c:choose>
-                    <c:when test="${not empty myEntryList}">
-                        <c:forEach var="player" items="${myEntryList}">
-                            <li class="squad-list-item my-player"
-                                data-seq="${player.ownedPlayerSeq}"
-                                data-name="${player.playerName}"
-                                data-race="${player.race}"
-                                data-rarity="${player.currentRarity}"
-                                onclick="selectMyPlayer(this)">
-                                
-                                <div class="list-item-left">
-                                    <span class="msl-rarity ${fn:toLowerCase(player.currentRarity)}">${player.currentRarity}</span>
-                                    <span class="msl-race ${player.race}">${player.race}</span>
-                                    <span class="list-player-name">${player.playerName}</span>
+        <!-- ══ 좌측: 내 선수단 풀 ══ -->
+        <div class="pool-panel">
+            <div class="pool-header">
+                <span class="pool-title">내 선수단</span>
+                <span class="pool-count">
+                    <span class="available" id="availableCount">${fn:length(myEntryList)}</span> / ${fn:length(myEntryList)}
+                </span>
+            </div>
+            <div class="pool-filter">
+                <button class="filter-btn f-all active" onclick="filterPool('all', this, 'poolList')">ALL</button>
+                <button class="filter-btn f-T"          onclick="filterPool('T',   this, 'poolList')">테란</button>
+                <button class="filter-btn f-P"          onclick="filterPool('P',   this, 'poolList')">프토</button>
+                <button class="filter-btn f-Z"          onclick="filterPool('Z',   this, 'poolList')">저그</button>
+            </div>
+            <div class="pool-list" id="poolList">
+                <c:forEach var="my" items="${myEntryList}">
+                    <c:set var="condVal"   value="${empty my.condition ? 'NORMAL' : my.condition}" />
+                    <c:set var="condLabel" value="${condVal == 'PEAK' ? '최상' : condVal == 'GOOD' ? '양호' : condVal == 'NORMAL' ? '보통' : condVal == 'TIRED' ? '피로' : '최악'}" />
+                    <%-- 공격/방어/체력/스피드: DTO에서 totalAttack·totalDefense·totalMacro·totalMicro 재활용 --%>
+                    <c:set var="sAtk" value="${my.totalAttack}"  />
+                    <c:set var="sDef" value="${my.totalDefense}" />
+                    <c:set var="sHp"  value="${my.totalMacro}"   />
+                    <c:set var="sSpd" value="${my.totalMicro}"   />
+
+                    <div class="player-card"
+                         id="card_${my.ownedPlayerSeq}"
+                         data-seq="${my.ownedPlayerSeq}"
+                         data-race="${my.race}"
+                         data-name="${my.playerName}"
+                         data-atk="${sAtk}"
+                         data-def="${sDef}"
+                         data-hp="${sHp}"
+                         data-spd="${sSpd}"
+                         style="--race-color: var(--${my.race == 'T' ? 't' : my.race == 'P' ? 'p' : 'z'}-color)"
+                         onclick="assignPlayer(this)">
+
+                        <div class="card-top">
+                            <span class="card-race-badge ${my.race}">${my.race}</span>
+                            <span class="card-name">${my.playerName}</span>
+                            <c:if test="${my.enhanceLevel > 0}">
+                                <span class="card-enhance">+${my.enhanceLevel}</span>
+                            </c:if>
+                        </div>
+
+                        <div class="card-meta">
+                            <span class="card-rarity ${my.currentRarity}">${my.currentRarity}</span>
+                            <span class="card-condition ${condVal}">${condLabel}</span>
+                            <c:if test="${my.winStreak >= 2}">
+                                <span style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:#ffd600;flex-shrink:0;">🔥${my.winStreak}연승</span>
+                            </c:if>
+                            <span class="card-winrate">
+                                <c:choose>
+                                    <c:when test="${my.wins + my.losses > 0}">${my.wins}W ${my.losses}L</c:when>
+                                    <c:otherwise>기록없음</c:otherwise>
+                                </c:choose>
+                            </span>
+                        </div>
+
+                        <div class="card-stats">
+                            <div class="stat-row">
+                                <span class="stat-label">공격</span>
+                                <div class="stat-bar"><div class="stat-fill" style="width:${sAtk > 100 ? 100 : sAtk}%;background:#ef5350;"></div></div>
+                                <span class="stat-val">${sAtk}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">방어</span>
+                                <div class="stat-bar"><div class="stat-fill" style="width:${sDef > 100 ? 100 : sDef}%;background:#448aff;"></div></div>
+                                <span class="stat-val">${sDef}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">체력</span>
+                                <div class="stat-bar"><div class="stat-fill" style="width:${sHp > 100 ? 100 : sHp}%;background:#00e676;"></div></div>
+                                <span class="stat-val">${sHp}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">스피드</span>
+                                <div class="stat-bar"><div class="stat-fill" style="width:${sSpd > 100 ? 100 : sSpd}%;background:#ffd600;"></div></div>
+                                <span class="stat-val">${sSpd}</span>
+                            </div>
+                        </div>
+                    </div>
+                </c:forEach>
+            </div>
+        </div>
+
+        <!-- ══ 중앙: 배치 보드 ══ -->
+        <div class="board-panel">
+
+            <c:forEach var="setIndex" begin="1" end="3">
+                <div class="set-block" id="setBlock_${setIndex}">
+                    <div class="set-label">
+                        <span class="set-number">SET ${setIndex}</span>
+                        <span class="set-status" id="setStatus_${setIndex}">0 / 3 배치 완료</span>
+                        <span class="set-vs-badge">${myTeamName} VS ${opponentTeamName}</span>
+                    </div>
+                    <div class="matchup-grid">
+
+                        <!-- 내 팀 슬롯 -->
+                        <div class="team-col-new">
+                            <div class="team-col-header my-side">▶ MY SQUADRON</div>
+                            <c:forEach var="slot" begin="1" end="3">
+                                <c:set var="gSlot" value="${(setIndex-1)*3 + slot}" />
+                                <div class="battle-slot my-slot"
+                                     id="slot_${gSlot}"
+                                     data-gslot="${gSlot}"
+                                     data-set="${setIndex}"
+                                     onclick="activateSlot(this)">
+                                    <div class="slot-empty-display">
+                                        <span class="slot-index">P${slot}</span>
+                                        <span class="slot-empty-label">선수 미배치</span>
+                                        <span class="slot-click-hint">← 클릭</span>
+                                    </div>
+                                    <span class="slot-remove-hint">✕</span>
                                 </div>
-                                <div class="list-item-right">
-                                    <div class="list-stats">
-                                        <span class="stat-win">${player.wins}승</span>
-                                        <span class="stat-lose">${player.losses}패</span>
-                                        <span class="stat-rate">${player.winRate}%</span>
+                            </c:forEach>
+                        </div>
+
+                        <!-- VS -->
+                        <div class="vs-divider">
+                            <div class="vs-line"></div>
+                            <span class="vs-text">VS</span>
+                            <div class="vs-line"></div>
+                        </div>
+
+                        <!-- 상대팀 슬롯 (고정) -->
+                        <div class="team-col-new">
+                            <div class="team-col-header opp-side">OPPONENT ◀</div>
+                            <c:forEach var="slot" begin="1" end="3">
+                                <c:set var="gSlot" value="${(setIndex-1)*3 + slot}" />
+                                <div class="battle-slot opp-slot">
+                                    <div class="slot-filled-display">
+                                        <c:choose>
+                                            <c:when test="${not empty aiPlayerMap[gSlot]}">
+                                                <c:set var="ai" value="${aiPlayerMap[gSlot]}" />
+                                                <span class="filled-race ${ai.race}">${ai.race}</span>
+                                                <span class="filled-name">${ai.playerName}</span>
+                                                <div class="filled-stats-mini">
+                                                    <span class="stat-chip"><strong>${ai.statAttack}</strong>공격</span>
+                                                    <span class="stat-chip"><strong>${ai.statDefense}</strong>방어</span>
+                                                    <span class="stat-chip"><strong>${ai.statMacro}</strong>체력</span>
+                                                </div>
+                                            </c:when>
+                                            <c:otherwise>
+                                                <span class="slot-index">E${slot}</span>
+                                                <span class="slot-empty-label" style="color:rgba(244,63,94,0.3);">AI 미배정</span>
+                                            </c:otherwise>
+                                        </c:choose>
                                     </div>
                                 </div>
-                            </li>
-                        </c:forEach>
-                    </c:when>
-                    <c:otherwise>
-                        <li class="empty-list">1군 엔트리가 비어있습니다.<br><small style="color:var(--text-dim)">PVE 로비 → 엔트리 관리에서 출전 선수를 등록하세요.</small><br><br><a href="<c:url value='/pve/entry' />">엔트리 설정하기 →</a></li>
-                    </c:otherwise>
-                </c:choose>
-            </ul>
-
-            <div class="player-detail" id="myPlayerDetail">
-                <div class="player-detail-hint" id="myPlayerHint">내 선수를 클릭하여 선택하세요</div>
-                <div class="player-detail-content" id="myPlayerContent" style="display:none;"></div>
-            </div>
-        </div>
-
-        <%-- 2. 가운데: 5세트 맵 배정 --%>
-        <div class="msl-panel battle-col-center">
-            <div class="msl-panel-head">
-                <div class="msl-panel-title">🗺️ 5세트 맵 배정</div>
-            </div>
-            <div class="msl-panel-body sets-body">
-                <ul class="set-list" id="setList">
-                    <c:if test="${empty mapList}">
-                        <li style="text-align:center; padding:2rem; color:var(--text-dim); font-style:italic;">
-                            ⚠️ 이 라운드에 맵이 배정되어 있지 않습니다.<br>관리자에게 문의하세요.
-                        </li>
-                    </c:if>
-                    <c:forEach var="map" items="${mapList}" varStatus="status">
-                        <c:set var="aiPlayer" value="${aiPlayerMap[map.setNumber]}" />
-                        <li class="set-item" data-set-number="${map.setNumber}">
-                            <div class="set-header">
-                                <span class="set-num">SET ${map.setNumber}</span>
-                                <span class="set-map-name">${map.mapName}</span>
-                                <div class="set-winrates">
-                                    <span class="wr t">T <fmt:formatNumber value="${map.winRateT}" maxFractionDigits="1"/>%</span>
-                                    <span class="wr p">P <fmt:formatNumber value="${map.winRateP}" maxFractionDigits="1"/>%</span>
-                                    <span class="wr z">Z <fmt:formatNumber value="${map.winRateZ}" maxFractionDigits="1"/>%</span>
-                                </div>
-                            </div>
-                            <div class="set-matchup">
-                                <div class="matchup-slot my-slot assignable-slot empty"
-                                     data-slot-player-seq=""
-                                     data-slot-build-id=""
-                                     data-opp-race="${not empty aiPlayer ? aiPlayer.race : ''}"
-                                     onclick="onSlotClick(this)">
-                                    <span class="slot-hint">← 선수 선택 후 클릭</span>
-                                </div>
-                                
-                                <div class="matchup-vs">VS</div>
-                                
-                                <c:choose>
-                                    <c:when test="${not empty aiPlayer}">
-                                        <div class="matchup-slot opp-slot">
-                                            <span class="msl-rarity ${fn:toLowerCase(aiPlayer.rarity)}">${aiPlayer.rarity}</span>
-                                            <span class="msl-race ${aiPlayer.race}">${aiPlayer.race}</span>
-                                            <span class="slot-name">${aiPlayer.playerName}</span>
-                                        </div>
-                                    </c:when>
-                                    <c:otherwise>
-                                        <div class="matchup-slot opp-slot empty"><span class="slot-hint">상대 미정</span></div>
-                                    </c:otherwise>
-                                </c:choose>
-                            </div>
-                        </li>
-                    </c:forEach>
-                </ul>
-            </div>
-        </div>
-
-        <%-- 3. 오른쪽: 상대 팀 --%>
-        <div class="msl-panel battle-col">
-            <div class="squad-list-header">
-                <div class="header-left">
-                    <span class="h-rarity">등급</span>
-                    <span class="h-race">종족</span>
-                    <span class="h-name">이름</span>
-                </div>
-            </div>
-
-            <ul class="squad-list-ul">
-                <c:forEach var="player" items="${opponentEntryList}">
-                    <li class="squad-list-item opp-player"
-                        data-seq="${player.playerSeq}"
-                        onclick="selectOppPlayer(this)">
-                        
-                        <div class="list-item-left">
-                            <span class="msl-rarity ${fn:toLowerCase(player.rarity)}">${player.rarity}</span>
-                            <span class="msl-race ${player.race}">${player.race}</span>
-                            <span class="list-player-name">${player.playerName}</span>
+                            </c:forEach>
                         </div>
-                    </li>
-                </c:forEach>
-            </ul>
 
-            <div class="player-detail" id="oppPlayerDetail">
-                <div class="player-detail-hint" id="oppPlayerHint">상대 선수를 클릭해 정보 확인</div>
-                <div class="player-detail-content" id="oppPlayerContent" style="display:none;"></div>
+                    </div>
+                </div>
+            </c:forEach>
+
+            <!-- 전투 개시 버튼 -->
+            <div class="board-footer">
+                <button class="start-btn-new" id="startBtn" disabled onclick="submitBattle()">
+                    ⚔ 전투 개시 — 9명 배치 필요
+                </button>
             </div>
         </div>
 
-    </div>
+        <!-- ══ 우측: AI 선수단 풀 ══ -->
+        <div class="ai-pool-panel">
+            <div class="pool-header">
+                <span class="pool-title">${opponentTeamName}</span>
+                <span class="pool-count">${fn:length(opponentEntryList)}명</span>
+            </div>
+            <div class="pool-filter">
+                <button class="filter-btn f-all active" onclick="filterPool('all', this, 'aiPoolList')">ALL</button>
+                <button class="filter-btn f-T"          onclick="filterPool('T',   this, 'aiPoolList')">테란</button>
+                <button class="filter-btn f-P"          onclick="filterPool('P',   this, 'aiPoolList')">프토</button>
+                <button class="filter-btn f-Z"          onclick="filterPool('Z',   this, 'aiPoolList')">저그</button>
+            </div>
+            <div class="pool-list" id="aiPoolList">
+                <c:forEach var="ai" items="${opponentEntryList}">
+                    <div class="player-card ai-card"
+                         data-race="${ai.race}"
+                         style="--race-color: var(--${ai.race == 'T' ? 't' : ai.race == 'P' ? 'p' : 'z'}-color)">
+
+                        <div class="card-top">
+                            <span class="card-race-badge ${ai.race}">${ai.race}</span>
+                            <span class="card-name">${ai.playerName}</span>
+                            <span class="card-rarity ${ai.rarity}" style="flex-shrink:0;">${ai.rarity}</span>
+                        </div>
+
+                        <%-- SET 배정 표시 --%>
+                        <div class="card-meta">
+                            <c:choose>
+                                <c:when test="${ai.setNumber > 0}">
+                                    <span style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:var(--gold);flex-shrink:0;">
+                                        SET ${(ai.setNumber - 1) / 3 + 1} · P${((ai.setNumber - 1) mod 3) + 1}
+                                    </span>
+                                </c:when>
+                                <c:otherwise>
+                                    <span style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:var(--text-dim);">벤치</span>
+                                </c:otherwise>
+                            </c:choose>
+                        </div>
+
+                        <div class="card-stats">
+                            <div class="stat-row">
+                                <span class="stat-label">공격</span>
+                                <div class="stat-bar"><div class="stat-fill" style="width:${ai.statAttack > 100 ? 100 : ai.statAttack}%;background:#ef5350;"></div></div>
+                                <span class="stat-val">${ai.statAttack}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">방어</span>
+                                <div class="stat-bar"><div class="stat-fill" style="width:${ai.statDefense > 100 ? 100 : ai.statDefense}%;background:#448aff;"></div></div>
+                                <span class="stat-val">${ai.statDefense}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">체력</span>
+                                <div class="stat-bar"><div class="stat-fill" style="width:${ai.statMacro > 100 ? 100 : ai.statMacro}%;background:#00e676;"></div></div>
+                                <span class="stat-val">${ai.statMacro}</span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">스피드</span>
+                                <div class="stat-bar"><div class="stat-fill" style="width:${ai.statMicro > 100 ? 100 : ai.statMicro}%;background:#ffd600;"></div></div>
+                                <span class="stat-val">${ai.statMicro}</span>
+                            </div>
+                        </div>
+                    </div>
+                </c:forEach>
+            </div>
+        </div>
+
+    </div><!-- /.match-layout -->
+
+    <div class="select-hint" id="selectHint">선수 카드를 클릭하여 배치하세요</div>
+
 </main>
 
-<%-- 전략 선택 모달 --%>
-<div class="battle-modal-overlay" id="buildSelectModal" style="display:none;">
-    <div class="battle-modal">
-        <div class="battle-modal-head">
-            <div class="battle-modal-title">📜 전략 선택</div>
-            <div class="battle-modal-sub" id="modalRaceInfo"></div>
-        </div>
-        <div class="battle-modal-body">
-            <p class="modal-desc">선택한 선수에게 부여할 맞춤 전략을 선택하세요.</p>
-            <ul id="modalBuildList"></ul>
-        </div>
-        <div class="battle-modal-foot">
-            <button class="msl-btn msl-btn-secondary" id="closeBuildModal">취소</button>
-        </div>
-    </div>
-</div>
-
-<%-- 빌드 데이터 (JSON 안전 전달용) --%>
-<script type="application/json" id="_myBuildsData">${myBuildsJson}</script>
-
-<%-- 전투 폼 --%>
-<form id="battleStartForm" method="POST" action="<c:url value='/pve/battle/start' />" style="display:none;">
-    <input type="hidden" name="level"    value="${stageLevel}">
-    <input type="hidden" name="subLevel" value="${subLevel}">
-    <c:forEach var="i" begin="1" end="5">
-        <input type="hidden" name="set${i}Player" id="set${i}Player">
-        <input type="hidden" name="set${i}Build"  id="set${i}Build">
-    </c:forEach>
-</form>
-
 <script>
-    // 빌드 리스트 - hidden script 태그에서 안전하게 파싱 (JS Syntax Error 완전 차단)
-    const myBuilds = (function() {
-        try {
-            var el  = document.getElementById('_myBuildsData');
-            var raw = JSON.parse(el ? el.textContent : '[]');
-            return raw.map(function(b) {
-                return {
-                    id:     b.buildId,
-                    name:   b.buildName || '',
-                    race:   b.race      || '',
-                    vsRace: b.vsRace    || ''
-                };
-            });
-        } catch(e) {
-            console.error('myBuilds 파싱 오류:', e);
-            return [];
-        }
-    })();
-    console.log('[DEBUG] myBuilds 로드됨:', myBuilds.length, '개', myBuilds);
+$(function() {
+    var activeSlot  = null;
+    var assignments = {};
+    var hintTimeout = null;
 
-    // ★ JS 에러(Syntax Error) 원천 차단: 모든 EL 태그를 "" 따옴표로 감싸서 문자열로 처리
-    const myPlayerData = {
-        <c:forEach var="p" items="${myEntryList}" varStatus="s">
-            "${p.ownedPlayerSeq}": {
-                name: "${fn:escapeXml(p.playerName)}", race: "${p.race}", rarity: "${p.currentRarity}",
-                atk: "${p.currentAttack}", def: "${p.currentDefense}", mac: "${p.currentMacro}", mic: "${p.currentMicro}", luk: "${p.currentLuck}"
-            }<c:if test="${!s.last}">,</c:if>
-        </c:forEach>
+    // ── 슬롯 활성화 ──
+    window.activateSlot = function(slotEl) {
+        var gSlot = parseInt($(slotEl).data('gslot'));
+        if (assignments[gSlot]) { removeAssignment(gSlot); return; }
+        if (activeSlot === slotEl) { $(slotEl).removeClass('active-slot'); activeSlot = null; hideHint(); return; }
+        if (activeSlot) $(activeSlot).removeClass('active-slot');
+        activeSlot = slotEl;
+        $(slotEl).addClass('active-slot');
+        showHint('선수 카드를 클릭하여 배치하세요');
     };
 
-    // 상대 데이터도 기존에 작동했던 statAttack을 안전하게 문자열로 매핑
-    const oppPlayerData = {
-        <c:forEach var="p" items="${opponentEntryList}" varStatus="s">
-            "${p.playerSeq}": {
-                name: "${fn:escapeXml(p.playerName)}", race: "${p.race}", rarity: "${p.rarity}",
-                atk: "${p.statAttack}", def: "${p.statDefense}", mac: "${p.statMacro}", mic: "${p.statMicro}", luk: "${p.statLuck}"
-            }<c:if test="${!s.last}">,</c:if>
-        </c:forEach>
+    // ── 선수 카드 클릭 → 배치 ──
+    window.assignPlayer = function(cardEl) {
+        if ($(cardEl).hasClass('used')) return;
+        var seq  = $(cardEl).data('seq');
+        var name = $(cardEl).data('name');
+        var race = $(cardEl).data('race');
+        var atk  = $(cardEl).data('atk');
+        var def  = $(cardEl).data('def');
+        var hp   = $(cardEl).data('hp');
+        var spd  = $(cardEl).data('spd');
+
+        if (!activeSlot) {
+            for (var g = 1; g <= 9; g++) { if (!assignments[g]) { activeSlot = $('#slot_' + g)[0]; break; } }
+            if (!activeSlot) { showHint('모든 슬롯이 채워졌습니다'); return; }
+        }
+
+        var gSlot = parseInt($(activeSlot).data('gslot'));
+        assignments[gSlot] = { seq: seq, name: name, race: race, atk: atk, def: def, hp: hp, spd: spd };
+        $('#hidden_p' + gSlot).val(seq);
+        renderSlot(gSlot);
+        $(cardEl).addClass('used');
+        $(activeSlot).removeClass('active-slot');
+        activeSlot = null;
+        updateAll();
+        hideHint();
     };
 
-    let selectedMyPlayerEl = null;
-    let currentTargetSlot  = null;
+    // ── 배치 해제 ──
+    function removeAssignment(gSlot) {
+        var a = assignments[gSlot];
+        if (!a) return;
+        $('#card_' + a.seq).removeClass('used');
+        delete assignments[gSlot];
+        $('#hidden_p' + gSlot).val('');
+        renderSlot(gSlot);
+        if (activeSlot) { $(activeSlot).removeClass('active-slot'); activeSlot = null; }
+        updateAll();
+    }
 
-    /* ── 1. 내 선수 클릭 ── */
-    function selectMyPlayer(el) {
-        if (el.classList.contains('used')) return;
-        
-        if (selectedMyPlayerEl) selectedMyPlayerEl.classList.remove('selected');
-        selectedMyPlayerEl = (el === selectedMyPlayerEl) ? null : el;
-        
-        if (selectedMyPlayerEl) {
-            selectedMyPlayerEl.classList.add('selected');
-            renderPlayerDetail('my', selectedMyPlayerEl.dataset.seq);
+    // ── 슬롯 렌더 ──
+    function renderSlot(gSlot) {
+        var $slot   = $('#slot_' + gSlot);
+        var setIdx  = $slot.data('set');
+        var slotIdx = gSlot - (setIdx - 1) * 3;
+        var a = assignments[gSlot];
+        if (a) {
+            $slot.addClass('filled').removeClass('active-slot');
+            $slot.find('.slot-empty-display').replaceWith(
+                '<div class="slot-filled-display">' +
+                  '<span class="slot-index">P' + slotIdx + '</span>' +
+                  '<span class="filled-race ' + a.race + '">' + a.race + '</span>' +
+                  '<span class="filled-name">' + a.name + '</span>' +
+                  '<div class="filled-stats-mini">' +
+                    '<span class="stat-chip"><strong>' + a.atk + '</strong>공격</span>' +
+                    '<span class="stat-chip"><strong>' + a.def + '</strong>방어</span>' +
+                    '<span class="stat-chip"><strong>' + a.hp  + '</strong>체력</span>' +
+                  '</div>' +
+                '</div>'
+            );
         } else {
-            showDetailHint('my');
+            $slot.removeClass('filled active-slot');
+            $slot.find('.slot-filled-display').replaceWith(
+                '<div class="slot-empty-display">' +
+                  '<span class="slot-index">P' + slotIdx + '</span>' +
+                  '<span class="slot-empty-label">선수 미배치</span>' +
+                  '<span class="slot-click-hint">← 클릭</span>' +
+                '</div>'
+            );
         }
     }
 
-    /* ── 2. 상대 선수 클릭 ── */
-    function selectOppPlayer(el) {
-        document.querySelectorAll('.squad-list-item.opp-player').forEach(i => i.classList.remove('selected'));
-        el.classList.add('selected');
-        renderPlayerDetail('opp', el.dataset.seq);
-    }
+    // ── 전체 UI 갱신 ──
+    function updateAll() {
+        var total = Object.keys(assignments).length;
+        var all   = parseInt('${fn:length(myEntryList)}');
 
-    function renderPlayerDetail(side, seq) {
-        const data = side === 'my' ? myPlayerData[seq] : oppPlayerData[seq];
-        const hint    = document.getElementById(side === 'my' ? 'myPlayerHint'    : 'oppPlayerHint');
-        const content = document.getElementById(side === 'my' ? 'myPlayerContent' : 'oppPlayerContent');
-        if (!data) return;
-        
-        hint.style.display    = 'none';
-        content.style.display = 'block';
-        const rarityClass = data.rarity ? data.rarity.toLowerCase() : '';
-        
-        // 빈 값이면 0 출력 처리 (data.atk || 0)
-        content.innerHTML =
-            '<div class="detail-header">' +
-                '<span class="msl-rarity ' + rarityClass + '">' + data.rarity + '</span>' +
-                '<span class="msl-race '   + data.race   + '">' + data.race   + '</span>' +
-                '<span class="detail-name">' + data.name + '</span>' +
-            '</div>' +
-            '<div class="detail-stats">' +
-                '<div class="stat-cell"><div class="stat-label">ATK</div><div class="stat-val">' + (data.atk || 0) + '</div></div>' +
-                '<div class="stat-cell"><div class="stat-label">DEF</div><div class="stat-val">' + (data.def || 0) + '</div></div>' +
-                '<div class="stat-cell"><div class="stat-label">MAC</div><div class="stat-val">' + (data.mac || 0) + '</div></div>' +
-                '<div class="stat-cell"><div class="stat-label">MIC</div><div class="stat-val">' + (data.mic || 0) + '</div></div>' +
-                '<div class="stat-cell"><div class="stat-label">LUK</div><div class="stat-val">' + (data.luk || 0) + '</div></div>' +
-            '</div>';
-    }
-
-    function showDetailHint(side) {
-        document.getElementById(side === 'my' ? 'myPlayerHint'    : 'oppPlayerHint').style.display    = 'block';
-        document.getElementById(side === 'my' ? 'myPlayerContent' : 'oppPlayerContent').style.display = 'none';
-    }
-
-    /* ── 3. 슬롯 클릭 (매치업 배정) ── */
-    function onSlotClick(slot) {
-        if (!slot.classList.contains('empty')) {
-            const removedSeq = slot.dataset.slotPlayerSeq;
-            slot.classList.add('empty');
-            slot.dataset.slotPlayerSeq = '';
-            slot.dataset.slotBuildId   = '';
-            slot.innerHTML = '<span class="slot-hint">← 선수 선택 후 클릭</span>';
-            
-            const el = document.querySelector('.squad-list-item.my-player[data-seq="' + removedSeq + '"]');
-            if (el) el.classList.remove('used');
-            updateReady();
-            return;
+        for (var g = 1; g <= 9; g++) {
+            if (assignments[g]) $('#dot_' + g).addClass('filled');
+            else                 $('#dot_' + g).removeClass('filled');
         }
-        
-        if (!selectedMyPlayerEl) {
-            alert('좌측에서 매치업에 출전시킬 선수를 먼저 클릭해주세요!');
-            return;
+        $('#availableCount').text(all - total);
+
+        for (var s = 1; s <= 3; s++) {
+            var cnt = 0;
+            for (var sl = 1; sl <= 3; sl++) { if (assignments[(s-1)*3 + sl]) cnt++; }
+            var $st = $('#setStatus_' + s);
+            $st.text(cnt + ' / 3 배치 완료');
+            cnt === 3 ? $st.addClass('complete') : $st.removeClass('complete');
+            (cnt > 0 && cnt < 3) ? $('#setBlock_' + s).addClass('has-active') : $('#setBlock_' + s).removeClass('has-active');
         }
 
-        currentTargetSlot = slot;
-
-        // TBL_PLAYERS.RACE, TBL_BUILDS.RACE/VS_RACE 모두 단일코드('Z','T','P')
-        // 혹시 풀네임이 섞여있을 경우도 대비한 정규화
-        function toCode(r) {
-            var map = { 'ZERG':'Z', 'TERRAN':'T', 'PROTOSS':'P' };
-            var s = (r || '').trim().toUpperCase();
-            return map[s] || s;
-        }
-
-        var myCode  = toCode(selectedMyPlayerEl.dataset.race);  // 내 선수 종족: 'Z'
-        var oppCode = toCode(slot.dataset.oppRace);              // AI 종족: 'T'
-
-        var filtered = myBuilds.filter(function(b) {
-            var bRace   = toCode(b.race);
-            var bVsRace = toCode(b.vsRace);
-            var raceOk   = (bRace === myCode);            // 내 선수 종족과 일치하는 빌드만
-            var vsRaceOk = !oppCode                       // AI 미배정 슬롯이면 전부 표시
-                        || (bVsRace === oppCode)          // vsRace 코드 일치 ex) 'T'==='T'
-                        || (bVsRace === 'A');             // 전체 상대 빌드
-            return raceOk && vsRaceOk;
-        });
-        console.log('[DEBUG] 내 종족:', myCode, '/ AI 종족:', oppCode, '/ 매칭 빌드:', filtered.length, '개');
-
-        const list = document.getElementById('modalBuildList');
-        document.getElementById('modalRaceInfo').textContent = '선택된 선수: ' + selectedMyPlayerEl.dataset.name + ' (' + myCode + ')';
-        list.innerHTML = '';
-        
-        if (filtered.length === 0) {
-            const codeLabel = {'Z':'저그','T':'테란','P':'프로토스'};
-            const vsLabel   = {'Z':'저그전','T':'테란전','P':'프토전'};
-            list.innerHTML = '<li class="modal-empty">'
-                + (codeLabel[myCode] || myCode) + ' 선수의 '
-                + (vsLabel[oppCode]  || (oppCode ? oppCode + '전' : '해당 종족')) + ' 전략이 없습니다.<br>'
-                + '관리자 페이지에서 해당 빌드를 등록해 주세요.</li>';
+        if (total === 9) {
+            $('#startBtn').prop('disabled', false).text('⚔ 전투 개시 — SIMULATE').addClass('ready');
         } else {
-            filtered.forEach(b => {
-                const li = document.createElement('li');
-                li.className = 'modal-build-item';
-                li.innerHTML =
-                    '<div class="modal-build-info">' +
-                        '<div class="modal-build-name">' + b.name + '</div>' +
-                        '<div class="modal-build-sub">vs ' + b.vsRace + ' · ' + localizePlayStyle(b.playStyle) + ' · ' + localizeHarassStyle(b.harassStyle) + '</div>' +
-                    '</div>' +
-                    '<button class="msl-btn msl-btn-primary modal-select-btn">선택</button>';
-                li.querySelector('.modal-select-btn').addEventListener('click', () => assignSlot(slot, b));
-                list.appendChild(li);
-            });
+            $('#startBtn').prop('disabled', true).text('⚔ 전투 개시 — ' + (9 - total) + '명 더 배치 필요').removeClass('ready');
         }
-        document.getElementById('buildSelectModal').style.display = 'flex';
     }
 
-    /* ── 스타일 한글 변환 헬퍼 ── */
-    function localizePlayStyle(s) {
-        const map = { AGGRESSIVE: '공격스타일', NORMAL: '일반스타일', DEFENSIVE: '수비스타일' };
-        return map[s] || s || '일반스타일';
-    }
-    function localizeHarassStyle(s) {
-        const map = { NO_HARASS: '견제없음', NORMAL_HARASS: '일반견제', HEAVY_HARASS: '강한견제' };
-        return map[s] || s || '일반견제';
-    }
-
-    /* ── 4. 모달에서 전략 선택 후 실제 배정 ── */
-    function assignSlot(slot, build) {
-        const p = selectedMyPlayerEl.dataset;
-        const ownedSeq = p.seq;
-        
-        slot.classList.remove('empty');
-        slot.dataset.slotPlayerSeq = ownedSeq;
-        slot.dataset.slotBuildId   = build.id;
-        
-        const rarityClass = p.rarity ? p.rarity.toLowerCase() : '';
-        slot.innerHTML =
-            '<span class="msl-rarity ' + rarityClass + '">' + p.rarity + '</span>' +
-            '<span class="msl-race '   + p.race      + '">' + p.race   + '</span>' +
-            '<span class="slot-name">' + p.name + '</span>' +
-            '<span class="slot-build">⚙ ' + build.name + '</span>';
-
-        selectedMyPlayerEl.classList.add('used');
-        selectedMyPlayerEl.classList.remove('selected');
-        selectedMyPlayerEl = null;
-        showDetailHint('my');
-        
-        document.getElementById('buildSelectModal').style.display = 'none';
-        currentTargetSlot = null;
-        updateReady();
-    }
-
-    document.getElementById('closeBuildModal').addEventListener('click', () => {
-        document.getElementById('buildSelectModal').style.display = 'none';
-        currentTargetSlot = null;
-    });
-
-    /* ── 5. 출격 가능 여부 검사 ── */
-    function updateReady() {
-        const assigned = document.querySelectorAll('.assignable-slot:not(.empty)').length;
-        const btn = document.getElementById('startBattleButton');
-        document.getElementById('readyCount').textContent = '(' + assigned + '/5)';
-        btn.disabled = assigned !== 5;
-    }
-
-    document.getElementById('startBattleButton').addEventListener('click', function() {
-        if (this.disabled) return;
-        document.querySelectorAll('.assignable-slot').forEach((slot, idx) => {
-            document.getElementById('set' + (idx+1) + 'Player').value = slot.dataset.slotPlayerSeq;
-            document.getElementById('set' + (idx+1) + 'Build').value  = slot.dataset.slotBuildId;
+    // ── 풀 필터 (좌/우 구분) ──
+    window.filterPool = function(race, btn, listId) {
+        // 같은 패널 내 버튼만 active 토글
+        $(btn).closest('.pool-filter').find('.filter-btn').removeClass('active');
+        $(btn).addClass('active');
+        $('#' + listId + ' .player-card').each(function() {
+            $(this).css('display', (race === 'all' || $(this).data('race') === race) ? '' : 'none');
         });
-        document.getElementById('battleStartForm').submit();
-    });
+    };
+
+    window.submitBattle = function() {
+        if (Object.keys(assignments).length < 9) return;
+        $('#battleForm').submit();
+    };
+
+    function showHint(msg) {
+        clearTimeout(hintTimeout);
+        $('#selectHint').text(msg).addClass('visible');
+    }
+    function hideHint() {
+        hintTimeout = setTimeout(function() { $('#selectHint').removeClass('visible'); }, 1500);
+    }
+});
 </script>
-
 </body>
 </html>
