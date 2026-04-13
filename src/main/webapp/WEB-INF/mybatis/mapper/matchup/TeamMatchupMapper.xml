@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="matchup.TeamMatchupMapper">
+
+    <!-- ResultMap -->
+    <resultMap id="matchupBonusMap" type="dto.matchup.TeamMatchupBonusDTO">
+        <id     property="matchupId"       column="MATCHUP_ID"/>
+        <result property="myTeamCombo"     column="MY_TEAM_COMBO"/>
+        <result property="oppTeamCombo"    column="OPP_TEAM_COMBO"/>
+        <result property="bonusMultiplier" column="BONUS_MULTIPLIER"/>
+        <result property="description"     column="DESCRIPTION"/>
+        <result property="createdAt"       column="CREATED_AT"/>
+        <result property="updatedAt"       column="UPDATED_AT"/>
+    </resultMap>
+
+    <!-- 전체 조회 -->
+    <select id="selectAll" resultMap="matchupBonusMap">
+        SELECT MATCHUP_ID, MY_TEAM_COMBO, OPP_TEAM_COMBO,
+               BONUS_MULTIPLIER, DESCRIPTION, CREATED_AT, UPDATED_AT
+        FROM   TEAM_MATCHUP_BONUS
+        ORDER  BY MY_TEAM_COMBO, OPP_TEAM_COMBO
+    </select>
+
+    <!-- 조합별 단건 조회 (시뮬레이션 엔진에서 사용) -->
+    <select id="selectByCombo" parameterType="map" resultMap="matchupBonusMap">
+        SELECT MATCHUP_ID, MY_TEAM_COMBO, OPP_TEAM_COMBO,
+               BONUS_MULTIPLIER, DESCRIPTION
+        FROM   TEAM_MATCHUP_BONUS
+        WHERE  MY_TEAM_COMBO  = #{myTeamCombo}
+        AND    OPP_TEAM_COMBO = #{oppTeamCombo}
+    </select>
+
+    <!-- 삽입 (MERGE / UPSERT) -->
+    <insert id="insertBonus" parameterType="dto.matchup.TeamMatchupBonusDTO">
+        MERGE INTO TEAM_MATCHUP_BONUS T
+        USING (SELECT #{myTeamCombo}     AS MY_TEAM_COMBO,
+                      #{oppTeamCombo}    AS OPP_TEAM_COMBO,
+                      #{bonusMultiplier} AS BONUS_MULTIPLIER,
+                      #{description}     AS DESCRIPTION
+               FROM DUAL) S
+        ON (T.MY_TEAM_COMBO = S.MY_TEAM_COMBO AND T.OPP_TEAM_COMBO = S.OPP_TEAM_COMBO)
+        WHEN MATCHED THEN
+            UPDATE SET T.BONUS_MULTIPLIER = S.BONUS_MULTIPLIER,
+                       T.DESCRIPTION      = S.DESCRIPTION,
+                       T.UPDATED_AT       = SYSTIMESTAMP
+        WHEN NOT MATCHED THEN
+            INSERT (MY_TEAM_COMBO, OPP_TEAM_COMBO, BONUS_MULTIPLIER, DESCRIPTION)
+            VALUES (S.MY_TEAM_COMBO, S.OPP_TEAM_COMBO, S.BONUS_MULTIPLIER, S.DESCRIPTION)
+    </insert>
+
+    <!-- 수정 -->
+    <update id="updateBonus" parameterType="dto.matchup.TeamMatchupBonusDTO">
+        UPDATE TEAM_MATCHUP_BONUS
+        SET    BONUS_MULTIPLIER = #{bonusMultiplier},
+               DESCRIPTION      = #{description},
+               UPDATED_AT       = SYSTIMESTAMP
+        WHERE  MATCHUP_ID = #{matchupId}
+    </update>
+
+    <!-- 삭제 -->
+    <delete id="deleteBonus" parameterType="int">
+        DELETE FROM TEAM_MATCHUP_BONUS
+        WHERE  MATCHUP_ID = #{matchupId}
+    </delete>
+
+</mapper>

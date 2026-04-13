@@ -2,13 +2,11 @@ package controller.Admin;
 
 import dao.admin.AdminDAO;
 import dao.pve.BuildDAO;
-import dao.pve.ScriptDAO;
 import dto.pack.PackDTO;
 import dto.player.PlayerDTO;
 import dto.pve.BuildDTO;
 import dto.pve.PveOpponentInfoDTO;
 import dto.pve.PveSubstageDTO;
-import dto.pve.ScriptDTO;
 import dto.user.UserDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -16,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import service.pve.BuildService;
+import dao.matchup.TeamMatchupDAO;
+import dto.matchup.TeamMatchupBonusDTO;
 
 import org.springframework.web.multipart.MultipartFile;
 import javax.servlet.http.HttpServletRequest;
@@ -38,9 +38,11 @@ public class AdminController {
 
     @Autowired
     private BuildService buildService;
+    
+  @Autowired
+  private TeamMatchupDAO teamMatchupDAO;
 
-    @Autowired
-    private ScriptDAO scriptDAO;
+    // ★ ScriptDAO 제거됨 — 대본 시스템 폐기
 
     private boolean isAdmin(HttpSession session) {
         UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
@@ -817,12 +819,7 @@ public class AdminController {
         if (!isAdmin(session)) return "redirect:/login";
         try {
             List<BuildDTO> allBuilds = buildService.getAllBuilds();
-            if (allBuilds != null) {
-                // 테이블 표시용으로 각 빌드의 statBonuses 로드
-                for (BuildDTO b : allBuilds) {
-                    b.setStatBonuses(scriptDAO.selectStatBonusesByBuildId(b.getBuildId()));
-                }
-            }
+            // ★ setStatBonuses 제거됨 — BuildStatBonusDTO/ScriptDAO 폐기
             model.addAttribute("builds", allBuilds != null ? allBuilds : new ArrayList<>());
         } catch (Exception e) {
             e.printStackTrace();
@@ -947,42 +944,9 @@ public class AdminController {
     public Map<String, Object> hasScripts(@RequestParam("buildAId") int buildAId, HttpSession session) {
         Map<String, Object> res = new HashMap<>();
         if (!isAdmin(session)) { res.put("success", false); return res; }
-        try {
-            List<ScriptDTO> scripts = scriptDAO.selectScriptSummaryByMyBuild(buildAId);
-            Map<Integer, Map<String, Boolean>> existsMap = new HashMap<>();
-            if (scripts != null) {
-                for (ScriptDTO s : scripts) {
-                    int oppId = s.getOppBuildId();
-                    existsMap.computeIfAbsent(oppId, k -> new HashMap<>());
-                    if (s.getContent() != null && !s.getContent().trim().isEmpty()) {
-                        existsMap.get(oppId).put(s.getResult(), true);
-                    }
-                }
-            }
-            List<ScriptDTO> reverseScripts = scriptDAO.selectScriptSummaryByOppBuild(buildAId);
-            if (reverseScripts != null) {
-                for (ScriptDTO s : reverseScripts) {
-                    int myId = s.getMyBuildId();
-                    existsMap.computeIfAbsent(myId, k -> new HashMap<>());
-                    if (s.getContent() != null && !s.getContent().trim().isEmpty()) {
-                        existsMap.get(myId).put(s.getResult(), true);
-                    }
-                }
-            }
-            Map<String, Object> result = new HashMap<>();
-            for (Map.Entry<Integer, Map<String, Boolean>> entry : existsMap.entrySet()) {
-                Map<String, Boolean> status = new HashMap<>();
-                status.put("hasWin",  entry.getValue().getOrDefault("WIN",  false));
-                status.put("hasLose", entry.getValue().getOrDefault("LOSE", false));
-                result.put(String.valueOf(entry.getKey()), status);
-            }
-            res.put("success", true);
-            res.put("scriptStatus", result);
-        } catch (Exception e) {
-            e.printStackTrace();
-            res.put("success", false);
-            res.put("scriptStatus", new HashMap<>());
-        }
+        // ★ 대본 시스템 폐기 — 빈 데이터 반환
+        res.put("success", true);
+        res.put("scriptStatus", new HashMap<>());
         return res;
     }
 
@@ -991,20 +955,9 @@ public class AdminController {
     public Map<String, Object> loadScripts(@RequestBody Map<String, Object> params, HttpSession session) {
         Map<String, Object> result = new HashMap<>();
         if (!isAdmin(session)) { result.put("success", false); result.put("message", "권한 없음"); return result; }
-        try {
-            int myBuildId  = Integer.parseInt(params.get("myBuildId").toString());
-            int oppBuildId = Integer.parseInt(params.get("oppBuildId").toString());
-            Map<String, Object> queryParams = new HashMap<>();
-            queryParams.put("myBuildId", myBuildId);
-            queryParams.put("oppBuildId", oppBuildId);
-            List<ScriptDTO> scripts = scriptDAO.selectScriptsByMatchup(queryParams);
-            result.put("success", true);
-            result.put("scripts", scripts != null ? scripts : new ArrayList<>());
-        } catch (Exception e) {
-            e.printStackTrace();
-            result.put("success", false);
-            result.put("message", "로드 실패: " + e.getMessage());
-        }
+        // ★ 대본 시스템 폐기 — 빈 데이터 반환
+        result.put("success", true);
+        result.put("scripts", new ArrayList<>());
         return result;
     }
 
@@ -1014,32 +967,9 @@ public class AdminController {
     public Map<String, Object> saveScripts(@RequestBody Map<String, Object> params, HttpSession session) {
         Map<String, Object> result = new HashMap<>();
         if (!isAdmin(session)) { result.put("success", false); result.put("message", "권한 없음"); return result; }
-        try {
-            int myBuildId  = Integer.parseInt(params.get("myBuildId").toString());
-            int oppBuildId = Integer.parseInt(params.get("oppBuildId").toString());
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> scriptList = (List<Map<String, Object>>) params.get("scripts");
-            Map<String, Object> deleteParams = new HashMap<>();
-            deleteParams.put("myBuildId", myBuildId);
-            deleteParams.put("oppBuildId", oppBuildId);
-            scriptDAO.deleteScriptsByBuildIds(deleteParams);
-            if (scriptList != null && !scriptList.isEmpty()) {
-                for (Map<String, Object> script : scriptList) {
-                    ScriptDTO scriptDTO = new ScriptDTO();
-                    scriptDTO.setMyBuildId(myBuildId);
-                    scriptDTO.setOppBuildId(oppBuildId);
-                    scriptDTO.setResult((String) script.get("resultType"));
-                    scriptDTO.setContent((String) script.get("content"));
-                    scriptDAO.insertScript(scriptDTO);
-                }
-            }
-            result.put("success", true);
-            result.put("message", "저장 완료");
-        } catch (Exception e) {
-            e.printStackTrace();
-            result.put("success", false);
-            result.put("message", "저장 실패: " + e.getMessage());
-        }
+        // ★ 대본 시스템 폐기 — 저장 기능 비활성화
+        result.put("success", true);
+        result.put("message", "대본 시스템이 폐기되었습니다. ATB 전투로 전환되었습니다.");
         return result;
     }
 
@@ -1416,5 +1346,127 @@ public class AdminController {
         }
         return res;
     }
+    
+ // [3] 아래 메서드들을 AdminController 클래스 내부에 붙여넣으세요.
+ // =====================================================================
+  
+     // =====================================================================
+     // 지시사항 1: 종족 팀 상성 관리 (adminMatchupManage.jsp)
+     // =====================================================================
+  
+     /** GET /admin/matchup — 관리 페이지 */
+     @GetMapping("/matchup")
+     public String matchupManagePage(HttpSession session, Model model) {
+         if (!isAdmin(session)) return "redirect:/pve/lobby";
+         return "admin/matchupManage";
+     }
+  
+     /** GET /admin/matchup/list — 전체 목록 JSON */
+     @GetMapping("/matchup/list")
+     @ResponseBody
+     public Map<String, Object> listMatchupBonuses(HttpSession session) {
+         Map<String, Object> res = new HashMap<>();
+         if (!isAdmin(session)) { res.put("success", false); return res; }
+  
+         try {
+             res.put("success", true);
+             res.put("list", teamMatchupDAO.selectAllMatchupBonuses());
+         } catch (Exception e) {
+             e.printStackTrace();
+             res.put("success", false);
+             res.put("message", e.getMessage());
+         }
+         return res;
+     }
+  
+     /** POST /admin/matchup/save — UPSERT (insertBonus 는 MERGE INTO 로 구현) */
+     @PostMapping("/matchup/save")
+     @ResponseBody
+     public Map<String, Object> saveMatchupBonus(
+             @RequestBody TeamMatchupBonusDTO dto,
+             HttpSession session) {
+         Map<String, Object> res = new HashMap<>();
+         if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
+  
+         try {
+             // 입력값 검증
+             if (dto.getMyTeamCombo()  == null || dto.getMyTeamCombo().length()  != 3 ||
+                 dto.getOppTeamCombo() == null || dto.getOppTeamCombo().length() != 3) {
+                 res.put("success", false);
+                 res.put("message", "팀 조합은 정확히 3글자여야 합니다.");
+                 return res;
+             }
+             double mult = dto.getBonusMultiplier();
+             if (mult < 0.5 || mult > 2.0) {
+                 res.put("success", false);
+                 res.put("message", "배율은 0.50 ~ 2.00 사이여야 합니다.");
+                 return res;
+             }
+  
+             // 알파벳 정렬 보장
+             char[] my  = dto.getMyTeamCombo().toUpperCase().toCharArray();
+             char[] opp = dto.getOppTeamCombo().toUpperCase().toCharArray();
+             java.util.Arrays.sort(my);
+             java.util.Arrays.sort(opp);
+             dto.setMyTeamCombo(new String(my));
+             dto.setOppTeamCombo(new String(opp));
+  
+             teamMatchupDAO.insertMatchupBonus(dto); // MERGE INTO → UPSERT
+             res.put("success", true);
+         } catch (Exception e) {
+             e.printStackTrace();
+             res.put("success", false);
+             res.put("message", "저장 실패: " + e.getMessage());
+         }
+         return res;
+     }
+  
+     /** POST /admin/matchup/update — 배율/설명 수정 */
+     @PostMapping("/matchup/update")
+     @ResponseBody
+     public Map<String, Object> updateMatchupBonus(
+             @RequestBody TeamMatchupBonusDTO dto,
+             HttpSession session) {
+         Map<String, Object> res = new HashMap<>();
+         if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
+  
+         try {
+             double mult = dto.getBonusMultiplier();
+             if (mult < 0.5 || mult > 2.0) {
+                 res.put("success", false);
+                 res.put("message", "배율은 0.50 ~ 2.00 사이여야 합니다.");
+                 return res;
+             }
+             int updated = teamMatchupDAO.updateMatchupBonus(dto);
+             res.put("success", updated > 0);
+             if (updated == 0) res.put("message", "해당 항목을 찾을 수 없습니다.");
+         } catch (Exception e) {
+             e.printStackTrace();
+             res.put("success", false);
+             res.put("message", "수정 실패: " + e.getMessage());
+         }
+         return res;
+     }
+  
+     /** DELETE /admin/matchup/delete/{id} — 삭제 */
+     @DeleteMapping("/matchup/delete/{id}")
+     @ResponseBody
+     public Map<String, Object> deleteMatchupBonus(
+             @PathVariable("id") int matchupId,
+             HttpSession session) {
+         Map<String, Object> res = new HashMap<>();
+         if (!isAdmin(session)) { res.put("success", false); res.put("message", "권한 없음"); return res; }
+  
+         try {
+             int deleted = teamMatchupDAO.deleteMatchupBonus(matchupId);
+             res.put("success", deleted > 0);
+             if (deleted == 0) res.put("message", "해당 항목을 찾을 수 없습니다.");
+         } catch (Exception e) {
+             e.printStackTrace();
+             res.put("success", false);
+             res.put("message", "삭제 실패: " + e.getMessage());
+         }
+         return res;
+     }
 
 }

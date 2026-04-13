@@ -51,6 +51,7 @@ import dto.pve.BuildDTO;
 import dto.pve.PveOpponentInfoDTO;
 import dto.pve.BattleProgressDTO;
 import dto.pve.BattleSessionDTO;
+import dto.pve.BattleFighterDTO;
 
 import service.gacha.GachaService;
 import service.mission.DailyMissionService;
@@ -821,10 +822,8 @@ public class MainController {
             boolean myWinFlag = pveBattleService.calculateWinResults(
                 Collections.singletonList(firstMatchup)).get(0);
 
-            int scriptBuildId = (myBuildDto != null) ? myBuildDto.getBuildId() : 0;
-            int scriptOppBuildId = (aiBuildDto != null) ? aiBuildDto.getBuildId() : 0;
-            List<String> scriptLines = pveBattleService.selectScriptLines(
-                scriptBuildId, scriptOppBuildId, myWinFlag);
+            // ★ 대본 시스템 폐기 — scriptLines 제거, ATB 엔진이 프론트에서 전투 진행
+            List<String> scriptLines = Collections.emptyList();
 
             BattleSessionDTO newSession = new BattleSessionDTO();
             newSession.setUserId(userId);
@@ -869,63 +868,69 @@ public class MainController {
                                             ModelAndView mv, HttpSession session) {
         UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
         if (loginUser == null) { mv.setViewName("redirect:/login"); return mv; }
-
+ 
         Map<String, Object> params = new HashMap<>();
-        params.put("userId", loginUser.getUserId());
+        params.put("userId",     loginUser.getUserId());
         params.put("stageLevel", stageLevel);
-        params.put("subLevel", subLevel);
-
+        params.put("subLevel",   subLevel);
+ 
         BattleSessionDTO activeBattle = battleSessionDAO.selectActiveBattle(params);
         if (activeBattle == null) { mv.setViewName("redirect:/pve/lobby"); return mv; }
-
+ 
         Type type = new TypeToken<List<Map<String, Object>>>() {}.getType();
         List<Map<String, Object>> matchupList = gson.fromJson(activeBattle.getMatchupData(), type);
         int currentSet = activeBattle.getCurrentSet();
-
-        String replayJson = activeBattle.getGameStateData();
-        if (replayJson == null || replayJson.isEmpty()) replayJson = "[]";
-
-        mv.addObject("stageLevel", stageLevel);
-        mv.addObject("subLevel", subLevel);
-        mv.addObject("replayJson", replayJson);
+ 
+        // ★★★ 변경: 백엔드 시뮬레이션 실행 (기존 prepareBattleData 대체) ★★★
+        Map<String, Object> simResult = pveBattleService.runBattleSimulation(
+            loginUser.getUserId(), stageLevel, subLevel
+        );
+ 
+        // 초기 전투원 스탯 (좌표 포함) — JS renderSquadCards / setupFighterEntities 에 사용
+        @SuppressWarnings("unchecked")
+        List<BattleFighterDTO> battleFighters =
+            (List<BattleFighterDTO>) simResult.get("fighters");
+        String battleDataJson = gson.toJson(battleFighters);
+ 
+        // 전투 타임라인 이벤트 JSON — JS playReplay(events) 에 사용
+        String eventLogJson = (String) simResult.get("eventLogJson");
+        if (eventLogJson == null || eventLogJson.isEmpty()) eventLogJson = "[]";
+ 
+        mv.addObject("battleDataJson", battleDataJson);
+        mv.addObject("eventLogJson",   eventLogJson);            // ★ 신규
+        mv.addObject("simWinner",      simResult.get("winner")); // ★ 신규 (로그용)
+ 
+        mv.addObject("stageLevel",  stageLevel);
+        mv.addObject("subLevel",    subLevel);
+        mv.addObject("replayJson",  "[]");   // 구버전 호환 유지 (미사용)
         mv.addObject("matchupList", matchupList);
-        mv.addObject("currentSet", currentSet);
-        mv.addObject("myWins", activeBattle.getMyWins());
-        mv.addObject("aiWins", activeBattle.getAiWins());
-        mv.addObject("myTeamName", loginUser.getTeamName() != null ? loginUser.getTeamName() : loginUser.getUserNick());
-        PveSubstageDTO substageDetails = pveSubstageService.getSubstageDetails(stageLevel, subLevel);
-        mv.addObject("opponentTeamName", substageDetails != null ? substageDetails.getOpponentTeamName() : "AI Team");
-
+        mv.addObject("currentSet",  currentSet);
+        mv.addObject("myWins",      activeBattle.getMyWins());
+        mv.addObject("aiWins",      activeBattle.getAiWins());
+        mv.addObject("myTeamName",
+            loginUser.getTeamName() != null ? loginUser.getTeamName() : loginUser.getUserNick());
+ 
+        PveSubstageDTO substageDetails =
+            pveSubstageService.getSubstageDetails(stageLevel, subLevel);
+        mv.addObject("opponentTeamName",
+            substageDetails != null ? substageDetails.getOpponentTeamName() : "AI Team");
+ 
         session.setAttribute("currentSet", currentSet);
-        session.setAttribute("myWins", activeBattle.getMyWins());
-        session.setAttribute("aiWins", activeBattle.getAiWins());
+        session.setAttribute("myWins",  activeBattle.getMyWins());
+        session.setAttribute("aiWins",  activeBattle.getAiWins());
         session.setAttribute("simulationMatchupList", matchupList);
-
+ 
         if (session.getAttribute("setResults") == null) {
             String savedSetResults = activeBattle.getSetResultsData();
             if (savedSetResults != null && !savedSetResults.isEmpty()) {
                 try {
                     Type srType = new TypeToken<List<SetResult>>() {}.getType();
-                    List<SetResult> recoveredSetResults = gson.fromJson(savedSetResults, srType);
-                    session.setAttribute("setResults", recoveredSetResults);
-                } catch (Exception e) {
-                    List<SetResult> fallback = new ArrayList<>();
-                    for (int i = 0; i < matchupList.size(); i++) {
-                        Map<String, Object> m = matchupList.get(i);
-                        fallback.add(new SetResult(
-                            i + 1,
-                            safeInt(m.get("myOwnedPlayerSeq"), 0),
-                            (String) m.getOrDefault("myPlayerName", "N/A"),
-                            safeInt(m.get("aiPlayerSeq"), 0),
-                            (String) m.getOrDefault("aiPlayerName", "N/A"),
-                            false
-                        ));
-                    }
-                    session.setAttribute("setResults", fallback);
-                }
+                    List<SetResult> recovered = gson.fromJson(savedSetResults, srType);
+                    session.setAttribute("setResults", recovered);
+                } catch (Exception ignored) {}
             }
         }
-
+ 
         mv.setViewName("pveBattleSimulation");
         return mv;
     }
@@ -1140,10 +1145,8 @@ public class MainController {
                 boolean nextWinFlag = pveBattleService.calculateWinResults(
                     Collections.singletonList(nextMatchup)).get(0);
 
-                int scriptBuildId = (myBuildDto != null) ? myBuildDto.getBuildId() : 0;
-                int scriptOppBuildId = (aiBuildDto != null) ? aiBuildDto.getBuildId() : 0;
-                List<String> nextScriptLines = pveBattleService.selectScriptLines(
-                    scriptBuildId, scriptOppBuildId, nextWinFlag);
+                // ★ 대본 시스템 폐기 — scriptLines 제거, ATB 엔진이 프론트에서 전투 진행
+                List<String> nextScriptLines = Collections.emptyList();
 
                 Map<String, Object> nextScriptData = new HashMap<>();
                 nextScriptData.put("lines", nextScriptLines);

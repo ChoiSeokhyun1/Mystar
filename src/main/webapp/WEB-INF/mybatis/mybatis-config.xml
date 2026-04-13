@@ -26,7 +26,6 @@
     	<typeAlias type="dto.pve.UserPveSubstageProgressDTO" alias="UserPveSubstageProgressDTO"/>
     	<typeAlias type="dto.pve.PveStageMapDTO" alias="PveStageMapDTO"/>
         <typeAlias alias="BuildDTO" type="dto.pve.BuildDTO"/>
-        <!-- BuildUnitDTO, OwnedBuildDTO 제거 (대본 방식으로 전환) -->
     	<typeAlias type="dto.pve.PveOpponentInfoDTO" alias="PveOpponentInfoDTO"/>
     	<typeAlias type="dto.pve.BattleSessionDTO" alias="BattleSessionDTO"/>
     	<typeAlias type="dto.pve.BattleProgressDTO" alias="BattleProgressDTO"/>
@@ -35,6 +34,8 @@
     	<typeAlias type="dto.pve.BuildStatBonusDTO" alias="BuildStatBonusDTO"/>
     	<typeAlias type="dto.mission.DailyMissionDTO" alias="DailyMissionDTO"/>
         <typeAlias type="dto.mission.UserDailyMissionDTO" alias="UserDailyMissionDTO"/>
+        <!-- ★ 신규: 3:3 ATB 전투용 DTO -->
+        <typeAlias type="dto.pve.BattleFighterDTO" alias="BattleFighterDTO"/>
     </typeAliases>
 
 </configuration>

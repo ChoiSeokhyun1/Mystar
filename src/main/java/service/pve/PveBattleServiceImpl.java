@@ -1,7 +1,12 @@
 package service.pve;
 
+import com.google.gson.Gson;
+import dao.entry.PveEntryDAO;
+import dao.matchup.TeamMatchupDAO;
 import dao.pve.BattleSessionDAO;
-import dao.pve.ScriptDAO;
+import dao.pve.PveOpponentDAO;
+import dto.matchup.TeamMatchupBonusDTO;
+import dto.player.OwnedPlayerInfoDTO;
 import dto.pve.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -12,227 +17,443 @@ import java.util.*;
 @Service
 public class PveBattleServiceImpl implements PveBattleService {
 
-    @Autowired private BattleSessionDAO battleSessionDAO;
-    @Autowired private ScriptDAO        scriptDAO;
+    // ─────────────── 상수 ───────────────
+    /** 한 전투의 최대 틱 수 (무한루프 방지) */
+    private static final int  MAX_TICKS       = 5000;
+    /** ATB 게이지가 이 값 이상이면 행동 */
+    private static final int  ATB_THRESHOLD   = 100;
+    /** 콤보 발동 확률 */
+    private static final double COMBO_CHANCE  = 0.25;
+    /** 방어 난입 확률 */
+    private static final double SHIELD_CHANCE = 0.30;
+    /** 방어 시 데미지 경감 비율 */
+    private static final double SHIELD_REDUCE = 0.50;
+    /** 최소 데미지 = ATK * 이 배율 */
+    private static final double MIN_DMG_RATIO = 0.10;
 
-    // =====================================================
-    // 승패 결정 + 대본 선택
-    // =====================================================
+    // ─────────────── 의존성 ───────────────
+    @Autowired private BattleSessionDAO battleSessionDAO;
+    @Autowired private PveEntryDAO      pveEntryDAO;
+    @Autowired private PveOpponentDAO   pveOpponentDAO;
+    @Autowired private TeamMatchupDAO   teamMatchupDAO;
+
+    private final Gson gson = new Gson();
+
+    // =====================================================================
+    // ★ 핵심 메서드: 백엔드 ATB 전투 시뮬레이션 전체 실행
+    // =====================================================================
     @Override
-    public List<Boolean> calculateWinResults(List<Map<String, Object>> matchupList) {
-        List<Boolean> winResults = new ArrayList<>();
+    public Map<String, Object> runBattleSimulation(String userId, int stageLevel, int subLevel) {
+
+        // ── 1. 전투원 데이터 준비 (BattleFighterDTO 6명) ──
+        List<BattleFighterDTO> fighters = prepareBattleData(userId, stageLevel, subLevel);
+
+        // ── 2. 종족 상성 보너스 조회 및 블루팀 스탯 적용 ──
+        applyTeamMatchupBonus(fighters);
+
+        // ── 3. 시뮬레이션용 내부 상태 복사 ──
+        //    (BattleFighterDTO 는 프론트 전달용 초기값 보존 → 시뮬은 복사본 사용)
+        List<SimFighter> simFighters = toSimFighters(fighters);
+        List<GameEvent>  events      = new ArrayList<>();
+
+        // ── 4. 틱 루프: 양 팀 중 한 팀이 전멸할 때까지 ──
+        int tick = 0;
         Random rand = new Random();
 
-        for (Map<String, Object> matchup : matchupList) {
-            try {
-                boolean myWin = decideWinner(matchup, rand);
-                winResults.add(myWin);
-            } catch (Exception e) {
-                System.err.println("승패 결정 오류 (세트 " + winResults.size() + "): " + e.getMessage());
-                e.printStackTrace();
-                winResults.add(false);
+        outer:
+        while (tick < MAX_TICKS) {
+            tick++;
+
+            // 4-a. 전체 생존 전투원 ATB 충전
+            for (SimFighter sf : simFighters) {
+                if (sf.hp > 0) {
+                    sf.atb += sf.spd;
+                }
+            }
+
+            // 4-b. ATB 100 이상인 전투원 수집 후 SPD 내림차순 정렬 → 순서대로 행동
+            List<SimFighter> ready = new ArrayList<>();
+            for (SimFighter sf : simFighters) {
+                if (sf.hp > 0 && sf.atb >= ATB_THRESHOLD) ready.add(sf);
+            }
+            ready.sort((a, b) -> b.spd - a.spd);
+
+            for (SimFighter actor : ready) {
+                if (actor.hp <= 0) continue; // 이미 이 틱에 전사
+
+                actor.atb = 0; // ATB 초기화
+
+                // 4-c. 살아있는 적 목록
+                List<SimFighter> enemies = getAlive(simFighters, opposite(actor.team));
+                if (enemies.isEmpty()) break outer;
+
+                // 4-d. 콤보 시도
+                boolean didCombo = tryCombo(actor, enemies, simFighters, events, tick, rand);
+
+                // 4-e. 콤보 실패 → 일반 공격 or 방어 난입 체크
+                if (!didCombo) {
+                    SimFighter target = pickLowestHpTarget(enemies);
+                    SimFighter interceptor = tryIntercept(target, simFighters, rand);
+
+                    int rawDmg  = actor.atk - target.def;
+                    int baseDmg = Math.max(rawDmg, (int)(actor.atk * MIN_DMG_RATIO));
+                    int variance = (int)(baseDmg * (0.9 + rand.nextDouble() * 0.2));
+
+                    if (interceptor != null) {
+                        // 방어 난입
+                        interceptor.atb = Math.max(0, interceptor.atb - 50);
+                        int reducedDmg = (int)(variance * SHIELD_REDUCE);
+                        target.hp -= reducedDmg;
+
+                        boolean lethal = target.hp <= 0;
+                        if (lethal) target.hp = 0;
+
+                        // SHIELD 이벤트 기록 (BattleFighterDTO 좌표 참조)
+                        BattleFighterDTO actorDto  = getDtoById(fighters, actor.id);
+                        BattleFighterDTO targetDto = getDtoById(fighters, target.id);
+                        BattleFighterDTO intDto    = getDtoById(fighters, interceptor.id);
+
+                        // SHIELD 이벤트에 현재 HP 반영
+                        targetDto.setHp(target.hp); // 임시 반영 (로그용)
+                        GameEvent shieldEv = GameEvent.shield(tick, actorDto, targetDto, intDto, reducedDmg);
+                        shieldEv.setCurrentHp(target.hp);
+                        shieldEv.setLethal(lethal);
+                        shieldEv.setAtbSnapshotJson(buildAtbSnapshot(simFighters));
+                        events.add(shieldEv);
+
+                        if (lethal) {
+                            events.add(buildDeathEvent(tick, target, fighters, simFighters));
+                        }
+
+                    } else {
+                        // 일반 공격
+                        target.hp -= variance;
+                        boolean lethal = target.hp <= 0;
+                        if (lethal) target.hp = 0;
+
+                        BattleFighterDTO actorDto  = getDtoById(fighters, actor.id);
+                        BattleFighterDTO targetDto = getDtoById(fighters, target.id);
+                        targetDto.setHp(target.hp);
+
+                        GameEvent atkEv = GameEvent.attack(tick, actorDto, targetDto, variance, lethal);
+                        atkEv.setAtbSnapshotJson(buildAtbSnapshot(simFighters));
+                        events.add(atkEv);
+
+                        if (lethal) {
+                            events.add(buildDeathEvent(tick, target, fighters, simFighters));
+                        }
+                    }
+                }
+
+                // 4-f. 전멸 체크
+                if (isTeamWiped(simFighters, "blue") || isTeamWiped(simFighters, "red")) {
+                    break outer;
+                }
+            }
+
+            // 4-g. 매 틱 후 전멸 체크 (안전망)
+            if (isTeamWiped(simFighters, "blue") || isTeamWiped(simFighters, "red")) {
+                break;
             }
         }
-        return winResults;
+
+        // ── 5. 승패 판정 ──
+        boolean blueWon = !isTeamWiped(simFighters, "blue");
+        String  winner  = blueWon ? "blue" : "red";
+
+        events.add(GameEvent.battleEnd(tick, winner, blueWon ? "BLUE" : "RED"));
+
+        // ── 6. 결과 반환 ──
+        Map<String, Object> result = new HashMap<>();
+        result.put("fighters",     fighters);          // 초기 스탯 (JS 렌더링용)
+        result.put("eventLogJson", gson.toJson(events)); // 타임라인 JSON
+        result.put("winner",       winner);
+        return result;
     }
 
-    /**
-     * 점수 기반 승패 결정
-     * 내 점수 > 상대 점수 → 승
-     */
-    private boolean decideWinner(Map<String, Object> matchup, Random rand) {
-        BuildDTO myBuild = (BuildDTO) matchup.get("myBuild");
-        BuildDTO aiBuild = (BuildDTO) matchup.get("aiBuild");
+    // =====================================================================
+    // 종족 상성 보너스 적용 (블루팀 스탯에 배율 곱하기)
+    // =====================================================================
+    private void applyTeamMatchupBonus(List<BattleFighterDTO> fighters) {
+        List<BattleFighterDTO> blueTeam = new ArrayList<>();
+        List<BattleFighterDTO> redTeam  = new ArrayList<>();
+        for (BattleFighterDTO f : fighters) {
+            if ("blue".equals(f.getTeam())) blueTeam.add(f);
+            else                             redTeam.add(f);
+        }
 
-        // ── 기본 능력치 합산
+        String myCombo  = buildTeamCombo(blueTeam);
+        String oppCombo = buildTeamCombo(redTeam);
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("myTeamCombo",  myCombo);
+        params.put("oppTeamCombo", oppCombo);
+        TeamMatchupBonusDTO bonus = teamMatchupDAO.selectMatchupBonus(params);
+
+        double mult = (bonus != null) ? bonus.getBonusMultiplier() : 1.0;
+
+        if (mult == 1.0) return; // 보정 없음
+
+        for (BattleFighterDTO f : blueTeam) {
+            f.setAtk((int)(f.getAtk() * mult));
+            f.setDef((int)(f.getDef() * mult));
+            f.setSpd((int)(f.getSpd() * mult));
+            int newHp = (int)(f.getHp() * mult);
+            f.setHp(newHp);
+            f.setMaxHp(newHp);
+        }
+    }
+
+    /** 팀 종족 코드 알파벳 정렬 문자열 생성 (예: ["T","Z","T"] → "TTZ") */
+    private String buildTeamCombo(List<BattleFighterDTO> team) {
+        char[] chars = new char[3];
+        for (int i = 0; i < Math.min(team.size(), 3); i++) {
+            String race = team.get(i).getRace();
+            chars[i] = (race != null && !race.isEmpty()) ? race.toUpperCase().charAt(0) : 'T';
+        }
+        Arrays.sort(chars);
+        return new String(chars);
+    }
+
+    // =====================================================================
+    // 내부 시뮬레이션 상태 (SimFighter)
+    // =====================================================================
+    private static class SimFighter {
+        String id, team, name;
+        int hp, maxHp, atk, def, spd, atb;
+
+        SimFighter(BattleFighterDTO dto) {
+            id = dto.getId(); team = dto.getTeam(); name = dto.getName();
+            hp = dto.getHp(); maxHp = dto.getMaxHp();
+            atk = dto.getAtk(); def = dto.getDef(); spd = dto.getSpd();
+            atb = 0;
+        }
+    }
+
+    private List<SimFighter> toSimFighters(List<BattleFighterDTO> fighters) {
+        List<SimFighter> list = new ArrayList<>();
+        for (BattleFighterDTO f : fighters) list.add(new SimFighter(f));
+        return list;
+    }
+
+    // ── 유틸 ──
+
+    private String opposite(String team) { return "blue".equals(team) ? "red" : "blue"; }
+
+    private List<SimFighter> getAlive(List<SimFighter> all, String team) {
+        List<SimFighter> list = new ArrayList<>();
+        for (SimFighter sf : all) if (team.equals(sf.team) && sf.hp > 0) list.add(sf);
+        return list;
+    }
+
+    private boolean isTeamWiped(List<SimFighter> all, String team) {
+        for (SimFighter sf : all) if (team.equals(sf.team) && sf.hp > 0) return false;
+        return true;
+    }
+
+    /** 남은 HP가 가장 낮은 적을 타겟으로 선정 */
+    private SimFighter pickLowestHpTarget(List<SimFighter> enemies) {
+        return enemies.stream().min(Comparator.comparingInt(a -> a.hp)).orElse(null);
+    }
+
+    /** 방어 난입 판정 */
+    private SimFighter tryIntercept(SimFighter target, List<SimFighter> all, Random rand) {
+        List<SimFighter> allies = new ArrayList<>();
+        for (SimFighter sf : all) {
+            if (sf.team.equals(target.team) && !sf.id.equals(target.id) && sf.hp > 0 && sf.atb >= 50)
+                allies.add(sf);
+        }
+        if (allies.isEmpty() || rand.nextDouble() > SHIELD_CHANCE) return null;
+        allies.sort((a, b) -> b.atb - a.atb);
+        return allies.get(0);
+    }
+
+    /** 콤보 공격 시도 */
+    private boolean tryCombo(SimFighter actor, List<SimFighter> enemies,
+                              List<SimFighter> allFighters,
+                              List<GameEvent> events, int tick, Random rand) {
+        if (rand.nextDouble() > COMBO_CHANCE) return false;
+
+        List<SimFighter> aliveAllies = getAlive(allFighters, actor.team);
+        aliveAllies.removeIf(a -> a.id.equals(actor.id) || a.atb < ATB_THRESHOLD);
+        if (aliveAllies.isEmpty()) return false;
+
+        SimFighter partner = aliveAllies.get(0);
+        partner.atb = 0;
+
+        SimFighter target = pickLowestHpTarget(enemies);
+        if (target == null) return false;
+
+        int comboDmg = (int)((actor.atk + partner.atk) * 0.8) - target.def;
+        int damage   = Math.max(comboDmg, (int)(actor.atk * 0.15));
+
+        target.hp -= damage;
+        boolean lethal = target.hp <= 0;
+        if (lethal) target.hp = 0;
+
+        BattleFighterDTO actorDto   = getDtoByIdMutable(allFighters, actor.id, enemies);
+        BattleFighterDTO partnerDto = getDtoByIdMutable(allFighters, partner.id, enemies);
+        BattleFighterDTO targetDto  = getDtoByIdMutable(allFighters, target.id, enemies);
+
+        if (actorDto == null || partnerDto == null || targetDto == null) return false;
+        targetDto.setHp(target.hp);
+
+        GameEvent comboEv = GameEvent.combo(tick, actorDto, partnerDto, targetDto, damage, lethal);
+        comboEv.setAtbSnapshotJson(buildAtbSnapshot(allFighters));
+        events.add(comboEv);
+
+        if (lethal) events.add(buildDeathEvent(tick, target, null, allFighters));
+        return true;
+    }
+
+    private GameEvent buildDeathEvent(int tick, SimFighter dead,
+                                      List<BattleFighterDTO> fighters,
+                                      List<SimFighter> allSim) {
+        GameEvent ev = new GameEvent();
+        ev.setEventType("DEATH");
+        ev.setTick(tick);
+        ev.setActorId(dead.id);
+        ev.setActorName(dead.name);
+        ev.setActorTeam(dead.team);
+        ev.setLethal(true);
+        ev.setLogMessage("💀 <strong>[" + dead.name + "]</strong> 전사!");
+        ev.setLogType("kill");
+        ev.setAtbSnapshotJson(buildAtbSnapshot(allSim));
+        // 좌표는 fighters 초기 DTO 에서 가져옴
+        if (fighters != null) {
+            BattleFighterDTO dto = getDtoById(fighters, dead.id);
+            if (dto != null) { ev.setActorX(dto.getX()); ev.setActorY(dto.getY()); }
+        }
+        return ev;
+    }
+
+    private String buildAtbSnapshot(List<SimFighter> all) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < all.size(); i++) {
+            SimFighter sf = all.get(i);
+            if (i > 0) sb.append(",");
+            sb.append("{\"id\":\"").append(sf.id).append("\",")
+              .append("\"atb\":").append(Math.min(sf.atb, ATB_THRESHOLD)).append(",")
+              .append("\"hp\":").append(Math.max(0, sf.hp)).append("}");
+        }
+        return sb.append("]").toString();
+    }
+
+    private BattleFighterDTO getDtoById(List<BattleFighterDTO> list, String id) {
+        for (BattleFighterDTO f : list) if (f.getId().equals(id)) return f;
+        return null;
+    }
+
+    /** fighters 리스트가 없을 때 simFighters 에서 좌표 없이 DTO 생성 */
+    private BattleFighterDTO getDtoByIdMutable(List<SimFighter> all,
+                                               String id,
+                                               List<SimFighter> enemies) {
+        // ※ 실제 프로젝트에서는 fighters(초기 DTO) 를 파라미터로 전달해서 쓰는 것이 정석
+        //   여기서는 prepareBattleData 결과를 서비스 멤버로 캐시하거나 파라미터로 넘기세요.
+        //   임시: null 반환 방지를 위해 SimFighter 기반 최소 DTO 생성
+        for (SimFighter sf : all) {
+            if (sf.id.equals(id)) {
+                BattleFighterDTO dto = new BattleFighterDTO();
+                dto.setId(sf.id); dto.setName(sf.name); dto.setTeam(sf.team);
+                dto.setHp(sf.hp); dto.setMaxHp(sf.maxHp);
+                dto.setAtk(sf.atk); dto.setDef(sf.def); dto.setSpd(sf.spd);
+                return dto;
+            }
+        }
+        return null;
+    }
+
+    // =====================================================================
+    // 전투원 데이터 준비 (기존 로직 유지)
+    // =====================================================================
+    @Override
+    public List<BattleFighterDTO> prepareBattleData(String userId, int stageLevel, int subLevel) {
+
+        List<BattleFighterDTO> fighters = new ArrayList<>();
+
+        // ── 블루팀: 유저 PVE 엔트리 상위 3명 ──
+        List<OwnedPlayerInfoDTO> myEntry = pveEntryDAO.selectPveEntryPlayersByUserId(userId);
+        int blueCount = Math.min(myEntry.size(), 3);
+        double[][] bluePos = { {20, 20}, {15, 50}, {20, 80} };
+
+        for (int i = 0; i < blueCount; i++) {
+            OwnedPlayerInfoDTO p = myEntry.get(i);
+            fighters.add(BattleFighterDTO.fromStats(
+                "b" + (i + 1), p.getPlayerName(), "blue",
+                p.getRace(), p.getCurrentRarity(), p.getPlayerImgUrl(),
+                p.getPlayerSeq(), p.getOwnedPlayerSeq(),
+                p.getTotalAttack(), p.getTotalDefense(), p.getTotalMacro(),
+                p.getTotalMicro(), p.getTotalLuck(),
+                bluePos[i][0], bluePos[i][1]
+            ));
+        }
+
+        // ── 레드팀: 서브스테이지 상대 상위 3명 ──
+        Map<String, Object> oppParams = new HashMap<>();
+        oppParams.put("stageLevel", stageLevel);
+        oppParams.put("subLevel",   subLevel);
+        List<dto.pve.PveOpponentInfoDTO> opponents = pveOpponentDAO.findOpponentEntryBySubstage(oppParams);
+
+        int redCount = Math.min(opponents.size(), 3);
+        double[][] redPos = { {80, 20}, {85, 50}, {80, 80} };
+
+        for (int i = 0; i < redCount; i++) {
+            dto.pve.PveOpponentInfoDTO opp = opponents.get(i);
+            fighters.add(BattleFighterDTO.fromStats(
+                "r" + (i + 1), opp.getPlayerName(), "red",
+                opp.getRace(), opp.getRarity(), opp.getPlayerImgUrl(),
+                opp.getPlayerSeq(), 0,
+                opp.getStatAttack(), opp.getStatDefense(), opp.getStatMacro(),
+                opp.getStatMicro(), opp.getStatLuck(),
+                redPos[i][0], redPos[i][1]
+            ));
+        }
+
+        return fighters;
+    }
+
+    // =====================================================================
+    // 승패 결정 (대본/상성/가산점 제거 → 순수 스탯)
+    // =====================================================================
+    @Override
+    public List<Boolean> calculateWinResults(List<Map<String, Object>> matchupList) {
+        List<Boolean> results = new ArrayList<>();
+        Random rand = new Random();
+        for (Map<String, Object> m : matchupList) {
+            try { results.add(decideWinner(m, rand)); }
+            catch (Exception e) { results.add(false); }
+        }
+        return results;
+    }
+
+    private boolean decideWinner(Map<String, Object> matchup, Random rand) {
         double myScore = calcBaseScore(matchup, "my");
         double aiScore = calcBaseScore(matchup, "ai");
-
-        // ── 컨디션 배율
         myScore *= conditionMult((String) matchup.getOrDefault("myCondition", "NORMAL"));
         aiScore *= conditionMult((String) matchup.getOrDefault("aiCondition", "NORMAL"));
-
-        // ── 연승(기세) 배율
         myScore *= streakMult(getInt(matchup, "myWinStreak", 0));
         aiScore *= streakMult(getInt(matchup, "aiWinStreak", 0));
-
-        // ── (핵심 수정) 빌드 vs 빌드 상성 배율 적용
-        if (myBuild != null && aiBuild != null) {
-            // 내 빌드 입장에서 상대 빌드를 상대할 때의 상성
-            myScore *= matchupMult(myBuild.getBuildId(), aiBuild.getBuildId());
-            
-            // AI 빌드 입장에서 내 빌드를 상대할 때의 상성
-            aiScore *= matchupMult(aiBuild.getBuildId(), myBuild.getBuildId());
-        }
-
-        // ── 빌드별 능력치 가산점
-        if (myBuild != null) myScore *= statBonusMult(myBuild.getBuildId(), matchup, "my");
-        if (aiBuild != null) aiScore *= statBonusMult(aiBuild.getBuildId(), matchup, "ai");
-
-        // ── 동점 랜덤 처리 (5% 이내 오차)
-        if (Math.abs(myScore - aiScore) / Math.max(myScore, aiScore) < 0.05) {
-            return rand.nextBoolean();
-        }
+        if (Math.abs(myScore - aiScore) / Math.max(myScore, aiScore) < 0.05) return rand.nextBoolean();
         return myScore > aiScore;
     }
 
-    /** 능력치 합산 점수 */
-    private double calcBaseScore(Map<String, Object> matchup, String prefix) {
-        return getInt(matchup, prefix + "Attack",  50)
-             + getInt(matchup, prefix + "Defense", 50)
-             + getInt(matchup, prefix + "Macro",   50)
-             + getInt(matchup, prefix + "Micro",   50)
-             + getInt(matchup, prefix + "Luck",    50);
+    private double calcBaseScore(Map<String, Object> m, String prefix) {
+        return getInt(m, prefix+"Attack",50)+getInt(m, prefix+"Defense",50)
+             + getInt(m, prefix+"Macro",50)+getInt(m, prefix+"Micro",50)+getInt(m, prefix+"Luck",50);
     }
 
-    /** 컨디션 배율 */
-    private double conditionMult(String condition) {
-        switch (condition == null ? "NORMAL" : condition) {
-            case "PEAK":   return 1.20;
-            case "GOOD":   return 1.10;
-            case "TIRED":  return 0.90;
-            case "WORST":  return 0.80;
-            default:       return 1.00;
+    private double conditionMult(String c) {
+        switch (c==null?"NORMAL":c) {
+            case "PEAK":  return 1.20; case "GOOD":  return 1.10;
+            case "TIRED": return 0.90; case "WORST": return 0.80;
+            default:      return 1.00;
         }
     }
 
-    /** 연승 배율 */
-    private double streakMult(int streak) {
-        if (streak >= 5) return 1.10;
-        if (streak == 4) return 1.08;
-        if (streak == 3) return 1.06;
-        if (streak == 2) return 1.03;
-        return 1.00;
+    private double streakMult(int s) {
+        if(s>=5)return 1.10; if(s==4)return 1.08; if(s==3)return 1.06; if(s==2)return 1.03; return 1.00;
     }
 
-    /** (변경됨) 빌드 vs 빌드 상성 배율: DB에서 직접 상성값(GOOD/BAD/NORMAL) 단건 조회 */
-    private double matchupMult(int myBuildId, int oppBuildId) {
-        try {
-            String matchupStatus = scriptDAO.getBuildMatchup(myBuildId, oppBuildId);
-            
-            if ("GOOD".equals(matchupStatus)) return 1.30;
-            if ("BAD".equals(matchupStatus)) return 0.70;
-            
-        } catch (Exception e) {
-            // DB에 세팅된 값이 없거나 에러가 나면 무조건 보통(1.0) 처리
-        }
-        return 1.00;
-    }
-
-    /** 빌드 능력치 가산점: 높은 스탯에 배율 적용 */
-    private double statBonusMult(int buildId, Map<String, Object> matchup, String prefix) {
-        try {
-            List<BuildStatBonusDTO> bonuses = scriptDAO.selectStatBonusesByBuildId(buildId);
-            double extra = 0;
-            double base  = calcBaseScore(matchup, prefix);
-            for (BuildStatBonusDTO b : bonuses) {
-                int statVal = getStatVal(matchup, prefix, b.getStatName());
-                // 해당 스탯이 추가 배율로 기여하는 비율 계산
-                extra += statVal * (b.getBonusMult() - 1.0);
-            }
-            return (base + extra) / base;
-        } catch (Exception ignored) {}
-        return 1.00;
-    }
-
-    private int getStatVal(Map<String, Object> matchup, String prefix, String stat) {
-        switch (stat) {
-            case "attack":  return getInt(matchup, prefix + "Attack",  50);
-            case "defense": return getInt(matchup, prefix + "Defense", 50);
-            case "macro":   return getInt(matchup, prefix + "Macro",   50);
-            case "micro":   return getInt(matchup, prefix + "Micro",   50);
-            case "luck":    return getInt(matchup, prefix + "Luck",    50);
-            default:        return 50;
-        }
-    }
-
-    // =====================================================
-    // 대본 선택
-    // =====================================================
-    /**
-     * 빌드 + 상대빌드 + WIN/LOSE 기준으로 대본 목록 조회 후 랜덤 선택
-     * 줄 단위로 분리하여 반환 (JSP에서 3초마다 한 줄씩 출력)
-     */
-    @Override
-    public List<String> selectScriptLines(int myBuildId, int oppBuildId, boolean myWin) {
-        // ★ 핵심 수정: 저장 시 항상 min/max 순서로 저장하므로 조회도 동일하게 정규화
-        int firstId  = Math.min(myBuildId, oppBuildId);
-        int secondId = Math.max(myBuildId, oppBuildId);
-        boolean isSwapped = (firstId != myBuildId); // 순서가 뒤집혔는지 여부
-
-        // 뒤집혔으면 WIN/LOSE도 반전 (DB 기준 firstId가 이긴 건 WIN이므로)
-        String result;
-        if (isSwapped) {
-            result = myWin ? "LOSE" : "WIN";
-        } else {
-            result = myWin ? "WIN" : "LOSE";
-        }
-
-        Map<String, Object> params = new HashMap<>();
-        params.put("myBuildId",  firstId);
-        params.put("oppBuildId", secondId);
-        params.put("result",     result);
-
-        List<ScriptDTO> scripts = scriptDAO.selectScriptForPlay(params);
-        if (scripts == null || scripts.isEmpty()) {
-            // 대본 없음 — 기본 1줄
-            return Collections.singletonList(myWin ? "승리하였습니다." : "패배하였습니다.");
-        }
-
-        // 첫 번째 대본 선택 후 탭 분리 (///로 구분된 4탭 중 랜덤 1개 선택)
-        ScriptDTO chosen = scripts.get(0);
-        String rawContent = chosen.getContent();
-        if (rawContent == null || rawContent.trim().isEmpty()) {
-            return Collections.singletonList(myWin ? "승리하였습니다." : "패배하였습니다.");
-        }
-
-        // /// 구분자로 탭 분리
-        String[] tabs = rawContent.split("///");
-        // 비어있지 않은 탭만 필터링
-        List<String[]> validTabs = new ArrayList<>();
-        for (String tab : tabs) {
-            String trimmed = tab.trim();
-            if (!trimmed.isEmpty()) {
-                String[] tabLines = trimmed.split("\\r?\\n");
-                List<String> nonEmpty = new ArrayList<>();
-                for (String l : tabLines) {
-                    if (!l.trim().isEmpty()) nonEmpty.add(l.trim());
-                }
-                if (!nonEmpty.isEmpty()) {
-                    validTabs.add(nonEmpty.toArray(new String[0]));
-                }
-            }
-        }
-
-        if (validTabs.isEmpty()) {
-            return Collections.singletonList(myWin ? "승리하였습니다." : "패배하였습니다.");
-        }
-
-        // 랜덤으로 탭 하나 선택
-        String[] selectedTab = validTabs.get(new Random().nextInt(validTabs.size()));
-        List<String> lines = Arrays.asList(selectedTab);
-
-        if (isSwapped) {
-            // [빌드A]↔[빌드B] 교체
-            List<String> swapped = new ArrayList<>();
-            for (String line : lines) {
-                if (line.startsWith("[빌드A]")) {
-                    swapped.add(line.replace("[빌드A]", "[빌드B]"));
-                } else if (line.startsWith("[빌드B]")) {
-                    swapped.add(line.replace("[빌드B]", "[빌드A]"));
-                } else {
-                    swapped.add(line);
-                }
-            }
-            return swapped;
-        }
-
-        return lines;
-    }
-
-    // =====================================================
-    // DB 저장
-    // =====================================================
     @Override
     @Transactional
     public void saveProgress(BattleProgressDTO progress) {
@@ -245,13 +466,10 @@ public class PveBattleServiceImpl implements PveBattleService {
         params.put("aiWins",      progress.getAiWins());
         if (progress.getGameStateData() != null)
             params.put("gameStateData", progress.getGameStateData());
-
         int updated = battleSessionDAO.updateBattleProgress(params);
-        if (updated == 0)
-            System.err.println("진행 상태 저장 실패: 활성 배틀 세션을 찾을 수 없습니다.");
+        if (updated == 0) System.err.println("진행 상태 저장 실패: 활성 세션 없음");
     }
 
-    // ── 유틸 ─────────────────────────────────────────────
     private int getInt(Map<String, Object> map, String key, int def) {
         Object v = map.get(key);
         if (v == null) return def;
