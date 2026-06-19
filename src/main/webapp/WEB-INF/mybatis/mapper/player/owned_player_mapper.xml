@@ -94,6 +94,50 @@
             op.OWNED_PLAYER_SEQ = #{ownedPlayerSeq}
     </select>
     
+    <!-- ★ 3:3 BO3 시뮬레이션용: ownedPlayerSeq 목록으로 다건 조회 (userId 일치 검증) -->
+    <select id="selectOwnedPlayersBySeqs" parameterType="map" resultType="OwnedPlayerInfoDTO">
+        SELECT
+            op.OWNED_PLAYER_SEQ,
+            op.USER_ID,
+            op.PLAYER_SEQ,
+            op.CURRENT_ATTACK,
+            op.CURRENT_DEFENSE,
+            op.CURRENT_HP,
+            op.CURRENT_HARASS,
+            op.CURRENT_SPEED,
+            op.ACQUIRED_AT,
+            op.CURRENT_RARITY,
+            op.CONDITION AS condition,
+            op.WIN_STREAK AS winStreak,
+            op.ENHANCE_LEVEL   AS enhanceLevel,
+            op.ENHANCE_ATTACK  AS enhanceAttack,
+            op.ENHANCE_DEFENSE AS enhanceDefense,
+            op.ENHANCE_HP      AS enhanceHp,
+            op.ENHANCE_HARASS  AS enhanceHarass,
+            op.ENHANCE_SPEED   AS enhanceSpeed,
+
+            p.PLAYER_NAME,
+            p.RACE,
+            p.RARITY AS "baseRarity",
+            p.PLAYER_IMG_URL,
+            p.PLAYER_COST,
+
+            pack.PACK_NAME
+
+        FROM
+            TBL_OWNED_PLAYERS op
+        JOIN
+            TBL_PLAYERS p ON op.PLAYER_SEQ = p.PLAYER_SEQ
+        LEFT JOIN
+            TBL_PACKS pack ON op.ACQUIRED_FROM_PACK_SEQ = pack.PACK_SEQ
+        WHERE
+            op.USER_ID = #{userId}
+            AND op.OWNED_PLAYER_SEQ IN
+            <foreach item="seq" collection="seqs" open="(" separator="," close=")">
+                #{seq}
+            </foreach>
+    </select>
+
     <select id="selectOwnedPlayer" parameterType="int" resultType="OwnedPlayerDTO">
         SELECT
             OWNED_PLAYER_SEQ,

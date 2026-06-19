@@ -57,4 +57,9 @@ public class BattleSessionDAOImpl implements BattleSessionDAO {
     public int updateSetResultsData(Map<String, Object> params) {
         return sqlSession.update(NAMESPACE + "updateSetResultsData", params);
     }
+
+    @Override
+    public int updateSetProgressAndResults(Map<String, Object> params) {
+        return sqlSession.update(NAMESPACE + "updateSetProgressAndResults", params);
+    }
 }

@@ -20,7 +20,8 @@ import lombok.Data;
 public class GameEvent {
 
     // ── 이벤트 분류 ──
-    private String  eventType;        // "ATTACK" | "COMBO" | "SHIELD" | "DEATH" | "BATTLE_END"
+    private String  eventType;        // "ATTACK" | "COMBO" | "SHIELD" | "ASSIST" | "HARASS" | "DEFEND" | "DEATH" | "BATTLE_END"
+    private String  actionType;       // "ATK" | "DEF" | "ASSIST" | "HARASS" — 행동 종류 (특성 연동)
     private int     tick;             // 시뮬레이션 틱 번호
 
     // ── 행동 주체 ──

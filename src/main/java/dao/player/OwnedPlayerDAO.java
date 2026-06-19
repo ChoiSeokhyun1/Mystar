@@ -13,6 +13,13 @@ public interface OwnedPlayerDAO {
 
     /** 특정 보유 선수의 상세 정보 조회 (JOIN 결과) */
     OwnedPlayerInfoDTO selectOwnedPlayerDetails(int ownedPlayerSeq);
+
+    /**
+     * ★ 3:3 BO3 시뮬레이션용: 특정 유저가 소유한 선수들 중 ownedPlayerSeq 목록에 해당하는
+     * 선수들의 상세 정보를 한 번에 조회합니다. (userId 일치 검증 포함 — 타인 선수 도용 방지)
+     * 반환 순서는 보장되지 않으므로 호출 측에서 ownedPlayerSeq 기준으로 재정렬해야 합니다.
+     */
+    List<OwnedPlayerInfoDTO> selectOwnedPlayersBySeqs(java.util.Map<String, Object> params);
     
     /** ★★★ 추가: 특정 보유 선수 조회 (기본 정보만) */
     OwnedPlayerDTO selectOwnedPlayer(int ownedPlayerSeq);

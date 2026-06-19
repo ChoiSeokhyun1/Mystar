@@ -4,6 +4,13 @@
 
 <mapper namespace="pveopponent_mapper">
 
+    <!--
+        ★ BO3 체계: 화면(pveMatchSetup)에서 한 세트는 9슬롯 중 3개를 차지하며,
+          TBL_PVE_OPPONENTS.SET_NUMBER 도 1~9 글로벌 슬롯 번호로 저장되어 있다.
+          - setStart/setEnd 가 있으면: 그 구간(보통 3명, 한 세트분)만 조회 — 시뮬레이션 엔진용
+          - setNumber 만 있으면: 정확히 그 슬롯 1명만 조회 — (구 5세트-1인1조 체계 호환용)
+          - 둘 다 없으면: 해당 서브스테이지의 AI 엔트리 전체(보통 9명)를 조회 — 배치 화면 풀 표시용
+    -->
     <select id="selectOpponentEntryBySubstage" parameterType="map" resultType="dto.pve.PveOpponentInfoDTO">
         SELECT
             p.PLAYER_SEQ     as playerSeq,
@@ -27,8 +34,17 @@
             TBL_PLAYERS p ON opp.PLAYER_SEQ = p.PLAYER_SEQ
         WHERE
             opp.STAGE_LEVEL = #{stageLevel} AND opp.SUB_LEVEL = #{subLevel}
+            <choose>
+                <when test="setStart != null and setEnd != null">
+                    AND opp.SET_NUMBER BETWEEN #{setStart} AND #{setEnd}
+                </when>
+                <when test="setNumber != null">
+                    AND opp.SET_NUMBER = #{setNumber}
+                </when>
+                <!-- setStart/setEnd/setNumber 모두 없으면 전체 조회 -->
+            </choose>
         ORDER BY
-            opp.OPPONENT_ID ASC
+            opp.SET_NUMBER ASC, opp.OPPONENT_ID ASC
     </select>
 
 </mapper>

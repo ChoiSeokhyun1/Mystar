@@ -7,7 +7,7 @@
   메뉴키 목록:
     my-team         선수 명단
     entry           엔트리 설정
-    build           전략 수립
+    trait           특성 관리
     enhance         선수 강화
     pve-lobby       스테이지 목록
     train           훈련
@@ -23,8 +23,8 @@
         <a href="<c:url value='/my-team/entry' />" class="msl-nav-item ${activeMenu == 'entry' ? 'active' : ''}">
             <span class="msl-nav-icon">📋</span> 엔트리 설정
         </a>
-        <a href="<c:url value='/build/manage' />" class="msl-nav-item ${activeMenu == 'build' ? 'active' : ''}">
-            <span class="msl-nav-icon">🧪</span> 전략 수립
+        <a href="<c:url value='/trait/manage' />" class="msl-nav-item ${activeMenu == 'trait' ? 'active' : ''}">
+            <span class="msl-nav-icon">🎯</span> 특성 관리
         </a>
         <a href="<c:url value='/enhance' />" class="msl-nav-item ${activeMenu == 'enhance' ? 'active' : ''}">
             <span class="msl-nav-icon">⚡</span> 선수 강화

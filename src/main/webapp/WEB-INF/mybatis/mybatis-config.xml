@@ -33,6 +33,8 @@
         <!-- ★ 신규: 3:3 ATB 전투용 DTO -->
         <typeAlias type="dto.pve.BattleFighterDTO" alias="BattleFighterDTO"/>
         <typeAlias type="dto.matchup.TeamMatchupBonusDTO" alias="TeamMatchupBonusDTO"/>
+        <!-- ★ 신규: 선수 특성 시스템 -->
+        <typeAlias type="dto.player.PlayerTraitDTO" alias="PlayerTraitDTO"/>
     </typeAliases>
 
 </configuration>

@@ -29,6 +29,11 @@ public class OwnedPlayerDAOImpl implements OwnedPlayerDAO {
     public OwnedPlayerInfoDTO selectOwnedPlayerDetails(int ownedPlayerSeq) {
         return sqlSession.selectOne(NAMESPACE + "selectOwnedPlayerDetails", ownedPlayerSeq);
     }
+
+    @Override
+    public List<OwnedPlayerInfoDTO> selectOwnedPlayersBySeqs(java.util.Map<String, Object> params) {
+        return sqlSession.selectList(NAMESPACE + "selectOwnedPlayersBySeqs", params);
+    }
     
     @Override
     public OwnedPlayerDTO selectOwnedPlayer(int ownedPlayerSeq) {

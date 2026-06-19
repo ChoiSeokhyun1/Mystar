@@ -1,413 +1,540 @@
 /* ================================================================
-   pveBattleSimulation.css  —  리디자인
-   구버전(건물/유닛/HP바/자원) 제거 → 선수카드 + 문자중계 집중
+   pveBattleSimulation.css
+   JSP 인라인 스타일 통합 + 타일 색상/범위 버그 수정
    ================================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
 
-/* ── 색상 변수 ──────────────────────────────────────────────── */
+/* ── CSS 변수 ────────────────────────────────────────────────── */
 :root {
-    --my:          #3a9ef5;
-    --my-dim:      rgba(58,158,245,0.15);
-    --my-glow:     rgba(58,158,245,0.30);
-    --ai:          #f5433a;
-    --ai-dim:      rgba(245,67,58,0.15);
-    --ai-glow:     rgba(245,67,58,0.30);
-    --gold:        #f5c042;
-    --bg:          #07080e;
-    --bg2:         #0b0d17;
-    --surface:     rgba(255,255,255,0.04);
-    --border-c:    rgba(255,255,255,0.07);
-    --text-main:   #dce6f5;
-    --text-dim:    rgba(255,255,255,0.30);
-    --green:       #00e676;
-    --topbar-h:    60px;
-    --hud-h:       148px;
-
-    --font-d:  'Bebas Neue', 'Barlow Condensed', sans-serif;
-    --font-ui: 'Rajdhani', 'Barlow Condensed', sans-serif;
-    --font-b:  'Noto Sans KR', 'Barlow', sans-serif;
+    --bg-base:      #050810;
+    --panel-bg:     rgba(16, 22, 36, 0.85);
+    --panel-border: rgba(56, 189, 248, 0.2);
+    --blue-glow:    rgba(56, 189, 248, 0.9);
+    --red-glow:     rgba(244, 63, 94, 0.9);
+    --text-main:    #e2e8f0;
+    --text-muted:   #94a3b8;
 }
 
-/* ── 베이스 ────────────────────────────────────────────────── */
+/* ── 베이스 ─────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
+
 body {
-    background: var(--bg);
+    background-color: var(--bg-base);
     color: var(--text-main);
-    font-family: var(--font-b);
+    font-family: 'Noto Sans KR', sans-serif;
+    height: 100vh;
+    width: 100vw;
     overflow: hidden;
-}
-/* 스캔라인 */
-body::before {
-    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-    background: repeating-linear-gradient(0deg, transparent, transparent 3px,
-        rgba(0,0,0,0.025) 3px, rgba(0,0,0,0.025) 4px);
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    background-image: radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.05), transparent 60%);
 }
 
-/* ── 탑바 ─────────────────────────────────────────────────── */
-.sim-topbar-logo {
-    padding: 0 1.4rem;
-    font-family: var(--font-d); font-size: 1.22rem; letter-spacing: 0.16em; color: #fff;
-    border-right: 1px solid rgba(255,255,255,0.08);
-    display: flex; align-items: center; height: 100%; flex-shrink: 0;
-}
-.sim-topbar-logo span { color: var(--my); }
-.sim-breadcrumb { flex: 1; padding: 0 1.5rem; }
-.sim-live-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 0.2rem 0.7rem; border-radius: 2px;
-    background: #c0392b;
-    font-family: var(--font-d); font-size: 0.8rem; letter-spacing: 0.14em; color: #fff;
-    animation: livePulse 1.5s ease-in-out infinite;
-}
-@keyframes livePulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-
-/* ── 전체 레이아웃 ─────────────────────────────────────────── */
-.sim-layout {
-    position: fixed;
-    top: var(--topbar-h); left: 0; right: 0; bottom: 0;
-    display: flex; flex-direction: column;
-    overflow: hidden; z-index: 1;
-    background: var(--bg);
+/* ── 전체 레이아웃 래퍼 ──────────────────────────────────────── */
+.hud-wrapper {
+    width: 100%;
+    max-width: 1920px;
+    height: 100%;
+    margin: 0 auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    box-sizing: border-box;
 }
 
-/* ================================================================
-   MATCH HUD  —  선수카드 + 스코어
-   ================================================================ */
-.match-hud {
-    display: flex; align-items: stretch;
+/* ── 상단 스코어보드 ─────────────────────────────────────────── */
+.top-scoreboard {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 15px 30px;
     flex-shrink: 0;
-    height: var(--hud-h);
-    background: linear-gradient(180deg, #090b14 0%, #0d1020 100%);
-    border-bottom: 1px solid rgba(255,255,255,0.07);
-    position: relative; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
-/* 좌측 파란 라인 */
-.match-hud::before {
-    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-    background: linear-gradient(180deg, var(--my), transparent);
+.team-name {
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: 2px;
 }
-/* 우측 빨간 라인 */
-.match-hud::after {
-    content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 3px;
-    background: linear-gradient(180deg, var(--ai), transparent);
+.team-name.blue {
+    color: var(--blue-glow);
+    text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+}
+.team-name.red {
+    color: var(--red-glow);
+    text-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
+}
+.vs-badge {
+    background: #0f172a;
+    border: 1px solid #475569;
+    padding: 5px 15px;
+    border-radius: 6px;
+    font-weight: 900;
 }
 
-/* ── 선수 사이드 ───────────────────────────────────────────── */
-.mh-side {
-    flex: 1; min-width: 0;
-    display: flex; align-items: center;
-    padding: 12px 20px 12px 24px;
-    gap: 14px;
+/* ── 메인 스테이지 ───────────────────────────────────────────── */
+.main-stage {
+    display: flex;
+    gap: 20px;
+    flex-grow: 1;
+    height: 0;
 }
-.mh-my  { background: linear-gradient(90deg,  rgba(58,158,245,0.05) 0%, transparent 55%); }
-.mh-ai  { flex-direction: row-reverse;
-           background: linear-gradient(270deg, rgba(245,67,58,0.05) 0%, transparent 55%);
-           padding: 12px 24px 12px 20px; }
 
-/* 선수 사진 */
-.mh-photo {
-    flex-shrink: 0; width: 82px; height: 92px;
-    border-radius: 5px; overflow: hidden; position: relative;
-    cursor: pointer; transition: transform 0.18s;
+/* ── 전술 맵 섹션 ────────────────────────────────────────────── */
+.map-section {
+    height: 100%;
+    aspect-ratio: 1 / 1;
+    flex-shrink: 0;
+    background-color: rgba(5, 8, 16, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.8);
 }
-.mh-photo:hover { transform: scale(1.04); }
-.mh-photo::after {
-    content: 'STATS'; position: absolute; bottom: 0; left: 0; right: 0;
-    background: rgba(0,0,0,0.6); color: rgba(255,255,255,0.4);
-    font-family: var(--font-ui); font-size: 0.56rem; font-weight: 700;
-    letter-spacing: 0.06em; text-align: center; padding: 2px 0;
-}
-.mh-photo-my { border: 1.5px solid rgba(58,158,245,0.38);
-                box-shadow: 0 0 16px rgba(58,158,245,0.22); }
-.mh-photo-ai { border: 1.5px solid rgba(245,67,58,0.38);
-                box-shadow: 0 0 16px rgba(245,67,58,0.22); }
-.mh-photo img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
-.mh-initial {
+#hexCanvas {
+    position: absolute;
+    top: 0; left: 0;
     width: 100%; height: 100%;
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-d); font-size: 2.4rem; color: rgba(255,255,255,0.15);
-    background: rgba(255,255,255,0.03);
+    z-index: 1;
+}
+#svgOverlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 5;
+    pointer-events: none;
+}
+#entityLayer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 10;
 }
 
-/* 선수 정보 블록 */
-.mh-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
-.mh-info-ai { align-items: flex-end; }
-
-.mh-team {
-    font-family: var(--font-ui); font-size: 0.6rem; font-weight: 700;
-    letter-spacing: 0.2em; text-transform: uppercase;
-    color: rgba(58,158,245,0.45);
+/* ── 선수 타일 (맵 위 기지 노드) ─────────────────────────────── */
+.tactical-base {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: opacity 0.5s;
 }
-.mh-team-ai { color: rgba(245,67,58,0.45); }
-
-.mh-namerow {
-    display: flex; align-items: center; gap: 5px; flex-wrap: nowrap;
-}
-.mh-namerow-ai { flex-direction: row-reverse; }
-.mh-name {
-    font-family: var(--font-d); font-size: 1.4rem; letter-spacing: 0.04em;
-    color: #fff; line-height: 1;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+.tactical-base.dead {
+    opacity: 0.3;
+    filter: grayscale(100%);
 }
 
-/* ── 스탯 바 (HUD 인라인) ──────────────────────────────────── */
-.mh-stats { display: flex; flex-direction: column; gap: 3px; width: 100%; margin-top: 2px; }
-.mh-stats-ai .mhs-row { flex-direction: row-reverse; }
-
-.mhs-row {
-    display: flex; align-items: center; gap: 5px;
-}
-.mhs-lbl {
-    width: 42px; font-family: var(--font-ui); font-size: 0.64rem; font-weight: 600;
-    color: var(--text-dim); flex-shrink: 0; letter-spacing: 0.04em;
-}
-.mh-stats-ai .mhs-lbl { text-align: right; }
-.mhs-track {
-    flex: 1; height: 5px; background: rgba(255,255,255,0.07);
-    border-radius: 2px; overflow: hidden;
-}
-.mhs-fill {
-    height: 100%; border-radius: 2px;
-    transition: width 0.6s cubic-bezier(0.25,0.46,0.45,0.94);
-}
-.mhs-fill-my { background: linear-gradient(90deg, #1255b5, #3a9ef5); }
-.mhs-fill-ai { background: linear-gradient(90deg, #b51212, #f5433a); }
-.mhs-val {
-    width: 26px; font-family: var(--font-d); font-size: 0.88rem; line-height: 1;
-    flex-shrink: 0;
-}
-.mhs-val-my { color: var(--my); text-align: right; }
-.mhs-val-ai { color: var(--ai); text-align: left; }
-
-/* ── 중앙 스코어 ───────────────────────────────────────────── */
-.mh-center {
-    flex-shrink: 0; width: 200px;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    gap: 3px; padding: 0 8px;
-    border-left: 1px solid rgba(255,255,255,0.05);
-    border-right: 1px solid rgba(255,255,255,0.05);
-    background: rgba(0,0,0,0.22);
-}
-.mhc-stage {
-    font-family: var(--font-ui); font-size: 0.6rem; font-weight: 700;
-    letter-spacing: 0.18em; color: rgba(255,255,255,0.18);
-    text-transform: uppercase; line-height: 1;
-}
-.mhc-map {
-    font-family: var(--font-b); font-size: 0.58rem; font-weight: 400;
-    color: rgba(255,255,255,0.2); letter-spacing: 0.04em;
-}
-.mhc-score {
-    display: flex; align-items: center; gap: 2px; line-height: 1;
-}
-.mhc-n {
-    font-family: var(--font-d); font-size: 3.6rem; line-height: 1;
-}
-.mhc-n-my { color: var(--my); }
-.mhc-n-ai { color: var(--ai); }
-.mhc-colon {
-    font-family: var(--font-d); font-size: 2.2rem;
-    color: rgba(255,255,255,0.18); margin: 0 2px;
-}
-.mhc-sets { display: flex; gap: 5px; align-items: center; }
-.mhc-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.12);
-    transition: all 0.3s;
-}
-.mhc-dot.dot-active {
-    background: var(--gold); border-color: var(--gold);
-    box-shadow: 0 0 8px rgba(245,192,66,0.7);
-}
-.mhc-dot.dot-done {
-    background: rgba(255,255,255,0.35); border-color: transparent;
+/* 기본 아이콘 박스 */
+.base-icon {
+    width: 45px;
+    height: 45px;
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 20px;
+    background: rgba(30, 30, 40, 0.75);
+    backdrop-filter: blur(4px);
+    z-index: 2;
+    color: #fff;
 }
 
-/* 버튼 */
-.mhc-ctrl {
-    display: flex; flex-direction: column; gap: 4px;
-    width: 100%; margin-top: 2px;
+/* 블루 타일: opacity 0.25 → 0.55 (검정색 문제 수정) */
+.tactical-base.blue .base-icon {
+    border-color: var(--blue-glow);
+    background: rgba(56, 189, 248, 0.55);
+    box-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
+    color: #fff;
 }
-.btn-skip {
-    width: 100%; padding: 0.26rem 0;
-    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.11);
-    border-radius: 3px; cursor: pointer;
-    font-family: var(--font-ui); font-size: 0.76rem; font-weight: 700;
-    letter-spacing: 0.04em; color: rgba(255,255,255,0.5);
-    transition: all 0.15s;
-}
-.btn-skip:hover { background: rgba(255,255,255,0.12); color: #fff; }
 
-.btn-next {
-    width: 100%; padding: 0.26rem 0;
-    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
-    border-radius: 3px; cursor: pointer;
-    font-family: var(--font-ui); font-size: 0.76rem; font-weight: 700;
-    letter-spacing: 0.04em; color: #fff;
-    transition: all 0.15s;
+/* 레드 타일: opacity 0.25 → 0.55 (검정색 문제 수정) */
+.tactical-base.red .base-icon {
+    border-color: var(--red-glow);
+    background: rgba(244, 63, 94, 0.55);
+    box-shadow: 0 0 18px rgba(244, 63, 94, 0.6);
+    color: #fff;
 }
-.btn-next-win  { background: rgba(0,230,118,0.18) !important; border-color: rgba(0,230,118,0.4) !important; color: var(--green) !important; }
-.btn-next-lose { background: rgba(245,67,58,0.18) !important; border-color: rgba(245,67,58,0.4) !important; color: var(--ai) !important; }
-.btn-next:hover { filter: brightness(1.15); }
 
-/* ================================================================
-   문자 중계 피드  (메인 영역)
-   ================================================================ */
-.relay-panel {
-    flex: 1; min-height: 0;
-    display: flex; flex-direction: column;
+.base-label {
+    font-size: 12px;
+    font-weight: 700;
+    text-shadow: 0 2px 4px #000;
+}
+.bars-wrapper {
+    width: 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.bar-track {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
     overflow: hidden;
-    background: #060810;
 }
-.relay-head {
-    display: flex; align-items: center; gap: 10px;
-    padding: 0.6rem 1.1rem;
-    background: rgba(0,0,0,0.45);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+.hp-fill {
+    height: 5px;
+    background: #22c55e;
+    transition: width 0.3s ease-out;
+}
+
+/* ── 우측 패널 ───────────────────────────────────────────────── */
+.right-section {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    height: 100%;
+}
+
+/* ── 스쿼드 상태 패널 ────────────────────────────────────────── */
+.squad-status-panel {
+    display: flex;
+    gap: 15px;
     flex-shrink: 0;
 }
-.relay-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: #e74c3c; flex-shrink: 0;
-    animation: livePulse 1.3s ease-in-out infinite;
+.team-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 15px;
 }
-.relay-title {
-    font-family: var(--font-ui); font-size: 0.72rem; font-weight: 700;
-    letter-spacing: 0.22em; text-transform: uppercase;
-    color: rgba(255,255,255,0.28); flex: 1;
-}
-.relay-set-label {
-    font-family: var(--font-ui); font-size: 0.68rem; font-weight: 700;
-    letter-spacing: 0.14em; color: var(--gold);
-    background: rgba(245,192,66,0.08); border: 1px solid rgba(245,192,66,0.2);
-    padding: 0.1rem 0.5rem; border-radius: 2px;
-}
-
-.relay-feed {
-    flex: 1; overflow-y: auto;
-    display: flex; flex-direction: column;
-    scroll-behavior: smooth;
-    padding-bottom: 0.5rem;
-}
-.relay-feed::-webkit-scrollbar { width: 3px; }
-.relay-feed::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 2px; }
-
-/* 로그 행 공통 */
-.relay-row {
-    display: grid;
-    grid-template-columns: 48px 64px 1fr;
-    align-items: baseline;
-    padding: 0.6rem 1.1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.022);
-    animation: rowIn 0.22s ease;
-    transition: background 0.1s;
-}
-@keyframes rowIn { from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:none; } }
-.relay-row:hover { background: rgba(255,255,255,0.013); }
-
-.rr-time {
-    font-family: var(--font-ui); font-size: 0.76rem; font-weight: 600;
-    color: rgba(255,255,255,0.18); letter-spacing: 0.04em;
-}
-.rr-badge {
-    display: inline-block; padding: 0.07rem 0.4rem; border-radius: 2px;
-    font-family: var(--font-ui); font-size: 0.62rem; font-weight: 700;
-    letter-spacing: 0.04em; white-space: nowrap; margin-right: 0.5rem;
-}
-.rr-msg {
-    font-family: var(--font-b); font-size: 0.9rem;
-    color: rgba(255,255,255,0.72); line-height: 1.6; word-break: keep-all;
+.team-column.red { border-color: rgba(244, 63, 94, 0.2); }
+.col-header {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-align: center;
+    margin-bottom: 5px;
+    letter-spacing: 2px;
 }
 
-/* 타입별 */
-.rr-commentary .rr-msg       { color: rgba(255,255,255,0.82); }
-.rr-commentary-badge         { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.55); border: 1px solid rgba(255,255,255,0.1); }
+/* ── 선수 카드 ───────────────────────────────────────────────── */
+.player-card {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 10px;
+    position: relative;
+    overflow: hidden;
+}
+.player-card.dead { opacity: 0.4; }
+.player-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0;
+    width: 4px; height: 100%;
+}
+.team-column.blue .player-card::before { background: var(--blue-glow); }
+.team-column.red  .player-card::before { background: var(--red-glow); }
+.card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.p-name { font-size: 15px; font-weight: 900; }
+.p-hp-text {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    color: #22c55e;
+    font-weight: 700;
+}
+.card-hp-bar {
+    width: 100%; height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    margin-bottom: 8px;
+}
+.card-hp-fill {
+    height: 100%;
+    background: #22c55e;
+    transition: width 0.3s;
+}
+.card-stats {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+.card-stats span span {
+    color: #fff;
+    font-weight: 700;
+    margin-left: 4px;
+}
 
-.rr-battle                   { background: rgba(245,192,66,0.04); border-left: 2px solid rgba(245,192,66,0.55); padding-left: calc(1.1rem - 2px); }
-.rr-battle .rr-time          { color: rgba(245,192,66,0.5); }
-.rr-battle .rr-msg           { color: #f5d87a; font-weight: 700; }
-.rr-battle-badge             { background: rgba(245,192,66,0.13); color: var(--gold); border: 1px solid rgba(245,192,66,0.26); }
-
-.rr-win                      { background: rgba(0,230,118,0.05); border-left: 2px solid rgba(0,230,118,0.5); padding-left: calc(1.1rem - 2px); }
-.rr-win .rr-msg              { color: var(--green); font-weight: 700; font-size: 0.95rem; }
-.rr-win-badge                { background: rgba(0,230,118,0.12); color: var(--green); border: 1px solid rgba(0,230,118,0.28); }
-
-.rr-lose                     { background: rgba(245,67,58,0.05); border-left: 2px solid rgba(245,67,58,0.5); padding-left: calc(1.1rem - 2px); }
-.rr-lose .rr-msg             { color: #f5a09a; font-weight: 700; font-size: 0.95rem; }
-.rr-lose-badge               { background: rgba(245,67,58,0.12); color: var(--ai); border: 1px solid rgba(245,67,58,0.28); }
-
-.rr-system .rr-time, .rr-system .rr-msg { color: rgba(255,255,255,0.22); font-size: 0.78rem; }
-.rr-system-badge             { background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.06); }
-
-/* ================================================================
-   뱃지 (등급 / 종족)
-   ================================================================ */
-.msl-rarity, .msl-race {
-    display: inline-flex; align-items: center;
-    padding: 0.07rem 0.4rem; border-radius: 2px;
-    font-family: var(--font-ui); font-size: 0.66rem; font-weight: 700;
-    letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.4;
+/* ── 모멘텀 패널 ─────────────────────────────────────────────── */
+.momentum-panel {
+    background: var(--panel-bg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 15px;
     flex-shrink: 0;
 }
-.msl-rarity.ssr, .msl-rarity.SSR { background: rgba(255,152,0,0.15);  color: #ff9800; border: 1px solid rgba(255,152,0,0.3); }
-.msl-rarity.sr,  .msl-rarity.SR  { background: rgba(68,138,255,0.15); color: #448aff; border: 1px solid rgba(68,138,255,0.3); }
-.msl-rarity.r,   .msl-rarity.R   { background: rgba(0,230,118,0.12);  color: #00e676; border: 1px solid rgba(0,230,118,0.22); }
-.msl-rarity.ur,  .msl-rarity.UR  { background: rgba(255,214,0,0.15);  color: #ffd600; border: 1px solid rgba(255,214,0,0.28); }
-.msl-rarity.n,   .msl-rarity.N   { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.1); }
-.msl-race.T { background: rgba(58,158,245,0.12); color: #87ceeb; border: 1px solid rgba(58,158,245,0.22); }
-.msl-race.Z { background: rgba(206,147,216,0.12); color: #ce93d8; border: 1px solid rgba(206,147,216,0.22); }
-.msl-race.P { background: rgba(255,250,205,0.09); color: #fffacd; border: 1px solid rgba(255,250,205,0.18); }
-
-/* ================================================================
-   모달
-   ================================================================ */
-.msl-modal-back {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.82);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 1000; backdrop-filter: blur(6px);
+.momentum-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 8px;
 }
-.msl-modal {
-    background: #0d1020; border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 6px; width: 90%; max-width: 540px; max-height: 85vh;
-    overflow: hidden; display: flex; flex-direction: column;
-    box-shadow: 0 24px 80px rgba(0,0,0,0.75);
-    animation: modalIn 0.22s ease;
+.tug-of-war-bg {
+    width: 100%; height: 16px;
+    background: #1e293b;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
 }
-@keyframes modalIn { from{ opacity:0; transform:scale(0.97) translateY(8px); } to{ opacity:1; transform:none; } }
-.msl-modal-head {
-    padding: 1rem 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.08);
-    background: rgba(0,0,0,0.25);
+.tug-blue {
+    height: 100%;
+    background: linear-gradient(90deg, rgba(56, 189, 248, 0.5), var(--blue-glow));
+    transition: width 0.5s ease-out;
 }
-.msl-modal-head h2 {
-    font-family: var(--font-d); font-size: 1.5rem; letter-spacing: 0.06em; color: #fff; margin: 0;
+.tug-red {
+    height: 100%;
+    background: linear-gradient(270deg, rgba(244, 63, 94, 0.5), var(--red-glow));
+    transition: width 0.5s ease-out;
 }
-.msl-modal-body { padding: 1.2rem 1.5rem; overflow-y: auto; flex: 1; }
-.msl-modal-foot {
-    padding: 0.85rem 1.5rem; border-top: 1px solid rgba(255,255,255,0.08);
-    display: flex; justify-content: flex-end; gap: 0.5rem;
-    background: rgba(0,0,0,0.2);
+.tug-center {
+    position: absolute;
+    left: 50%; top: -2px; bottom: -2px;
+    width: 4px;
+    background: #fff;
+    box-shadow: 0 0 10px #fff;
+    z-index: 2;
+    transform: translateX(-50%);
 }
 
-/* 스탯 상세 */
-.stat-detail-grid { display: flex; flex-direction: column; gap: 0.8rem; }
-.sdr { display: flex; align-items: center; gap: 0.8rem; }
-.sdr-label { width: 60px; font-family: var(--font-b); font-size: 0.88rem; color: rgba(255,255,255,0.5); flex-shrink: 0; }
-.sdr-track { flex: 1; height: 8px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; }
-.sdr-fill  { height: 100%; background: linear-gradient(90deg, #1255b5, #3a9ef5); border-radius: 3px; transition: width 0.4s; }
-.sdr-val   { width: 36px; text-align: right; font-family: var(--font-d); font-size: 1rem; color: var(--my); }
-
-/* 공통 버튼 */
-.msl-btn {
-    display: inline-flex; align-items: center; gap: 0.4rem;
-    padding: 0.5rem 1.3rem; border: none; border-radius: 3px;
-    font-family: var(--font-ui); font-size: 0.9rem; font-weight: 700;
-    letter-spacing: 0.06em; cursor: pointer; transition: all 0.15s;
+/* ── 전투 로그 패널 ──────────────────────────────────────────── */
+.log-panel {
+    flex-grow: 1;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
-.msl-btn-primary   { background: var(--green); color: #000; }
-.msl-btn-primary:hover  { background: #69f0ae; }
-.msl-btn-secondary { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.65); border: 1px solid rgba(255,255,255,0.12); }
-.msl-btn-secondary:hover { background: rgba(255,255,255,0.13); color: #fff; }
+.log-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #cbd5e1;
+}
+.log-container::-webkit-scrollbar { width: 4px; }
+.log-container::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); }
+
+.log-line        { animation: fadeIn 0.3s ease-out; }
+.log-line.blue   { color: #38bdf8; }
+.log-line.red    { color: #f43f5e; }
+.log-line.kill   { color: #eab308; font-weight: 900; }
+.log-line.system { color: #a855f7; font-style: italic; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 결과 모달 ───────────────────────────────────────────────── */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    z-index: 1000;
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+.modal-content {
+    background: var(--bg-base);
+    border: 1px solid var(--blue-glow);
+    padding: 40px;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 0 50px rgba(56, 189, 248, 0.3);
+}
+.modal-content h1 { font-size: 36px; margin-bottom: 20px; }
+.modal-content.victory h1 { color: #22c55e; }
+.modal-content.defeat  h1 { color: #f43f5e; }
+.modal-content.defeat     { border-color: var(--red-glow); box-shadow: 0 0 50px rgba(244, 63, 94, 0.3); }
+
+/* ★ BO3 세트 종료(매치 미종료) 모달: 2초 후 자동으로 다음 세트로 넘어가므로
+   "로비로 돌아가기" 버튼은 숨기고, 중립(골드) 톤으로 구분한다. */
+.modal-content.set-end {
+    border-color: #eab308;
+    box-shadow: 0 0 50px rgba(234, 179, 8, 0.3);
+}
+.modal-content.set-end h1 { color: #eab308; }
+.modal-content.set-end .modal-btn { display: none; }
+
+.modal-btn {
+    padding: 12px 30px;
+    font-size: 16px;
+    font-weight: 700;
+    background: var(--blue-glow);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    margin-top: 20px;
+    display: inline-block;
+}
+/* ============================================================
+   ATB 게이지 & 행동 배지 (추가 스타일)
+   ============================================================ */
+
+/* 선수 카드 내 ATB 게이지 */
+.card-atb-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+.card-atb-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: #64748b;
+    width: 26px;
+    flex-shrink: 0;
+}
+.card-atb-bg {
+    flex: 1;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+}
+.card-atb-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #a78bfa, #818cf8);
+    width: 0%;
+    transition: width 0.25s ease;
+}
+.team-column.blue .card-atb-fill { background: linear-gradient(90deg, #38bdf8, #818cf8); }
+.team-column.red  .card-atb-fill { background: linear-gradient(90deg, #f87171, #fb923c); }
+
+/* ATB 풀 충전시 펄스 */
+.card-atb-fill.full {
+    background: #facc15;
+    animation: atbPulse 0.4s ease-out;
+}
+@keyframes atbPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(250,204,21,0.8); }
+    100% { box-shadow: 0 0 0 6px rgba(250,204,21,0); }
+}
+
+/* 행동 배지 */
+.action-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: .04em;
+    flex-shrink: 0;
+}
+.action-badge.ATK    { background: rgba(248,113,113,0.25); color: #fca5a5; border: 1px solid rgba(248,113,113,0.3); }
+.action-badge.DEF    { background: rgba(56,189,248,0.25);  color: #7dd3fc; border: 1px solid rgba(56,189,248,0.3); }
+.action-badge.ASSIST { background: rgba(74,222,128,0.25);  color: #86efac; border: 1px solid rgba(74,222,128,0.3); }
+.action-badge.HARASS { background: rgba(251,146,60,0.25);  color: #fdba74; border: 1px solid rgba(251,146,60,0.3); }
+.action-badge.COMBO  { background: rgba(250,204,21,0.25);  color: #fde047; border: 1px solid rgba(250,204,21,0.3); }
+
+/* 로그 라인 레이아웃 (배지 + 텍스트 나란히) */
+.log-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.log-line .log-text { flex: 1; }
+
+/* 방어 버프 반짝임 */
+.tactical-base.shielded::after {
+    content: '🛡';
+    position: absolute;
+    top: -12px; right: -8px;
+    font-size: 14px;
+    animation: shieldBob 1s ease-in-out infinite alternate;
+}
+@keyframes shieldBob {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-4px); }
+}
+
+/* 도움 힐 이펙트 */
+.heal-effect {
+    position: absolute;
+    font-size: 14px;
+    font-weight: 700;
+    color: #4ade80;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 25;
+    pointer-events: none;
+    animation: healFloat 0.9s ease-out forwards;
+}
+@keyframes healFloat {
+    0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -200%) scale(1.4); }
+}
+
+/* 견제 ATB 드레인 이펙트 */
+.drain-effect {
+    position: absolute;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fb923c;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 25;
+    pointer-events: none;
+    animation: drainFloat 0.9s ease-out forwards;
+}
+@keyframes drainFloat {
+    0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -200%) scale(1.2); }
+}
+
+/* 카드 행동 플래시 */
+.player-card.acting {
+    animation: cardFlash 0.4s ease-out;
+}
+@keyframes cardFlash {
+    0%   { box-shadow: 0 0 0 0 rgba(250,204,21,0.8); }
+    50%  { box-shadow: 0 0 12px 4px rgba(250,204,21,0.5); }
+    100% { box-shadow: none; }
+}
+
+/* 방어 카드 하이라이트 */
+.player-card.defending { box-shadow: inset 0 0 0 1px #38bdf8, 0 0 8px rgba(56,189,248,0.4); }
+
+/* 힐 카드 하이라이트 */
+.player-card.healing { box-shadow: inset 0 0 0 1px #4ade80, 0 0 8px rgba(74,222,128,0.4); }

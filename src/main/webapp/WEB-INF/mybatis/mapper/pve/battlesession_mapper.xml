@@ -37,23 +37,24 @@
 
     <update id="updateBattleProgress" parameterType="map">
         UPDATE TBL_PVE_BATTLE_SESSION
-        SET
-            CURRENT_SET = #{currentSet},
-            MY_WINS = #{myWins},
-            AI_WINS = #{aiWins},
-            GAME_STATE_DATA = #{gameStateData} WHERE
-            USER_ID = #{userId}
-            AND STAGE_LEVEL = #{stageLevel}
-            AND SUB_LEVEL = #{subLevel}
-            AND STATUS = 'IN_PROGRESS'
+        SET CURRENT_SET = #{currentSet},
+            MY_WINS     = #{myWins},
+            AI_WINS     = #{aiWins}
+        WHERE USER_ID     = #{userId}
+          AND STAGE_LEVEL = #{stageLevel}
+          AND SUB_LEVEL   = #{subLevel}
+          AND STATUS      = 'IN_PROGRESS'
     </update>
 
     <update id="completePveBattleSession" parameterType="map">
-        DELETE FROM TBL_PVE_BATTLE_SESSION
-        WHERE USER_ID = #{userId}
+        UPDATE TBL_PVE_BATTLE_SESSION
+        SET STATUS  = 'COMPLETED',
+            MY_WINS = #{myWins},
+            AI_WINS = #{aiWins}
+        WHERE USER_ID     = #{userId}
           AND STAGE_LEVEL = #{stageLevel}
-          AND SUB_LEVEL = #{subLevel}
-          AND STATUS = 'COMPLETED'
+          AND SUB_LEVEL   = #{subLevel}
+          AND STATUS      = 'IN_PROGRESS'
     </update>
 
     <update id="completePveBattleSessionUpdate" parameterType="map">
@@ -92,6 +93,19 @@
           AND STAGE_LEVEL  = #{stageLevel}
           AND SUB_LEVEL    = #{subLevel}
           AND STATUS       = 'IN_PROGRESS'
+    </update>
+
+    <!-- (★) BO3 세트 종료 처리: 다음 세트 번호 + 누적 스코어 + 세트별 결과 기록을 한 번에 갱신 -->
+    <update id="updateSetProgressAndResults" parameterType="map">
+        UPDATE TBL_PVE_BATTLE_SESSION
+        SET CURRENT_SET      = #{currentSet},
+            MY_WINS          = #{myWins},
+            AI_WINS          = #{aiWins},
+            SET_RESULTS_DATA = #{setResultsData}
+        WHERE USER_ID     = #{userId}
+          AND STAGE_LEVEL = #{stageLevel}
+          AND SUB_LEVEL   = #{subLevel}
+          AND STATUS      = 'IN_PROGRESS'
     </update>
 
 </mapper>

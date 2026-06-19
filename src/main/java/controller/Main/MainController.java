@@ -3,6 +3,7 @@ package controller.Main;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -60,6 +61,9 @@ import service.pve.PveScenarioService;
 import service.pve.PveSubstageService;
 import service.pve.PveBattleService; // 3:3 ATB 시뮬레이션 엔진
 
+import dao.player.PlayerTraitDAO;
+import dto.player.PlayerTraitDTO;
+
 // ★ 주의: 구시대 시스템인 BuildService 관련 import 및 @Autowired는 완전히 제거했습니다.
 
 @Controller
@@ -80,6 +84,7 @@ public class MainController {
     @Autowired private PveSubstageDAO pveSubstageDAO;
     @Autowired private PveBattleService pveBattleService; // 3:3 신규 엔진
     @Autowired private DailyMissionService dailyMissionService;
+    @Autowired private PlayerTraitDAO playerTraitDAO; // ★ 특성 관리
 
     private final Random rand = new Random();
     private final Gson gson = new Gson();
@@ -489,6 +494,7 @@ public class MainController {
         mv.addObject("opponentTeamName", opponentTeamName);
         mv.addObject("mapList", mapList);
         mv.addObject("myEntryList", myEntryList);
+        mv.addObject("entryCount", myEntryList.size()); // ★ 9명 미만이면 화면에서 등록 안내
         mv.addObject("opponentEntryList", opponentEntryList);
         mv.addObject("aiPlayerMap", aiPlayerMap);
         mv.setViewName("pveMatchSetup");
@@ -573,16 +579,23 @@ public class MainController {
     }
 
     // ========================================
-    // 8. 3:3 PVE 배틀 시뮬레이션
+    // 8. 3:3 PVE 배틀 시뮬레이션 (BO3: 세트별 3명 교체, 2선승제)
     // ========================================
+
+    /** MY_TEAM_DATA에 저장되는 JSON 형태: [[set1P1,set1P2,set1P3],[set2P1,set2P2,set2P3],[set3P1,set3P2,set3P3]] */
+    private static final Type MY_TEAM_DATA_TYPE = new TypeToken<List<List<Integer>>>(){}.getType();
+
+    /** SET_RESULTS_DATA에 저장되는 JSON 형태: [{"setNumber":1,"winner":"blue"}, ...] */
+    private static final Type SET_RESULTS_TYPE = new TypeToken<List<Map<String,Object>>>(){}.getType();
+
     @PostMapping("/pve/battle/start")
     public ModelAndView startPveBattle(
             @RequestParam("level") int stageLevel,
             @RequestParam("subLevel") int subLevel,
-            // ★ 3:3 시스템용 파라미터 (총 3명)
-            @RequestParam("set1Player") int p1OwnedSeq,
-            @RequestParam("set2Player") int p2OwnedSeq,
-            @RequestParam("set3Player") int p3OwnedSeq,
+            // ★ BO3 시스템: 3세트 x 3명 = 9명 전원을 받는다
+            @RequestParam("set1Player") int p1, @RequestParam("set2Player") int p2, @RequestParam("set3Player") int p3,
+            @RequestParam("p4") int p4, @RequestParam("p5") int p5, @RequestParam("p6") int p6,
+            @RequestParam("p7") int p7, @RequestParam("p8") int p8, @RequestParam("p9") int p9,
             ModelAndView mv, HttpSession session) {
 
         UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
@@ -601,17 +614,31 @@ public class MainController {
             }
         } catch (Exception e) { }
 
+        // 9명 중복 배치 방지 (서버측 최종 검증 — 프론트 검증을 신뢰하지 않음)
+        List<Integer> allNine = Arrays.asList(p1, p2, p3, p4, p5, p6, p7, p8, p9);
+        if (new HashSet<>(allNine).size() != 9) {
+            mv.setViewName("redirect:/pve/battle?level=" + stageLevel + "&subLevel=" + subLevel);
+            return mv;
+        }
+
         try {
-            // DB에 세션 저장 (3:3은 단판 승부이므로 currentSet 등은 1로 고정)
+            // 세트별 3명씩 묶어서 저장: [[p1,p2,p3],[p4,p5,p6],[p7,p8,p9]]
+            List<List<Integer>> setTeams = Arrays.asList(
+                    Arrays.asList(p1, p2, p3),
+                    Arrays.asList(p4, p5, p6),
+                    Arrays.asList(p7, p8, p9)
+            );
+            String myTeamDataJson = gson.toJson(setTeams);
+
             BattleSessionDTO newSession = new BattleSessionDTO();
             newSession.setUserId(userId);
             newSession.setStageLevel(stageLevel);
             newSession.setSubLevel(subLevel);
-            // 선택한 3명의 ID를 저장 (나중에 Service에서 조회할 때 사용)
-            String matchupData = String.format("[%d, %d, %d]", p1OwnedSeq, p2OwnedSeq, p3OwnedSeq);
-            newSession.setMatchupData(matchupData); 
+            newSession.setMyTeamData(myTeamDataJson);
             newSession.setStatus("IN_PROGRESS");
             newSession.setCurrentSet(1);
+            newSession.setMyWins(0);
+            newSession.setAiWins(0);
             battleSessionDAO.insertNewBattle(newSession);
 
             session.setAttribute("currentBattleId", "DB_BATTLE_ACTIVE");
@@ -638,20 +665,36 @@ public class MainController {
  
         BattleSessionDTO activeBattle = battleSessionDAO.selectActiveBattle(params);
         if (activeBattle == null) { mv.setViewName("redirect:/pve/lobby"); return mv; }
+
+        // 현재 세트 번호 (1~3)
+        int currentSet = activeBattle.getCurrentSet() > 0 ? activeBattle.getCurrentSet() : 1;
+        int myWins     = activeBattle.getMyWins();
+        int aiWins     = activeBattle.getAiWins();
+
+        // 이번 세트에 출전할 내 선수 3명 조회 (배치 시 저장된 MY_TEAM_DATA에서)
+        List<Integer> mySetFighters = extractSetFighters(activeBattle.getMyTeamData(), currentSet);
+        if (mySetFighters.isEmpty()) {
+            // 데이터가 비정상인 경우(세션 손상 등) — 안전하게 세션 정리 후 재배치 유도
+            try { battleSessionDAO.deletePveBattleSession(params); } catch (Exception ignore) {}
+            mv.setViewName("redirect:/pve/battle?level=" + stageLevel + "&subLevel=" + subLevel);
+            return mv;
+        }
+
+        // 세트 번호에 맞는 상대 선수로 시뮬레이션 실행
+        Map<String, Object> simResult = pveBattleService.runBattleSimulation(
+                userId, mySetFighters, stageLevel, subLevel, currentSet);
  
-        // ★ 3:3 백엔드 시뮬레이션 실행 (결과를 0.1초 만에 계산)
-        Map<String, Object> simResult = pveBattleService.runBattleSimulation(userId, stageLevel, subLevel);
- 
-        // 시뮬레이션 결과(초기 스탯 + 타임라인 이벤트)를 프론트(JSP)로 넘김
         String battleDataJson = gson.toJson(simResult.get("fighters"));
-        String eventLogJson = gson.toJson(simResult.get("eventTimeline"));
+        String eventLogJson   = (String) simResult.get("eventLogJson");
  
         mv.addObject("battleDataJson", battleDataJson);
-        mv.addObject("eventLogJson",   eventLogJson);            
-        mv.addObject("simWinner",      simResult.get("winner")); 
- 
-        mv.addObject("stageLevel",  stageLevel);
-        mv.addObject("subLevel",    subLevel);
+        mv.addObject("eventLogJson",   eventLogJson);
+        mv.addObject("simWinner",      simResult.get("winner"));
+        mv.addObject("currentSet",     currentSet);
+        mv.addObject("myWins",         myWins);
+        mv.addObject("aiWins",         aiWins);
+        mv.addObject("stageLevel",     stageLevel);
+        mv.addObject("subLevel",       subLevel);
         mv.addObject("myTeamName",  loginUser.getTeamName() != null ? loginUser.getTeamName() : loginUser.getUserNick());
  
         PveSubstageDTO substageDetails = pveSubstageService.getSubstageDetails(stageLevel, subLevel);
@@ -666,7 +709,7 @@ public class MainController {
     public Map<String, Object> finishPveBattle(
             @RequestParam("level") int stageLevel,
             @RequestParam("subLevel") int subLevel,
-            @RequestParam("winner") String winner, // "blue" (유저 승리) or "red" (패배)
+            @RequestParam("winner") String winner, // "blue" (이번 세트 유저 승리) or "red" (패배)
             HttpSession session) {
 
         Map<String, Object> response = new HashMap<>();
@@ -690,15 +733,69 @@ public class MainController {
             return response;
         }
 
-        boolean finalVictory = "blue".equals(winner);
+        int currentSet = activeBattle.getCurrentSet() > 0 ? activeBattle.getCurrentSet() : 1;
+        int myWins = activeBattle.getMyWins();
+        int aiWins = activeBattle.getAiWins();
 
-        // 3:3은 단판 승부이므로 즉시 결과를 DB에 반영
+        boolean setWonByMe = "blue".equals(winner);
+        if (setWonByMe) myWins++; else aiWins++;
+
+        // 세트별 결과 누적 기록 (세션 만료 복구/전적용)
+        List<Map<String, Object>> setResults = parseSetResults(activeBattle.getSetResultsData());
+        Map<String, Object> thisSetResult = new HashMap<>();
+        thisSetResult.put("setNumber", currentSet);
+        thisSetResult.put("winner", winner);
+        setResults.add(thisSetResult);
+        String setResultsJson = gson.toJson(setResults);
+
+        // BO3(2선승) 종료 조건: 누적 승수가 2에 도달했거나 3세트를 모두 치른 경우
+        boolean matchOver = (myWins >= 2 || aiWins >= 2 || currentSet >= 3);
+
+        if (!matchOver) {
+            // ── 다음 세트로 진행 ──
+            int nextSet = currentSet + 1;
+            try {
+                Map<String, Object> updateParams = new HashMap<>();
+                updateParams.put("userId", userId);
+                updateParams.put("stageLevel", stageLevel);
+                updateParams.put("subLevel", subLevel);
+                updateParams.put("currentSet", nextSet);
+                updateParams.put("myWins", myWins);
+                updateParams.put("aiWins", aiWins);
+                updateParams.put("setResultsData", setResultsJson);
+                battleSessionDAO.updateSetProgressAndResults(updateParams);
+            } catch (Exception e) {
+                e.printStackTrace();
+                response.put("success", false);
+                response.put("message", "세트 진행 상태 저장에 실패했습니다.");
+                return response;
+            }
+
+            response.put("success",   true);
+            response.put("matchOver", false);
+            response.put("nextSet",   nextSet);
+            response.put("myWins",    myWins);
+            response.put("aiWins",    aiWins);
+            response.put("message",  setWonByMe ? "SET WIN!" : "SET LOSE...");
+            return response;
+        }
+
+        // ── 매치 최종 종료 (2선승 달성 또는 3세트 종료) ──
+        boolean finalVictory = myWins > aiWins;
+
+        Map<String, Object> finalParams = new HashMap<>();
+        finalParams.put("userId", userId);
+        finalParams.put("stageLevel", stageLevel);
+        finalParams.put("subLevel", subLevel);
+        finalParams.put("myWins", myWins);
+        finalParams.put("aiWins", aiWins);
+
         if (finalVictory) {
             try {
-                battleSessionDAO.completePveBattleSession(params);
+                battleSessionDAO.completePveBattleSession(finalParams);
                 pveSubstageService.clearSubstage(userId, stageLevel, subLevel);
                 response.put("message", "전투에서 승리했습니다! 스테이지가 클리어 되었습니다.");
-                
+
                 try {
                     dailyMissionService.incrementMissionProgress(userId, "PVE_WIN", 1);
                 } catch (Exception e) {}
@@ -707,12 +804,41 @@ public class MainController {
             battleSessionDAO.deletePveBattleSession(params);
             response.put("message", "전투에서 패배했습니다. 덱을 다시 짜서 도전하세요.");
         }
-        
-        response.put("success", true);
-        response.put("victory", finalVictory);
+
+        response.put("success",   true);
+        response.put("matchOver", true);
+        response.put("victory",   finalVictory);
+        response.put("myWins",    myWins);
+        response.put("aiWins",    aiWins);
         cleanUpPveSession(session);
 
         return response;
+    }
+
+    /** MY_TEAM_DATA(JSON 2차원 배열)에서 setNumber(1-base) 세트의 3명을 꺼낸다. */
+    private List<Integer> extractSetFighters(String myTeamDataJson, int setNumber) {
+        if (myTeamDataJson == null || myTeamDataJson.trim().isEmpty()) return new ArrayList<>();
+        try {
+            List<List<Integer>> setTeams = gson.fromJson(myTeamDataJson, MY_TEAM_DATA_TYPE);
+            int idx = setNumber - 1;
+            if (setTeams == null || idx < 0 || idx >= setTeams.size()) return new ArrayList<>();
+            List<Integer> team = setTeams.get(idx);
+            return (team != null) ? team : new ArrayList<>();
+        } catch (Exception e) {
+            System.err.println("[PVE] MY_TEAM_DATA 파싱 실패: " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    /** SET_RESULTS_DATA(JSON 배열)를 파싱한다. 비어있거나 손상된 경우 빈 리스트. */
+    private List<Map<String, Object>> parseSetResults(String setResultsJson) {
+        if (setResultsJson == null || setResultsJson.trim().isEmpty()) return new ArrayList<>();
+        try {
+            List<Map<String, Object>> list = gson.fromJson(setResultsJson, SET_RESULTS_TYPE);
+            return (list != null) ? list : new ArrayList<>();
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
     }
 
     // ========================================
@@ -1026,28 +1152,75 @@ public class MainController {
         return result;
     }
     
-    @GetMapping("/daily-missions/claimable-count")
+    // ========================================
+    // ★ 특성 관리 (Trait Management)
+    // ========================================
+
+    @GetMapping("/trait/manage")
+    public String traitManage(HttpSession session, Model model) {
+        UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
+        if (loginUser == null) return "redirect:/login";
+
+        List<PlayerTraitDTO> traitList = playerTraitDAO.getTraitListByUserId(loginUser.getUserId());
+        model.addAttribute("traitList", traitList);
+        return "traitManagement";
+    }
+
+    /**
+     * AJAX: 선수 특성 가중치 저장 (upsert)
+     * body: { ownedPlayerSeq, atkWeight, defWeight, assistWeight, harassWeight }
+     */
+    @PostMapping("/trait/save")
     @ResponseBody
-    public Map<String, Object> getClaimableCount(HttpSession session) {
+    public Map<String, Object> saveTrait(@RequestBody PlayerTraitDTO dto, HttpSession session) {
         Map<String, Object> result = new HashMap<>();
-        
         try {
             UserDTO loginUser = (UserDTO) session.getAttribute("loginUser");
-            if (loginUser == null) {
-                result.put("count", 0);
-                return result;
+            if (loginUser == null) { result.put("success", false); result.put("msg", "로그인 필요"); return result; }
+
+            // 가중치 범위 검증 (1~10)
+            dto.setAtkWeight(Math.max(1, Math.min(10, dto.getAtkWeight())));
+            dto.setDefWeight(Math.max(1, Math.min(10, dto.getDefWeight())));
+            dto.setAssistWeight(Math.max(1, Math.min(10, dto.getAssistWeight())));
+            dto.setHarassWeight(Math.max(1, Math.min(10, dto.getHarassWeight())));
+
+            PlayerTraitDTO existing = playerTraitDAO.getTraitByOwnedPlayerSeq(dto.getOwnedPlayerSeq());
+            if (existing == null) {
+                dto.setTraitLevel(1);
+                playerTraitDAO.insertTrait(dto);
+            } else {
+                playerTraitDAO.updateTraitWeights(dto);
             }
-            
-            String userId = loginUser.getUserId();
-            int count = dailyMissionService.getClaimableRewardCount(userId);
-            
-            result.put("count", count);
-            
+            result.put("success", true);
         } catch (Exception e) {
-            result.put("count", 0);
             e.printStackTrace();
+            result.put("success", false);
+            result.put("msg", e.getMessage());
         }
-        
         return result;
     }
+
+    /**
+     * AJAX: 특정 선수 특성 단건 조회 (배틀 엔진에서 호출)
+     */
+    @GetMapping("/trait/info")
+    @ResponseBody
+    public Map<String, Object> getTraitInfo(@RequestParam int ownedPlayerSeq, HttpSession session) {
+        Map<String, Object> result = new HashMap<>();
+        PlayerTraitDTO trait = playerTraitDAO.getTraitByOwnedPlayerSeq(ownedPlayerSeq);
+        if (trait == null) {
+            // 기본값 반환
+            result.put("atkWeight",    5);
+            result.put("defWeight",    5);
+            result.put("assistWeight", 3);
+            result.put("harassWeight", 3);
+        } else {
+            result.put("atkWeight",    trait.getAtkWeight());
+            result.put("defWeight",    trait.getDefWeight());
+            result.put("assistWeight", trait.getAssistWeight());
+            result.put("harassWeight", trait.getHarassWeight());
+        }
+        return result;
+    }
+
 }

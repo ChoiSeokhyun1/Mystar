@@ -45,4 +45,12 @@ public interface BattleSessionDAO {
      * @param params Map - userId, stageLevel, subLevel, setResultsData 포함
      */
     int updateSetResultsData(Map<String, Object> params);
+
+    /**
+     * (★) 세트 종료 시 CURRENT_SET / MY_WINS / AI_WINS / SET_RESULTS_DATA를
+     * 한 번에 갱신합니다. (BO3 진행 처리용)
+     * @param params Map - userId, stageLevel, subLevel, currentSet, myWins, aiWins, setResultsData 포함
+     * @return 영향받은 행 수
+     */
+    int updateSetProgressAndResults(Map<String, Object> params);
 }

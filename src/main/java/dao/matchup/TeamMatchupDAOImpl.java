@@ -11,7 +11,7 @@ import java.util.Map;
 @Repository
 public class TeamMatchupDAOImpl implements TeamMatchupDAO {
 
-    private static final String NS = "matchup.TeamMatchupMapper.";
+    private static final String NS = "matchup.teamMatchupMapper.";
 
     @Autowired
     private SqlSessionTemplate sqlSession;

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="playerTrait">
+
+    <resultMap id="traitResultMap" type="PlayerTraitDTO">
+        <id     property="traitSeq"        column="TRAIT_SEQ"/>
+        <result property="ownedPlayerSeq"  column="OWNED_PLAYER_SEQ"/>
+        <result property="atkWeight"       column="ATK_WEIGHT"/>
+        <result property="defWeight"       column="DEF_WEIGHT"/>
+        <result property="assistWeight"    column="ASSIST_WEIGHT"/>
+        <result property="harassWeight"    column="HARASS_WEIGHT"/>
+        <result property="traitLevel"      column="TRAIT_LEVEL"/>
+        <result property="playerName"      column="PLAYER_NAME"/>
+        <result property="race"            column="RACE"/>
+        <result property="rarity"          column="CURRENT_RARITY"/>
+        <result property="playerImgUrl"    column="PLAYER_IMG_URL"/>
+        <result property="currentAttack"   column="CURRENT_ATTACK"/>
+        <result property="currentDefense"  column="CURRENT_DEFENSE"/>
+        <result property="currentHp"       column="CURRENT_HP"/>
+        <result property="currentSpeed"    column="CURRENT_SPEED"/>
+        <result property="condition"       column="CONDITION_STATUS"/>
+        <result property="slotNumber"      column="SLOT_NUMBER"/>
+    </resultMap>
+
+    <select id="getTraitListByUserId" parameterType="String" resultMap="traitResultMap">
+        SELECT
+            NVL(T.TRAIT_SEQ,     0)  AS TRAIT_SEQ,
+            OP.OWNED_PLAYER_SEQ,
+            NVL(T.ATK_WEIGHT,    5)  AS ATK_WEIGHT,
+            NVL(T.DEF_WEIGHT,    5)  AS DEF_WEIGHT,
+            NVL(T.ASSIST_WEIGHT, 3)  AS ASSIST_WEIGHT,
+            NVL(T.HARASS_WEIGHT, 3)  AS HARASS_WEIGHT,
+            NVL(T.TRAIT_LEVEL,   1)  AS TRAIT_LEVEL,
+            P.PLAYER_NAME,
+            P.RACE,
+            OP.CURRENT_RARITY,
+            P.PLAYER_IMG_URL,
+            OP.CURRENT_ATTACK,
+            OP.CURRENT_DEFENSE,
+            OP.CURRENT_HP,
+            OP.CURRENT_SPEED,
+            OP.CONDITION             AS CONDITION_STATUS,
+            NVL(E.SLOT_NUMBER,   0)  AS SLOT_NUMBER
+        FROM TBL_OWNED_PLAYERS OP
+        JOIN TBL_PLAYERS P ON OP.PLAYER_SEQ = P.PLAYER_SEQ
+        LEFT JOIN PLAYER_TRAIT T ON OP.OWNED_PLAYER_SEQ = T.OWNED_PLAYER_SEQ
+        LEFT JOIN TBL_PVE_ENTRY E ON OP.OWNED_PLAYER_SEQ = E.OWNED_PLAYER_SEQ
+        WHERE OP.USER_ID = #{userId}
+        ORDER BY E.SLOT_NUMBER ASC NULLS LAST, OP.OWNED_PLAYER_SEQ ASC
+    </select>
+
+    <select id="getTraitByOwnedPlayerSeq" parameterType="int" resultMap="traitResultMap">
+        SELECT
+            T.TRAIT_SEQ,
+            T.OWNED_PLAYER_SEQ,
+            T.ATK_WEIGHT,
+            T.DEF_WEIGHT,
+            T.ASSIST_WEIGHT,
+            T.HARASS_WEIGHT,
+            T.TRAIT_LEVEL
+        FROM PLAYER_TRAIT T
+        WHERE T.OWNED_PLAYER_SEQ = #{ownedPlayerSeq}
+    </select>
+
+    <insert id="insertTrait" parameterType="PlayerTraitDTO">
+        INSERT INTO PLAYER_TRAIT (
+            TRAIT_SEQ,
+            OWNED_PLAYER_SEQ,
+            ATK_WEIGHT,
+            DEF_WEIGHT,
+            ASSIST_WEIGHT,
+            HARASS_WEIGHT,
+            TRAIT_LEVEL,
+            CREATED_AT,
+            UPDATED_AT
+        ) VALUES (
+            SEQ_PLAYER_TRAIT.NEXTVAL,
+            #{ownedPlayerSeq},
+            #{atkWeight},
+            #{defWeight},
+            #{assistWeight},
+            #{harassWeight},
+            #{traitLevel},
+            SYSDATE,
+            SYSDATE
+        )
+    </insert>
+
+    <update id="updateTraitWeights" parameterType="PlayerTraitDTO">
+        UPDATE PLAYER_TRAIT
+        SET
+            ATK_WEIGHT    = #{atkWeight},
+            DEF_WEIGHT    = #{defWeight},
+            ASSIST_WEIGHT = #{assistWeight},
+            HARASS_WEIGHT = #{harassWeight},
+            UPDATED_AT    = SYSDATE
+        WHERE OWNED_PLAYER_SEQ = #{ownedPlayerSeq}
+    </update>
+
+    <update id="updateTraitLevel" parameterType="PlayerTraitDTO">
+        UPDATE PLAYER_TRAIT
+        SET
+            TRAIT_LEVEL = #{traitLevel},
+            UPDATED_AT  = SYSDATE
+        WHERE OWNED_PLAYER_SEQ = #{ownedPlayerSeq}
+    </update>
+
+</mapper>

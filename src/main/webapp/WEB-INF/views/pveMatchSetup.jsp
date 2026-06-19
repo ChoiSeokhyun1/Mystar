@@ -78,6 +78,13 @@
             </div>
         </div>
 
+        <c:if test="${entryCount < 9}">
+            <div class="entry-shortage-banner">
+                ⚠ PVE 엔트리에 등록된 선수가 ${entryCount}명뿐입니다 (9명 필요).
+                <a href="<c:url value='/my-team/entry' />">엔트리 등록 화면</a>에서 9명을 채운 뒤 다시 시도하세요.
+            </div>
+        </c:if>
+
         <div class="pool-panel">
             <div class="pool-header">
                 <span class="pool-title">내 선수단</span>
